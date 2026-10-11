@@ -24,11 +24,12 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted |
 | `.gitignore` | Ignores the demo login file |
+| `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
 ## Files that are new
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
-- `agora/setup-mac.sh`, `agora/start.sh`, `agora/make-env.mjs`
+- `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
 - `apps/backend/agora/meeting-room.html`
 - `apps/backend/api/controllers/MeetingController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`

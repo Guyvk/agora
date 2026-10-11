@@ -39173,6 +39173,9 @@ __metadata:
     standard: "npm:^17.1.2"
     ts-jest: "npm:^29.4.0"
     typescript: "npm:5.0.4"
+  dependenciesMeta:
+    sharp@0.32.6:
+      built: false
   languageName: unknown
   linkType: soft
 

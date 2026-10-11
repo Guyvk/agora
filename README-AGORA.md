@@ -21,7 +21,7 @@ Everything Agora changed in Hylo's own files is listed in [AGORA-CHANGES.md](AGO
 
 ## Run Agora on your Mac
 
-You need [Homebrew](https://brew.sh) and about 10 GB of free disk space. Then, in the Terminal, from this folder:
+You need Apple's command line tools (`xcode-select --install`) and about 10 GB of free disk space. Then, in the Terminal, from this folder:
 
 ```bash
 ./agora/setup-mac.sh
@@ -29,17 +29,19 @@ You need [Homebrew](https://brew.sh) and about 10 GB of free disk space. Then, i
 
 This installs the tools, creates the database, writes the settings files and adds demo data. It takes ten to twenty minutes the first time. It is safe to run again.
 
+The database comes from [Postgres.app](https://postgresapp.com), which the script puts in your Applications folder. Node is downloaded from nodejs.org and Redis is built from its own source code, both into `~/.local/share`. None of this needs an administrator password, and nothing big has to be built.
+
 Start Agora with:
 
 ```bash
 ./agora/start.sh
 ```
 
-Open http://localhost:3000 and log in as `steward@agora.test`. The password is in the file `apps/backend/.agora-demo-login`. The other made-up people (amara, lars, sofia, kenji, priya, all `@agora.test`) use the same password.
+Open http://localhost:3000 and log in as `steward@agora.test`. The first time, the page stays empty for up to a minute while the web app gets ready. The password is in the file `apps/backend/.agora-demo-login`. The other made-up people (amara, lars, sofia, kenji, priya, all `@agora.test`) use the same password.
 
 Press Ctrl-C in the Terminal to stop Agora.
 
-> The setup script was written and checked on Linux. It has not yet been run on a Mac. If a step fails, the message on screen says which one, and the step can be done by hand.
+> The setup script has been run on an Intel Mac with macOS 13. If a step fails, the message on screen says which one, and the step can be done by hand.
 
 ## Meetings
 

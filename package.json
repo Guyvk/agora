@@ -30,6 +30,11 @@
     "node": "^24"
   },
   "packageManager": "yarn@4.9.2",
+  "dependenciesMeta": {
+    "sharp@0.32.6": {
+      "built": false
+    }
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "standard": "^17.1.2",
