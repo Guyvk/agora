@@ -42,6 +42,12 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora meetings. The room page sends people to the login page itself.
+  MeetingController: {
+    room: true,
+    '*': 'sessionAuth'
+  },
+
   ExportController: {
     '*': 'sessionAuth'
   },

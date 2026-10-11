@@ -7124,3 +7124,124 @@ ALTER TABLE ONLY public.zapier_triggers
 
 \unrestrict tUF07NWBIyBoffLToE0SeitR4QkNiJF7GirKbknzPG6fJr35GuUbD46h1N7i2kX
 
+
+--
+-- Agora: meeting rooms that write their own minutes.
+-- Added by migrations/20261011220000_add_agora_meetings.js
+--
+
+CREATE TABLE public.meeting_participants (
+    id bigint NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    notes_consent boolean DEFAULT true NOT NULL,
+    joined_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.meeting_participants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_participants_id_seq OWNED BY public.meeting_participants.id;
+
+CREATE TABLE public.meeting_segments (
+    id bigint NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    spoken_at timestamp with time zone NOT NULL,
+    duration_ms integer DEFAULT 0 NOT NULL,
+    mime_type character varying(255),
+    audio bytea,
+    text text,
+    status character varying(255) DEFAULT 'pending'::character varying NOT NULL,
+    error text,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.meeting_segments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_segments_id_seq OWNED BY public.meeting_segments.id;
+
+CREATE TABLE public.meeting_sessions (
+    id bigint NOT NULL,
+    post_id bigint NOT NULL,
+    room_name character varying(255) NOT NULL,
+    status character varying(255) DEFAULT 'open'::character varying NOT NULL,
+    started_by_id bigint,
+    ended_by_id bigint,
+    minutes_post_id bigint,
+    started_at timestamp with time zone,
+    ended_at timestamp with time zone,
+    last_activity_at timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.meeting_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_sessions_id_seq OWNED BY public.meeting_sessions.id;
+
+ALTER TABLE ONLY public.meeting_participants ALTER COLUMN id SET DEFAULT nextval('public.meeting_participants_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_segments ALTER COLUMN id SET DEFAULT nextval('public.meeting_segments_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_sessions ALTER COLUMN id SET DEFAULT nextval('public.meeting_sessions_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_participants
+    ADD CONSTRAINT meeting_participants_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.meeting_participants
+    ADD CONSTRAINT meeting_participants_session_id_user_id_unique UNIQUE (session_id, user_id);
+
+ALTER TABLE ONLY public.meeting_segments
+    ADD CONSTRAINT meeting_segments_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.meeting_sessions
+    ADD CONSTRAINT meeting_sessions_pkey PRIMARY KEY (id);
+
+CREATE INDEX meeting_participants_session_id_index ON public.meeting_participants USING btree (session_id);
+
+CREATE INDEX meeting_segments_session_id_index ON public.meeting_segments USING btree (session_id);
+
+CREATE INDEX meeting_segments_session_id_spoken_at_index ON public.meeting_segments USING btree (session_id, spoken_at);
+
+CREATE INDEX meeting_sessions_post_id_index ON public.meeting_sessions USING btree (post_id);
+
+ALTER TABLE ONLY public.meeting_participants
+    ADD CONSTRAINT meeting_participants_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.meeting_participants
+    ADD CONSTRAINT meeting_participants_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+ALTER TABLE ONLY public.meeting_segments
+    ADD CONSTRAINT meeting_segments_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.meeting_segments
+    ADD CONSTRAINT meeting_segments_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+ALTER TABLE ONLY public.meeting_sessions
+    ADD CONSTRAINT meeting_sessions_ended_by_id_foreign FOREIGN KEY (ended_by_id) REFERENCES public.users(id);
+
+ALTER TABLE ONLY public.meeting_sessions
+    ADD CONSTRAINT meeting_sessions_minutes_post_id_foreign FOREIGN KEY (minutes_post_id) REFERENCES public.posts(id);
+
+ALTER TABLE ONLY public.meeting_sessions
+    ADD CONSTRAINT meeting_sessions_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id);
+
+ALTER TABLE ONLY public.meeting_sessions
+    ADD CONSTRAINT meeting_sessions_started_by_id_foreign FOREIGN KEY (started_by_id) REFERENCES public.users(id);
+

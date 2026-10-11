@@ -85,6 +85,13 @@ module.exports.routes = {
 
   'POST   /noo/upload':                                   'UploadController.create',
 
+  // Agora meetings: the room page, and the calls it makes
+  'GET    /noo/meeting/:postId/room':                     'MeetingController.room',
+  'POST   /noo/meeting/:postId/join':                     'MeetingController.join',
+  'POST   /noo/meeting/:postId/segment':                  'MeetingController.segment',
+  'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
+  'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }
