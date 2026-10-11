@@ -932,7 +932,7 @@ export default function AuthLayoutRouter (props) {
   }
 
   return (
-    <IntercomProvider appId={isTest || isSandboxMode() ? '' : config.intercom.appId} autoBoot={!isSandboxMode()} autoBootProps={intercomProps}>
+    <IntercomProvider appId={isTest || isSandboxMode() ? '' : config.intercom.appId} shouldInitialize={!!config.intercom.appId /* Agora: without an Intercom key, never contact Intercom */} autoBoot={!isSandboxMode()} autoBootProps={intercomProps}>
       <SiteBanners />
       {/* Pull-to-refresh indicator - shows during and after gesture */}
       {(isPulling || isRefreshing) && (

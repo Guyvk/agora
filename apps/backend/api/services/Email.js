@@ -3,7 +3,11 @@ import { format } from 'util'
 import { normalizeLocaleToFull } from '../../lib/localeHelpers'
 import { senderNameViaHylo } from '../../lib/email/senderNameViaHylo'
 
-const api = require('sendwithus')(process.env.SENDWITHUS_KEY)
+// Agora: Hylo sends through SendWithUs, using email texts stored in Hylo's own account.
+// Without a SendWithUs key we use Agora's own sender, which holds its own texts.
+const api = process.env.SENDWITHUS_KEY
+  ? require('sendwithus')(process.env.SENDWITHUS_KEY)
+  : require('../../lib/agora/mailer')
 
 const sendEmail = opts =>
   new Promise((resolve, reject) =>

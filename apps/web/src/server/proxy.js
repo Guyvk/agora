@@ -104,6 +104,13 @@ export function handlePage (req, res) {
 }
 
 export const handleStaticPages = server => {
+  // Agora: Hylo shows its own landing site to visitors who are not logged in.
+  // Without a PROXY_HOST there is no landing site, and those visitors go to the login page.
+  if (!process.env.PROXY_HOST) {
+    server.get('/', (req, res) => res.redirect('/login'))
+    return
+  }
+
   staticPages.forEach(page => {
     if (page === '') page = '/'
     server.get(page, handlePage)

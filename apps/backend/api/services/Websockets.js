@@ -31,11 +31,16 @@ function registerCleanup () {
     if (io && io.redis) {
       // Close Redis connection
       if (typeof io.redis.quit === 'function') {
-        io.redis.quit().catch(err => {
-          if (sails && sails.log) {
-            sails.log.error('Error closing socket.io-emitter Redis connection:', err)
-          }
-        })
+        // Agora: quit() returns a promise in some Redis clients and a plain value in others.
+        // Without this check, scripts that use sockets ended with an error after doing their work.
+        const closing = io.redis.quit()
+        if (closing && typeof closing.catch === 'function') {
+          closing.catch(err => {
+            if (sails && sails.log) {
+              sails.log.error('Error closing socket.io-emitter Redis connection:', err)
+            }
+          })
+        }
       } else if (typeof io.redis.disconnect === 'function') {
         io.redis.disconnect()
       }
