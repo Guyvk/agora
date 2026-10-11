@@ -45,5 +45,8 @@ describe('GlobalNav', () => {
     await waitFor(() => {
       expect(container.querySelector('.globalNavContainer')).toBeInTheDocument()
     })
+    // Agora: The Commons is switched off, see src/agora/config.js
+    expect(container.querySelector('[data-tour="messages"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-tour="the-commons"]')).not.toBeInTheDocument()
   })
 })

@@ -65,6 +65,7 @@ import { pinGroup, unpinGroup, updateGroupNavOrder } from 'store/actions/pinGrou
 import markGroupAsRead from 'store/actions/markGroupAsRead'
 import logout from 'store/actions/logout'
 import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHomeLandingUrl } from '@hylo/navigation'
+import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
 import {
   LOCALE_DE,
@@ -1090,7 +1091,8 @@ export default function GlobalNav (props) {
           <MessagesSquare />
         </GlobalNavItem>
 
-        {!isSandboxMode() && (
+        {/* Agora: The Commons is switched off, see src/agora/config.js */}
+        {!isSandboxMode() && showCommons && (
           <GlobalNavItem
             darkTile
             tooltip={t('The Commons')}

@@ -103,6 +103,7 @@ Emails that Agora has no text for yet, such as event invitations and digests, ar
 - **Tracking.** `DISABLE_SEGMENT=1` stops the server from sending usage events to Segment. The Mixpanel and Intercom keys are empty. The cookie banner still mentions them and needs to be changed.
 - **Payments.** Not used. The server insists on a `STRIPE_SECRET_KEY`, so the settings file holds a placeholder.
 - **Uploads.** Pictures and attachments need a storage bucket and a Filestack key, which are not set up yet. Files live in Google Drive. The plan is to store uploads with Infomaniak's Swiss Backup later, with an upload button of our own.
+- **The Commons.** Hylo's public area, with public posts, a public group directory and a public map. Agora has nothing public yet, so its button and tab are hidden and its pages go to My Home. One switch in `apps/web/src/agora/config.js` brings it back.
 - **Phone apps and push notifications.** Agora is a website.
 
 ## Going online

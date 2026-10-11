@@ -20,6 +20,7 @@ import CreateMenu from 'components/CreateMenu'
 import { getMyGroupsWithChildren, isSpaceGroup } from 'store/selectors/getMyGroups'
 import useRouteParams from 'hooks/useRouteParams'
 import { baseUrl, myHomeLandingUrl, isMyHomeContext } from '@hylo/navigation'
+import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import { DEFAULT_AVATAR } from 'store/models/Group'
 import { SettingsMenu } from '../GlobalNav/GlobalNav'
 import { pinGroup } from 'store/actions/pinGroup'
@@ -205,7 +206,8 @@ export default function TopNav ({ currentUser }) {
   const fixedTabs = useMemo(() => [
     { key: 'home', label: t('My Home'), url: myHomeLandingUrl(), img: get('avatarUrl', currentUser) },
     { key: 'messages', label: t('Messages'), url: '/messages', badgeCount: currentUser?.unseenThreadCount || 0 },
-    { key: 'commons', label: t('The Commons'), url: '/public' }
+    // Agora: The Commons is switched off, see src/agora/config.js
+    ...(showCommons ? [{ key: 'commons', label: t('The Commons'), url: '/public' }] : [])
   ], [currentUser, t])
 
   // Every group the user is a member of gets its own tab — including subgroups.

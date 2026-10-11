@@ -51,8 +51,10 @@ import { isSpaceGroup } from 'store/selectors/getMyGroups'
 import orm from 'store/models'
 import getQuerystringParam from 'store/selectors/getQuerystringParam'
 import {
-  POST_DETAIL_MATCH, GROUP_DETAIL_MATCH, localSpaceSlug, nestedPostRedirectPath, pathnameOpensPost, postUrl, spaceUrl
+  POST_DETAIL_MATCH, GROUP_DETAIL_MATCH, localSpaceSlug, nestedPostRedirectPath, pathnameOpensPost, postUrl, spaceUrl,
+  myHomeLandingUrl // Agora: where Commons links go while The Commons is off
 } from '@hylo/navigation'
+import { showCommons, isCommonsPath } from '@/agora/config' // Agora: The Commons can be switched off
 import { CENTER_COLUMN_ID, DETAIL_COLUMN_ID } from 'util/scrolling'
 import {
   isCardMenuPreference,
@@ -880,6 +882,12 @@ export default function AuthLayoutRouter (props) {
   const legacyPostPath = nestedPostRedirectPath(location.pathname)
   if (legacyPostPath) {
     return <Navigate to={{ pathname: legacyPostPath, search: location.search, hash: location.hash }} replace />
+  }
+
+  // Agora: The Commons is switched off, see src/agora/config.js. Its pages go
+  // to My Home; a link to a single post still opens that post.
+  if (!showCommons && isCommonsPath(location.pathname) && !location.pathname.includes('/post/')) {
+    return <Navigate to={myHomeLandingUrl()} replace />
   }
 
   // Spaces (`type = space`) opened as `/groups/:spaceSlug` nest under their parent.
