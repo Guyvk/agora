@@ -11,8 +11,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
 | `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link |
 | `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
-| `apps/backend/config/routes.js` | Added the addresses of the meeting room |
-| `apps/backend/config/policies.js` | Added who may use the meeting room |
+| `apps/backend/config/routes.js` | Added the addresses of the meeting room and of the circle Files pages |
+| `apps/backend/config/policies.js` | Added who may use the meeting room and the circle Files pages |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables |
@@ -32,11 +32,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
 - `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
-- `apps/backend/agora/meeting-room.html`
-- `apps/backend/api/controllers/MeetingController.js`
+- `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
+- `apps/backend/api/controllers/MeetingController.js`, `apps/backend/api/controllers/AgoraFilesController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
 - `apps/backend/api/services/Transcription.js`, `MeetingMinutes.js`
-- `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`
+- `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
-- `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`
+- `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`

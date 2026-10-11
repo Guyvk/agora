@@ -48,6 +48,12 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora files: for anyone logged in. The page sends people to the login page itself.
+  AgoraFilesController: {
+    page: true,
+    '*': 'sessionAuth'
+  },
+
   ExportController: {
     '*': 'sessionAuth'
   },

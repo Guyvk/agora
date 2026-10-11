@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agora files</title>
+<!--
+  Agora: a circle's Files page.
+
+  Shows what is in the circle's Google Drive folder: names, who changed a file
+  last and when. Clicking a file opens it in Google Drive, where Drive decides
+  whether you may read or edit it. Clicking a folder opens it here.
+
+  Plain HTML, CSS and JavaScript on purpose, like the meeting room, so it can
+  be read and changed without building the rest of the web app.
+
+  The server fills in the BOOT value below with the circle's details.
+-->
+<style>
+  :root {
+    --bg: #f5f3f6;
+    --surface: #ffffff;
+    --ink: #1d1a22;
+    --muted: #6b6573;
+    --line: #dfdbe4;
+    --accent: #c2255c;
+    --warn: #b35c00;
+    --radius: 10px;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121016;
+      --surface: #1c1922;
+      --ink: #efecf3;
+      --muted: #a39cae;
+      --line: #322d3b;
+      --accent: #f06595;
+      --warn: #ffa94d;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  [hidden] { display: none !important; }
+  a { color: var(--accent); }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 22px; }
+  .back { font-size: 14px; }
+  nav.trail { display: flex; flex-wrap: wrap; gap: 4px; font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  nav.trail button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  nav.trail span.sep { color: var(--muted); }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+  .row:first-child { border-top: 0; }
+  .row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .kind { width: 44px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; font-weight: 600; color: #fff; }
+  .name { overflow-wrap: anywhere; }
+  .when { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .when small { display: block; }
+  .message { padding: 20px; }
+  .message p { margin: 0 0 8px; }
+  .message p:last-child { margin-bottom: 0; }
+  .message.warn { color: var(--warn); }
+  .open-drive { font-size: 14px; }
+  footer { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  @media (max-width: 520px) {
+    .row { grid-template-columns: 44px 1fr; }
+    .when { grid-column: 2; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Files</h1>
+    <a class="back" id="back" href="#">Back to the circle</a>
+  </header>
+  <nav class="trail" id="trail" hidden></nav>
+  <div class="panel" id="panel">
+    <div class="message" id="message">Loading the files…</div>
+    <div id="list" hidden></div>
+  </div>
+  <footer id="footer" hidden>
+    Files open in Google Drive. If Drive says you have no access, ask the circle for it.
+    <a class="open-drive" id="open-drive" href="#" target="_blank" rel="noopener noreferrer">Open this folder in Google Drive</a>
+  </footer>
+</main>
+<script>
+  const BOOT = "__AGORA_BOOT__";
+
+  const KINDS = {
+    folder: ['Folder', '#7a6f86'],
+    document: ['Doc', '#2f6fde'],
+    spreadsheet: ['Sheet', '#1e8e3e'],
+    presentation: ['Slides', '#e8a400'],
+    form: ['Form', '#7248b9'],
+    pdf: ['PDF', '#d93025'],
+    image: ['Img', '#0b8a8a'],
+    video: ['Video', '#a33ea1'],
+    audio: ['Audio', '#a33ea1'],
+    file: ['File', '#6b6573']
+  };
+
+  const $ = id => document.getElementById(id);
+  // The trail of folders opened so far, starting with the circle's own folder.
+  let trail = [];
+
+  function el (tag, attrs, text) {
+    const node = document.createElement(tag);
+    Object.assign(node, attrs || {});
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function ago (iso) {
+    if (!iso) return '';
+    const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+    if (seconds < 3600) return rtf.format(-Math.max(1, Math.round(seconds / 60)), 'minute');
+    if (seconds < 86400) return rtf.format(-Math.round(seconds / 3600), 'hour');
+    if (seconds < 86400 * 30) return rtf.format(-Math.round(seconds / 86400), 'day');
+    return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function showMessage (lines, warn) {
+    $('list').hidden = true;
+    $('footer').hidden = true;
+    const box = $('message');
+    box.hidden = false;
+    box.className = 'message' + (warn ? ' warn' : '');
+    box.replaceChildren(...lines.map(line => el('p', {}, line)));
+  }
+
+  function showTrail () {
+    const nav = $('trail');
+    nav.hidden = trail.length < 2;
+    nav.replaceChildren();
+    trail.forEach((folder, i) => {
+      if (i > 0) nav.append(el('span', { className: 'sep' }, '/'));
+      if (i === trail.length - 1) {
+        nav.append(el('span', {}, folder.name));
+      } else {
+        const button = el('button', { type: 'button' }, folder.name);
+        button.addEventListener('click', () => { trail = trail.slice(0, i + 1); load(folder.isCircleFolder ? null : folder.id); });
+        nav.append(button);
+      }
+    });
+  }
+
+  function showItems (folder, items) {
+    $('message').hidden = true;
+    const list = $('list');
+    list.hidden = false;
+    list.replaceChildren();
+    if (!items.length) {
+      list.append(el('div', { className: 'message' }, 'This folder is empty.'));
+    }
+    for (const item of items) {
+      const isFolder = item.kind === 'folder';
+      const row = el(isFolder ? 'button' : 'a', { className: 'row' });
+      if (isFolder) {
+        row.type = 'button';
+        row.addEventListener('click', () => { trail.push({ id: item.id, name: item.name }); load(item.id); });
+      } else {
+        row.href = item.link || '#';
+        row.target = '_blank';
+        row.rel = 'noopener noreferrer';
+      }
+      const [label, color] = KINDS[item.kind] || KINDS.file;
+      const badge = el('span', { className: 'kind' }, label);
+      badge.style.background = color;
+      const when = el('span', { className: 'when' });
+      if (item.changedAt) {
+        when.append(el('span', {}, ago(item.changedAt)));
+        if (item.changedBy) when.append(el('small', {}, item.changedBy));
+      }
+      row.append(badge, el('span', { className: 'name' }, item.name), when);
+      list.append(row);
+    }
+    const open = $('open-drive');
+    open.hidden = !folder.link;
+    if (folder.link) open.href = folder.link;
+    $('footer').hidden = false;
+  }
+
+  async function load (folderId) {
+    showMessage(['Loading the files…']);
+    const url = BOOT.api + (folderId ? '?folder=' + encodeURIComponent(folderId) : '');
+    let body;
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      body = await res.json().catch(() => ({}));
+      if (!res.ok) return showMessage([body.error || 'The files could not be loaded. Try again in a minute.'], true);
+    } catch (e) {
+      return showMessage(['The files could not be loaded. Check your connection and try again.'], true);
+    }
+    if (!body.configured) {
+      return showMessage(['Google Drive is not connected to Agora yet.', 'Once it is, the files of this circle show up here.']);
+    }
+    if (!body.folder) {
+      return showMessage([
+        'There is no folder called "' + BOOT.circleName + '" in the main 7BP folder in Google Drive yet.',
+        'To add one, create a folder with exactly that name inside the main folder. It shows up here within a minute.'
+      ]);
+    }
+    if (trail.length === 0) trail = [body.folder];
+    else trail[trail.length - 1] = { ...trail[trail.length - 1], ...body.folder };
+    showTrail();
+    showItems(body.folder, body.items || []);
+  }
+
+  document.title = 'Files of ' + BOOT.circleName + ' · Agora';
+  $('title').textContent = 'Files of ' + BOOT.circleName;
+  $('back').href = BOOT.circleUrl;
+  load(null);
+</script>
+</body>
+</html>

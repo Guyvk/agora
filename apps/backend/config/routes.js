@@ -92,6 +92,10 @@ module.exports.routes = {
   'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
   'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
 
+  // Agora files: a circle's Google Drive folder, read only
+  'GET    /noo/agora/files/:groupSlug':                   'AgoraFilesController.page',
+  'GET    /noo/agora/files/:groupSlug/list':              'AgoraFilesController.list',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }

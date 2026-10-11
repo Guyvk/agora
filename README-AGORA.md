@@ -14,6 +14,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations and join requests | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
+| Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -73,6 +74,22 @@ Things to know:
 - **kMeet.** Showing kMeet inside another page works today, but Infomaniak does not document it as a supported use. If it stops working, set another Jitsi server.
 - **Consent.** People choose on entering whether their voice is in the notes, and can pause at any time. Agree as a group that meetings are transcribed before using this for real.
 
+## Google Drive
+
+Each circle has a Files page at `/noo/agora/files/<circle>`, where `<circle>` is the last part of the circle's address in Agora (for example `7bp-governance` in `/groups/7bp-governance`). It lists the circle's Drive folder: names, who changed a file last and when. Clicking a file opens it in Google Drive, so Drive keeps deciding who may read or edit it. Anyone logged in to Agora can see every circle's Files page. They see the names of all files, including files they cannot open.
+
+How Agora finds the folder: there is one main 7BP folder in Drive, and inside it a folder for each circle, named exactly like the circle in Agora. Capitals and extra spaces do not matter. Renaming a circle or its folder breaks the match until the other is renamed too. Agora never shows anything outside the main folder.
+
+Agora reads Drive through a robot Google account, which Google calls a service account. It only ever reads. Setting it up, once:
+
+1. **The folders.** In Google Drive, make the main folder and a folder per circle inside it.
+2. **The robot account.** Go to [console.cloud.google.com](https://console.cloud.google.com), signed in with the 7BP Google account. Make a project called Agora. Under *APIs and services*, switch on the *Google Drive API*. Under *IAM and admin*, then *Service accounts*, create an account called `agora-drive-reader`, with no roles. Open it, choose *Keys*, *Add key*, *JSON*. Your browser downloads a key file. Keep it secret: anyone with it can read the main folder.
+3. **Share.** Share the main folder with the robot account's email address (it ends in `iam.gserviceaccount.com`) as a *Viewer*. In a shared drive, add it as a member with the *Viewer* role.
+4. **Tell Agora.** In `apps/backend/.env`, set `AGORA_DRIVE_FOLDER_ID` to the main folder's Drive link, and `AGORA_GOOGLE_SERVICE_ACCOUNT_KEY` to the key file in base64. In the Terminal, `base64 -i ~/Downloads/<the key file>.json | pbcopy` copies it, ready to paste. Then put the key file in the password manager and delete it from Downloads.
+5. **Link it.** Restart Agora. In each circle's settings, a steward adds a link to its Files page to the circle's menu.
+
+If you use Google Workspace, two settings of the organisation can get in the way: sharing with people outside the organisation, and, for organisations made after May 2024, making keys for robot accounts. Google switches the second off by default. A Workspace admin can allow both for this one project or folder.
+
 ## Email
 
 On your own computer no email is sent. Every email is printed in the Terminal instead, so you can copy sign-up codes and links from there.
@@ -85,7 +102,7 @@ Emails that Agora has no text for yet, such as event invitations and digests, ar
 
 - **Tracking.** `DISABLE_SEGMENT=1` stops the server from sending usage events to Segment. The Mixpanel and Intercom keys are empty. The cookie banner still mentions them and needs to be changed.
 - **Payments.** Not used. The server insists on a `STRIPE_SECRET_KEY`, so the settings file holds a placeholder.
-- **Uploads.** Pictures and attachments need a storage bucket and a Filestack key, which are not set up yet. Files live in Google Drive.
+- **Uploads.** Pictures and attachments need a storage bucket and a Filestack key, which are not set up yet. Files live in Google Drive. The plan is to store uploads with Infomaniak's Swiss Backup later, with an upload button of our own.
 - **Phone apps and push notifications.** Agora is a website.
 
 ## Going online
