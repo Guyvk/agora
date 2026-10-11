@@ -571,7 +571,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
     >
       <Helmet>
         <title>
-          {`${post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 20 })} | Hylo`}
+          {`${post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 20 })} | Agora`}
         </title>
         <meta name='description' content={shareDescription} />
         {post.isPublic && <meta property='og:type' content='article' />}

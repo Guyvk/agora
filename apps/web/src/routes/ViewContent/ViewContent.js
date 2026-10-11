@@ -718,7 +718,7 @@ export default function ViewContent (props) {
     return (
       <div id='stream-outer-container' className='flex flex-col h-full overflow-auto'>
         <Helmet>
-          <title>{`${t('Drafts')} | Hylo`}</title>
+          <title>{`${t('Drafts')} | Agora`}</title>
           <meta name='description' content={t('Drafts')} />
         </Helmet>
         <div className='flex flex-col flex-1 w-full mx-auto p-1 sm:p-4 max-w-[750px]'>
@@ -732,7 +732,7 @@ export default function ViewContent (props) {
     <div id='stream-outer-container' className='flex flex-col h-full overflow-auto' ref={setContainer}>
       {streamTourInvitation}
       <Helmet>
-        <title>{name} | {group ? `${group.name} | ` : context} | Hylo</title>
+        <title>{name} | {group ? `${group.name} | ` : context} | Agora</title>
         <meta name='description' content={group ? `Posts from ${group.name}. ${group.description}` : 'Group Not Found'} />
       </Helmet>
 

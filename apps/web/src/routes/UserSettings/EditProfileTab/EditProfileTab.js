@@ -220,7 +220,7 @@ function EditProfileTab ({
   return (
     <div className='max-w-3xl mx-auto px-4 py-6'>
       <Helmet>
-        <title>{t('Edit Your Profile')} | Hylo</title>
+        <title>{t('Edit Your Profile')} | Agora</title>
       </Helmet>
 
       <div className='space-y-6'>

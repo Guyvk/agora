@@ -28,7 +28,7 @@ export default function GroupExplorer ({
   return (
     <div className='w-full max-w-screen-md mx-auto pt-8 pb-8 flex-1'>
       <Helmet>
-        <title>{t('Group Explorer')} | Hylo</title>
+        <title>{t('Group Explorer')} | Agora</title>
         <meta name='description' content='Find the others on Hylo' />
       </Helmet>
       <FeaturedGroups groupIds={FEATURED_GROUP_IDS} />

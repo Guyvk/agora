@@ -85,3 +85,6 @@ Thumbs.db
 .ai-docs/
 .opencode/
 .cache/
+
+# Agora: the made-up login for the local demo
+apps/backend/.agora-demo-login

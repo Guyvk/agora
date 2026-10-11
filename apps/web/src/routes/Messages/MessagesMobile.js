@@ -203,7 +203,7 @@ const MessagesMobile = ({
       }}
     >
       <Helmet>
-        <title>Messages | Hylo</title>
+        <title>Messages | Agora</title>
       </Helmet>
       {messageThreadId && (
         <>

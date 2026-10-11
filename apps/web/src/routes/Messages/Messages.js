@@ -390,7 +390,7 @@ const Messages = () => {
   return (
     <div className={cn('flex flex-col h-full flex-1 min-w-0 w-full', { [classes.messagesOpen]: messageThreadId })}>
       <Helmet>
-        <title>Messages | Hylo</title>
+        <title>Messages | Agora</title>
       </Helmet>
       {messageThreadId && (
         <div className='flex flex-col h-full w-full min-w-0 px-3'>

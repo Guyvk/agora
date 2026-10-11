@@ -7,7 +7,7 @@ export default function PublicPageHeader () {
   return (
     <div className='bg-white/10 shadow-md'>
       <Helmet>
-        <title>{t('Public')} | Hylo</title>
+        <title>{t('Public')} | Agora</title>
         <meta name='description' content='Hylo: Public content' />
       </Helmet>
       <div className='w-full mx-auto px-4'>
