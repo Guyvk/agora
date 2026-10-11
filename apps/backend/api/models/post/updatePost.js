@@ -8,6 +8,7 @@ import {
   updateFollowers
 } from './util'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
+import { keepMeetingLink } from '../../../lib/agora/meetingLink' // Agora: events keep their meeting room
 
 export default function updatePost (userId, id, params) {
   if (!id) throw new GraphQLError('updatePost called with no ID')
@@ -42,7 +43,8 @@ export default function updatePost (userId, id, params) {
         // important: record relevant event changes before post is saved
         const eventChanges = post.isEvent() && getEventChanges({ post, params: paramsForUpdate })
 
-        return post.save(attrs, { patch: true, transacting })
+        // Agora: an event whose video call link is cleared gets its meeting room back
+        return post.save(keepMeetingLink(post, attrs), { patch: true, transacting })
           .tap(updatedPost => afterUpdatingPost(updatedPost, { params: paramsForUpdate, userId, eventChanges, transacting }))
       })))
     .then(post => {

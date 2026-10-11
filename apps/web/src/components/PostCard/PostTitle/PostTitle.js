@@ -61,7 +61,8 @@ export default function PostTitle ({
               : <span className='min-w-0 break-words'>{generalLocation}</span>}
           </div>
         )}
-        {meetingLink && (
+        {/* Agora: the meeting room already has its own line below */}
+        {meetingLink && !/\/noo\/meeting\/\d+\/room\/?$/.test(trimmedMeetingLink) && (
           <div className={cn('text-xs text-foreground/50 flex min-w-0 items-start gap-1', { [classes.constrained]: constrained, 'mb-2': type !== 'event' })}>
             <Video className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-Video' />
             <a

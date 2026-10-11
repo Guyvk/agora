@@ -5,6 +5,7 @@ import updateChildren from './updateChildren'
 import { assertGroupsAcceptPostType } from './validatePostData'
 import { groupRoom, pushToSockets } from '../../services/Websockets'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
+import { fillMeetingLink } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
 import {
   POST_TYPE_TO_TYPED_VIEW,
   postCountsTowardChatUnread
@@ -17,6 +18,8 @@ export default async function createPost (userId, params) {
   return setupPostAttrs(userId, merge(Post.newPostAttrs(), params), true)
     .then(attrs => bookshelf.transaction(transacting =>
       Post.create(attrs, { transacting })
+        // Agora: an event without a video call link gets its meeting room
+        .tap(post => fillMeetingLink(post, { transacting }))
         .tap(post => afterCreatingPost(post, merge(
           pick(params, 'localId', 'group_ids', 'imageUrl', 'videoUrl', 'docs', 'topicNames', 'memberIds', 'eventInviteeIds', 'fileUrls', 'fundingRoundId', 'announcement', 'location', 'location_id', 'proposalOptions', 'trackId', 'viewId', 'markAsReadTopicName', 'skip_link_preview', 'silent'),
           { imageUrls: hostedImageUrls, children: params.requests, transacting }

@@ -9,6 +9,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | File | What changed |
 | --- | --- |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
+| `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link |
+| `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
 | `apps/backend/config/routes.js` | Added the addresses of the meeting room |
 | `apps/backend/config/policies.js` | Added who may use the meeting room |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
@@ -19,7 +21,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/.env.example` | `PROXY_HOST` is empty by default |
 | `apps/web/index.html` | Browser title says Agora |
 | `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo |
-| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room |
+| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted |
@@ -34,7 +36,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/api/controllers/MeetingController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
 - `apps/backend/api/services/Transcription.js`, `MeetingMinutes.js`
-- `apps/backend/lib/agora/mailer.js`
+- `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
-- `apps/backend/test/unit/agora/agora.test.js`
+- `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`

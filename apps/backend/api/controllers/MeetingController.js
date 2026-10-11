@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { isMeetingRoomUrl } from '../../lib/agora/meetingLink'
 
 /**
  * Agora meetings.
@@ -132,7 +133,8 @@ module.exports = {
       title: post.get('name') || 'Meeting',
       groupName: group ? group.get('name') : '',
       eventUrl: Frontend.Route.post(post, group),
-      meetingLink: post.get('meeting_link') || '',
+      // The event's own video call link, unless that link is this room itself
+      meetingLink: isMeetingRoomUrl(post.get('meeting_link')) ? '' : (post.get('meeting_link') || ''),
       api: `/noo/meeting/${post.id}`,
       meetDomain: domain,
       me: { id: String(user.id), name: user.get('name') },
