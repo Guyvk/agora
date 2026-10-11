@@ -38,7 +38,11 @@ Start Agora with:
 ./agora/start.sh
 ```
 
-Open http://localhost:3000 and log in as `steward@agora.test`. The first time, the page stays empty for up to a minute while the web app gets ready. The password is in the file `apps/backend/.agora-demo-login`. The other made-up people (amara, lars, sofia, kenji, priya, all `@agora.test`) use the same password.
+After about half a minute, open http://localhost:3000 and log in as `steward@agora.test`. The password is in the file `apps/backend/.agora-demo-login`. The other made-up people (amara, lars, sofia, kenji, priya, all `@agora.test`) use the same password.
+
+This uses a ready-built copy of the web app, so pages open in about a second. The copy is built the first time, and again after the web app's code or settings change. That takes about four minutes on a 2017 MacBook.
+
+To change Agora's code, start it with `./agora/start.sh dev` instead. Then changes show up as you save, but every start is slow and the first page can take a minute to appear.
 
 Press Ctrl-C in the Terminal to stop Agora.
 
