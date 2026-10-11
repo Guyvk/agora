@@ -20,6 +20,9 @@ echo "When you see \"You can now view web in the browser\", open http://localhos
 echo "The first time, the page stays empty for up to a minute while the web app gets ready."
 echo
 
-yarn workspace backend dev &
+# The server restarts itself when its code changes. Its file watcher keeps every
+# file open unless told to check now and then instead, and on a Mac that runs
+# out of open files and stops the background worker, which writes the minutes.
+CHOKIDAR_USEPOLLING=1 yarn workspace backend dev &
 yarn workspace web dev &
 wait
