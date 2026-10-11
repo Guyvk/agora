@@ -141,9 +141,9 @@
   <!-- 1. Before joining -->
   <div class="card-wrap" id="lobby">
     <div class="card">
-      <h2>This meeting writes its own minutes</h2>
-      <p>While you are unmuted, Agora turns what you say into text. When the meeting ends, the assistant writes the minutes and posts them in the group.</p>
-      <ul>
+      <h2 id="lobbyTitle">This meeting writes its own minutes</h2>
+      <p id="lobbyIntro">While you are unmuted, Agora turns what you say into text. When the meeting ends, the assistant writes the minutes and posts them in the group.</p>
+      <ul id="lobbyPromises">
         <li>Only your own microphone is used, and only while you are unmuted.</li>
         <li>The sound is deleted as soon as it has become text. Only the text is kept.</li>
         <li>You can pause your notes at any moment, for something off the record.</li>
@@ -170,7 +170,7 @@
         <div class="meter" id="meter" hidden><span id="meterBar"></span></div>
         <p id="people"></p>
         <div class="confirm" id="endConfirm" hidden>
-          <span>End the meeting for everyone and write the minutes?</span>
+          <span id="endQuestion">End the meeting for everyone and write the minutes?</span>
           <button class="primary" id="endYes">End meeting</button>
           <button class="quiet" id="endNo">Keep going</button>
         </div>
@@ -262,9 +262,16 @@ function flushOutbox() {
             headers: { 'Content-Type': piece.blob.type || 'audio/webm', 'X-Agora': '1' },
             body: piece.blob
           });
-          if (response.ok || (response.status >= 400 && response.status < 500)) {
+          if (response.ok || (response.status >= 400 && response.status < 500) || response.status === 503) {
             outbox.shift();               // sent, or refused for good: either way, let go of it
             if (response.status === 409) meetingEnded();
+            if (response.status === 503) {
+              // Speech to text is not connected: stop listening, keep nothing.
+              outbox.length = 0;
+              if (recorder) recorder.stop();
+              $('roomError').textContent = 'Speech to text is not connected, so your words are not recorded and no minutes will be written.';
+              $('roomError').hidden = false;
+            }
           } else {
             throw new Error('server');
           }
@@ -529,6 +536,12 @@ function meetingEnded(data) {
     clearInterval(pollTimer);
     pollTimer = setInterval(poll, POLL_EVERY);
   }
+  if (!BOOT.transcriptionReady && !(data && data.minutesUrl)) {
+    // Nothing can be turned into text, so there is nothing to wait for.
+    clearInterval(pollTimer);
+    $('endedText').textContent = 'No minutes are written for this meeting, because speech to text is not connected on this copy of Agora.';
+    return;
+  }
   if (data && data.status === 'closed') {
     clearInterval(pollTimer);
     if (data.minutesUrl) {
@@ -592,7 +605,15 @@ $('backLink').href = BOOT.eventUrl;
 $('endedBack').href = BOOT.eventUrl;
 
 if (!BOOT.transcriptionReady) {
-  $('notReady').textContent = 'Speech to text is not connected yet on this copy of Agora, so no notes will be written. You can still hold the meeting here.';
+  // Without speech to text nothing is recorded at all: the room is just the call.
+  $('lobbyTitle').textContent = 'Notes are off for this meeting';
+  $('lobbyIntro').hidden = true;
+  $('lobbyPromises').hidden = true;
+  $('joinWithoutNotes').hidden = true;
+  $('notesHint').textContent = 'Notes are off: speech to text is not connected.';
+  $('linesEmpty').textContent = 'No notes are written in this meeting.';
+  $('endQuestion').textContent = 'End the meeting for everyone?';
+  $('notReady').textContent = 'Speech to text is not connected yet on this copy of Agora. Nothing you say is recorded and no minutes are written. You can still hold the meeting here.';
   $('notReady').hidden = false;
 } else if (!BOOT.assistantReady) {
   $('notReady').textContent = 'The assistant is not connected yet. You will get the full transcript, but no summary.';
@@ -603,7 +624,7 @@ if (!window.MediaRecorder || !navigator.mediaDevices) {
   $('notReady').hidden = false;
 }
 
-$('joinWithNotes').addEventListener('click', () => join(true));
+$('joinWithNotes').addEventListener('click', () => join(BOOT.transcriptionReady));
 $('joinWithoutNotes').addEventListener('click', () => join(false));
 $('pauseBtn').addEventListener('click', () => { state.paused = !state.paused; sync(); });
 $('endBtn').addEventListener('click', () => { $('endConfirm').hidden = false; $('endYes').focus(); });
@@ -626,7 +647,7 @@ $('endYes').addEventListener('click', async () => {
 /* If a meeting on this event has already ended, show how it went instead of the lobby. */
 const startFresh = new URLSearchParams(location.search).has('new');
 if (!startFresh) fetchNotes().then(data => {
-  if (data.status === 'closing' || (data.status === 'closed' && data.minutesUrl)) {
+  if (data.status === 'closing' || data.status === 'closed') {
     state.sessionId = data.sessionId;
     $('endedTitle').textContent = 'The last meeting here has ended';
     meetingEnded(data);

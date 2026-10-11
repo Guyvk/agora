@@ -193,6 +193,11 @@ module.exports = {
       return res.status(403).send({ error: 'Your voice is not part of the notes for this meeting.' })
     }
 
+    // Without speech to text there is nothing to do with sound, so none is accepted or kept.
+    if (!Transcription.isConfigured()) {
+      return res.status(503).send({ error: 'Speech to text is not connected, so nothing is recorded.' })
+    }
+
     const spokenAt = new Date(Number(req.query.spokenAt))
     const durationMs = Math.round(Number(req.query.durationMs))
     const earliest = new Date(session.get('started_at')).getTime() - 60000
@@ -220,22 +225,20 @@ module.exports = {
     const mimeType = String(req.headers['content-type'] || 'audio/webm').slice(0, 100)
     if (!mimeType.startsWith('audio/')) return res.status(415).send({ error: 'Only sound is accepted here.' })
 
-    const ready = Transcription.isConfigured()
     const segment = await new MeetingSegment({
       session_id: session.id,
       user_id: userId,
       spoken_at: spokenAt,
       duration_ms: durationMs,
       mime_type: mimeType,
-      audio: ready ? audio : null,
-      status: ready ? MeetingSegment.Status.PENDING : MeetingSegment.Status.FAILED,
-      error: ready ? null : 'Transcription is not set up.'
+      audio,
+      status: MeetingSegment.Status.PENDING
     }).save()
 
     await MeetingSession.touch(session.id)
-    if (ready) await Queue.classMethod('MeetingSegment', 'transcribe', { segmentId: segment.id }, 0)
+    await Queue.classMethod('MeetingSegment', 'transcribe', { segmentId: segment.id }, 0)
 
-    res.ok({ id: String(segment.id), transcribing: ready })
+    res.ok({ id: String(segment.id), transcribing: true })
   },
 
   /**
