@@ -7,6 +7,9 @@ process.env.PLAY_APP_SECRET = process.env.PLAY_APP_SECRET || 'quxgrault12345678'
 process.env.PUSH_NOTIFICATIONS_ENABLED = process.env.PUSH_NOTIFICATIONS_ENABLED || 'true'
 process.env.PUSH_NOTIFICATIONS_TESTING_ENABLED = process.env.PUSH_NOTIFICATIONS_TESTING_ENABLED || 'true'
 process.env.HYLO_TESTER_IDS = process.env.HYLO_TESTER_IDS || '1'
+// Agora: tests put jobs on the queue. Keep them apart from the queue of an Agora
+// running on the same computer, whose worker would otherwise run them on its own data.
+process.env.KUE_NAMESPACE = process.env.KUE_NAMESPACE || 'q-test'
 
 // just set up the test globals, not the test database
 
