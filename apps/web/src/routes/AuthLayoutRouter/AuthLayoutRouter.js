@@ -82,6 +82,7 @@ import MapExplorer from 'routes/MapExplorer'
 import MemberProfile from 'routes/MemberProfile'
 import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
+import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import ThreadList from 'routes/Messages/ThreadList'
 import MySpaceCollection from 'routes/MySpaceCollection'
 import MyTransactions from 'routes/MyTransactions'
@@ -1196,6 +1197,9 @@ export default function AuthLayoutRouter (props) {
                 <Route path='welcome/*' element={<WelcomeWizardRouter />} />
                 <Route path='messages/:messageThreadId/*' element={<MessagesLayout />} />
                 <Route path='messages' element={<MessagesLayout />} />
+                {/* Agora: the shared Contacts page */}
+                <Route path='contacts/:contactId' element={<ContactsPage />} />
+                <Route path='contacts' element={<ContactsPage />} />
                 <Route path='post/:postId/*' element={<PostDetail />} />
                 {/* Keep old settings paths for mobile */}
                 <Route path='settings/*' element={<UserSettings />} />

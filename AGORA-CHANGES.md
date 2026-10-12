@@ -19,7 +19,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/.env.example` | Added Agora's settings |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/web/.env.example` | `PROXY_HOST` is empty by default |
-| `apps/web/index.html` | Browser title says Agora |
+| `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
 | `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", and the message when a group cannot be deleted |
 | `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts" and the message when a group cannot be deleted, in each language |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
@@ -28,10 +28,9 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/GroupSettings/GroupSettings.js` | Hands the result of deleting a group back to the Delete tab |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.js` | Says when a group could not be deleted, instead of doing nothing |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.test.js` | Checks that message |
-| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted. While The Commons is off, its pages go to My Home |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted. While The Commons is off, its pages go to My Home. The Contacts page at `/contacts` |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` | No Commons button while The Commons is off. A Contacts button, with the number of my follow-ups that are due |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.test.js` | Checks that the Commons button is gone and the Contacts button is there |
-| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNavItem.jsx` | A button that points to a page the server makes itself (under `/noo/`) loads it as a whole page |
 | `apps/web/src/routes/AuthLayoutRouter/components/TopNav/TopNav.jsx` | No Commons tab while The Commons is off |
 | `apps/backend/test/setup/core.js` | Tests keep their background jobs in their own queue (`q-test`), so the worker of an Agora running on the same computer never runs them |
 | `.gitignore` | Ignores the demo login file, the build plan and the local notes for Claude |
@@ -41,7 +40,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
 - `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
-- `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`, `apps/backend/agora/contacts.html`
+- `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
 - `apps/backend/api/controllers/MeetingController.js`, `apps/backend/api/controllers/AgoraFilesController.js`, `apps/backend/api/controllers/AgoraContactsController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
 - `apps/backend/api/services/Transcription.js`, `MeetingMinutes.js`
@@ -49,5 +48,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
+- `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
+- `apps/web/public/agora-7bp-logo.png`
 - `apps/backend/migrations/20261012010000_add_agora_contacts.js`, `apps/backend/migrations/20261012020000_agora_meetings_deferrable.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

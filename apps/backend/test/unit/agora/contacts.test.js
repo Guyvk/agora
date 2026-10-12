@@ -62,19 +62,20 @@ describe('Agora contacts', () => {
   })
 
   describe('who gets in', () => {
-    it('sends people who are not logged in to the login page', async () => {
+    it('sends the old address on to the page in the web app', async () => {
       const res = await call('page')
-      expect(res.redirected).to.match(/\/login\?returnToUrl=/)
+      expect(res.redirected).to.match(/\/contacts$/)
     })
 
-    it('shows the page to a member of any circle', async () => {
-      const res = await call('page', { userId: lars.id })
-      expect(res.body).to.contain('"me":{"id":"' + lars.id + '","name":"Lars"}')
+    it('gives a member of any circle the list', async () => {
+      const res = await call('list', { userId: lars.id })
+      expect(res.statusCode).to.equal(undefined)
+      expect(res.body.contacts).to.be.an('array')
     })
 
     it('keeps out someone who has an account but no circle', async () => {
-      const page = await call('page', { userId: outsider.id })
-      expect(page.statusCode).to.equal(403)
+      const meta = await call('meta', { userId: outsider.id })
+      expect(meta.statusCode).to.equal(403)
       const list = await call('list', { userId: outsider.id })
       expect(list.statusCode).to.equal(403)
       const made = await add({ name: 'Sneaky' }, outsider.id)

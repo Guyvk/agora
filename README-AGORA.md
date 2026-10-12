@@ -12,10 +12,10 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | --- | --- | --- |
 | Meetings that write their own minutes | Every event has a meeting room. While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js` |
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations and join requests | `apps/backend/lib/agora/mailer.js` |
-| Our own name | The browser title and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html` |
+| Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
-| Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/backend/agora/contacts.html`, `api/controllers/AgoraContactsController.js`, `lib/agora/contacts.js` |
+| Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -97,7 +97,7 @@ If you use Google Workspace, two settings of the organisation can get in the way
 
 ## Contacts
 
-The Contacts button in the bar on the left opens one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
+The Contacts button in the bar on the left opens the Contacts page (`/contacts`), part of Agora like Messages: one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
 
 - For each contact: name, organisation, kind, email, phone, website, status, the circle that mainly deals with them, where their details came from, and whether they agreed to be contacted.
 - Notes keep what was said or done, with who wrote them and when.
