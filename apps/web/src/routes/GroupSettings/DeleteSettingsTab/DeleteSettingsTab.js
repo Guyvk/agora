@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TriangleAlert } from 'lucide-react'
 import Button from 'components/ui/button'
@@ -9,9 +9,19 @@ function DeleteSettingsTab ({ group, deleteGroup }) {
   const { name } = group
   const { t } = useTranslation()
 
-  const handleDeleteGroup = useCallback(() => {
+  // Agora: say so when the group could not be deleted, instead of doing nothing
+  const [error, setError] = useState(null)
+
+  const handleDeleteGroup = useCallback(async () => {
     if (window.confirm(t('Are you sure you want to delete the group {{name}}? This will permanently delete the group and all of its content. This cannot be undone.', { name }))) {
-      deleteGroup()
+      setError(null)
+      const result = await deleteGroup()
+      if (result && result.error) {
+        const reason = result.payload && result.payload.message
+        setError(reason
+          ? t('The group could not be deleted: {{reason}}', { reason })
+          : t('The group could not be deleted. Reload the page and try again.'))
+      }
     }
   }, [deleteGroup, name])
 
@@ -41,6 +51,7 @@ function DeleteSettingsTab ({ group, deleteGroup }) {
         {t('Delete Group')}
         <TriangleAlert className='w-4 h-4' />
       </Button>
+      {error && <p role='alert' className='text-destructive mt-3'>{error}</p>}
     </div>
   )
 }

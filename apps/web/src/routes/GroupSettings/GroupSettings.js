@@ -94,7 +94,9 @@ export default function GroupSettings () {
   const updateGroupSettingsAction = changes => group && dispatch(updateGroupSettings(group.id, changes))
   const deleteGroupAction = () => {
     if (group) {
-      dispatch(deleteGroup(group.id)).then(({ error }) => {
+      // Agora: hand the result back, so the Delete tab can say when it failed
+      return dispatch(deleteGroup(group.id)).then((result) => {
+        const { error } = result
         if (!error) {
           if (isLegacyWebView()) {
             sendMessageToWebView(WebViewMessageTypes.GROUP_DELETED, {
@@ -104,6 +106,7 @@ export default function GroupSettings () {
           }
           window.location = allGroupsUrl()
         }
+        return result
       })
     }
   }

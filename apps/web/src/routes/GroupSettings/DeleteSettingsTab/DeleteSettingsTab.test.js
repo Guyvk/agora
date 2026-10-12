@@ -43,5 +43,37 @@ describe('DeleteSettingsTab', () => {
     )
     expect(deleteGroup).toHaveBeenCalled()
   })
-})
 
+  // Agora: a failed delete is shown instead of silently doing nothing
+  it('says why the group could not be deleted', async () => {
+    window.confirm = jest.fn(() => true)
+    const failing = jest.fn(() => Promise.resolve({ error: true, payload: new Error('You do not have permission') }))
+
+    render(<DeleteSettingsTab group={group} deleteGroup={failing} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Group' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The group could not be deleted: You do not have permission')
+  })
+
+  it('asks to try again when the failure has no reason', async () => {
+    window.confirm = jest.fn(() => true)
+    const failing = jest.fn(() => Promise.resolve({ error: true }))
+
+    render(<DeleteSettingsTab group={group} deleteGroup={failing} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Group' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The group could not be deleted. Reload the page and try again.')
+  })
+
+  it('shows nothing when the delete worked', async () => {
+    window.confirm = jest.fn(() => true)
+    const working = jest.fn(() => Promise.resolve({ payload: { success: true } }))
+
+    render(<DeleteSettingsTab group={group} deleteGroup={working} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Group' }))
+
+    await Promise.resolve()
+    expect(working).toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})

@@ -1,4 +1,6 @@
 {
+  "The group could not be deleted: {{reason}}": "Die Gruppe konnte nicht gelöscht werden: {{reason}}",
+  "The group could not be deleted. Reload the page and try again.": "Die Gruppe konnte nicht gelöscht werden. Lade die Seite neu und versuche es noch einmal.",
   "Contacts": "Kontakte",
   " app to receive push notifications.": " App zum Empfangen von Push-Benachrichtigungen.",
   "\"<strong>{{postSummary}}</strong>\"": "\"<strong>{{postSummary}}</strong>\"",

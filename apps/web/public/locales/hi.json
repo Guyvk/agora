@@ -1,4 +1,6 @@
 {
+  "The group could not be deleted: {{reason}}": "समूह हटाया नहीं जा सका: {{reason}}",
+  "The group could not be deleted. Reload the page and try again.": "समूह हटाया नहीं जा सका। पेज फिर से लोड करें और दोबारा कोशिश करें।",
   "Contacts": "संपर्क",
   " app to receive push notifications.": " ऐप पुश सूचनाएँ प्राप्त करने के लिए।",
   "\"<strong>{{postSummary}}</strong>\"": "\"<strong>{{postSummary}}</strong>\"",
