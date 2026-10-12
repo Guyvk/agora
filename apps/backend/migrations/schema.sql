@@ -7222,26 +7222,141 @@ CREATE INDEX meeting_segments_session_id_spoken_at_index ON public.meeting_segme
 CREATE INDEX meeting_sessions_post_id_index ON public.meeting_sessions USING btree (post_id);
 
 ALTER TABLE ONLY public.meeting_participants
-    ADD CONSTRAINT meeting_participants_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE;
+    ADD CONSTRAINT meeting_participants_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_participants
-    ADD CONSTRAINT meeting_participants_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT meeting_participants_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_segments
-    ADD CONSTRAINT meeting_segments_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE;
+    ADD CONSTRAINT meeting_segments_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_segments
-    ADD CONSTRAINT meeting_segments_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT meeting_segments_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_sessions
-    ADD CONSTRAINT meeting_sessions_ended_by_id_foreign FOREIGN KEY (ended_by_id) REFERENCES public.users(id);
+    ADD CONSTRAINT meeting_sessions_ended_by_id_foreign FOREIGN KEY (ended_by_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_sessions
-    ADD CONSTRAINT meeting_sessions_minutes_post_id_foreign FOREIGN KEY (minutes_post_id) REFERENCES public.posts(id);
+    ADD CONSTRAINT meeting_sessions_minutes_post_id_foreign FOREIGN KEY (minutes_post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_sessions
-    ADD CONSTRAINT meeting_sessions_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id);
+    ADD CONSTRAINT meeting_sessions_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
 
 ALTER TABLE ONLY public.meeting_sessions
-    ADD CONSTRAINT meeting_sessions_started_by_id_foreign FOREIGN KEY (started_by_id) REFERENCES public.users(id);
+    ADD CONSTRAINT meeting_sessions_started_by_id_foreign FOREIGN KEY (started_by_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Agora: one shared list of contacts outside Agora.
+-- Added by migrations/20261012010000_add_agora_contacts.js
+--
+
+CREATE TABLE public.agora_contact_changes (
+    id bigint NOT NULL,
+    contact_id bigint NOT NULL,
+    user_id bigint,
+    action character varying(255) NOT NULL,
+    fields jsonb,
+    created_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_contact_changes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_contact_changes_id_seq OWNED BY public.agora_contact_changes.id;
+
+CREATE TABLE public.agora_contact_notes (
+    id bigint NOT NULL,
+    contact_id bigint NOT NULL,
+    author_id bigint,
+    body text NOT NULL,
+    created_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_contact_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_contact_notes_id_seq OWNED BY public.agora_contact_notes.id;
+
+CREATE TABLE public.agora_contacts (
+    id bigint NOT NULL,
+    name character varying(255) NOT NULL,
+    organisation character varying(255),
+    kind character varying(255) DEFAULT 'partner'::character varying NOT NULL,
+    email character varying(255),
+    phone character varying(255),
+    website character varying(255),
+    status character varying(255) DEFAULT 'new'::character varying NOT NULL,
+    circle_id bigint,
+    source text,
+    consent boolean DEFAULT false NOT NULL,
+    follow_up_on date,
+    follow_up_what text,
+    follow_up_owner_id bigint,
+    created_by_id bigint,
+    updated_by_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_contacts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_contacts_id_seq OWNED BY public.agora_contacts.id;
+
+ALTER TABLE ONLY public.agora_contact_changes ALTER COLUMN id SET DEFAULT nextval('public.agora_contact_changes_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_contact_notes ALTER COLUMN id SET DEFAULT nextval('public.agora_contact_notes_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_contacts ALTER COLUMN id SET DEFAULT nextval('public.agora_contacts_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_contact_changes
+    ADD CONSTRAINT agora_contact_changes_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_contact_notes
+    ADD CONSTRAINT agora_contact_notes_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_contact_changes_contact_id_index ON public.agora_contact_changes USING btree (contact_id);
+
+CREATE INDEX agora_contact_notes_contact_id_index ON public.agora_contact_notes USING btree (contact_id);
+
+CREATE INDEX agora_contacts_circle_id_index ON public.agora_contacts USING btree (circle_id);
+
+CREATE INDEX agora_contacts_follow_up_owner_id_index ON public.agora_contacts USING btree (follow_up_owner_id);
+
+ALTER TABLE ONLY public.agora_contact_changes
+    ADD CONSTRAINT agora_contact_changes_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contact_notes
+    ADD CONSTRAINT agora_contact_notes_author_id_foreign FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contact_notes
+    ADD CONSTRAINT agora_contact_notes_contact_id_foreign FOREIGN KEY (contact_id) REFERENCES public.agora_contacts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_circle_id_foreign FOREIGN KEY (circle_id) REFERENCES public.groups(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_follow_up_owner_id_foreign FOREIGN KEY (follow_up_owner_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_updated_by_id_foreign FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
 

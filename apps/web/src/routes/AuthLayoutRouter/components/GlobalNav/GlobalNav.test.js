@@ -48,5 +48,7 @@ describe('GlobalNav', () => {
     // Agora: The Commons is switched off, see src/agora/config.js
     expect(container.querySelector('[data-tour="messages"]')).toBeInTheDocument()
     expect(container.querySelector('[data-tour="the-commons"]')).not.toBeInTheDocument()
+    // Agora: the shared Contacts page has its own button
+    expect(container.querySelector('[data-tour="agora-contacts"]')).toBeInTheDocument()
   })
 })

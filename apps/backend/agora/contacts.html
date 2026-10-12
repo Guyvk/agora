@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contacts · Agora</title>
+<!--
+  Agora: the shared Contacts page.
+
+  One list of the people and organisations 7BP works with outside Agora.
+  Every Agora member can read, add, change and delete contacts; every change is
+  logged with who and when. Plain HTML, CSS and JavaScript on purpose, like the
+  meeting room and the Files page, so it can be read and changed without
+  building the rest of the web app.
+
+  The server fills in the BOOT value below.
+-->
+<style>
+  :root {
+    --bg: #f5f3f6; --surface: #ffffff; --ink: #1d1a22; --muted: #6b6573; --line: #dfdbe4;
+    --accent: #c2255c; --accent-ink: #ffffff; --warn: #b35c00; --due: #c92a2a; --radius: 10px;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121016; --surface: #1c1922; --ink: #efecf3; --muted: #a39cae; --line: #322d3b;
+      --accent: #f06595; --accent-ink: #1d1a22; --warn: #ffa94d; --due: #ff8787; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  [hidden] { display: none !important; }
+  a { color: var(--accent); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.danger { color: var(--due); border-color: var(--due); }
+  input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface); }
+  textarea { min-height: 70px; resize: vertical; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+  h1 { margin: 0; font-size: 22px; }
+  .notice { margin: 12px 0 16px; padding: 10px 12px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); border-radius: 6px; font-size: 14px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: var(--due); color: #fff; font-size: 12px; text-align: center; }
+  .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 10px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; align-items: start; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .list { overflow: hidden; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; padding: 10px 14px; }
+  .row:first-child { border-top: 0; }
+  .row:hover, .row[aria-current="true"] { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .row .who { font-weight: 600; overflow-wrap: anywhere; }
+  .row .org, .row .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .row .next { font-size: 13px; text-align: right; white-space: nowrap; }
+  .row .next.due { color: var(--due); font-weight: 600; }
+  .tag { display: inline-block; font-size: 12px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line); margin-right: 4px; }
+  .empty { padding: 20px; color: var(--muted); }
+  .detail { padding: 16px; }
+  .detail h2 { margin: 0 0 12px; font-size: 18px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .grid .wide { grid-column: 1 / -1; }
+  label { display: block; font-size: 13px; color: var(--muted); }
+  label > input, label > select, label > textarea { margin-top: 2px; color: var(--ink); }
+  .check { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 14px; }
+  .check input { width: auto; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+  .error { color: var(--due); font-size: 14px; }
+  .ok { color: var(--muted); font-size: 14px; }
+  section.sub { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 14px; }
+  section.sub h3 { margin: 0 0 8px; font-size: 15px; }
+  .note { padding: 8px 0; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .note:first-of-type { border-top: 0; }
+  .note small, .change { display: block; color: var(--muted); font-size: 13px; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .filters { grid-template-columns: 1fr 1fr; }
+    .filters input { grid-column: 1 / -1; }
+  }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Contacts</h1>
+    <a id="home" href="/">Back to Agora</a>
+  </header>
+  <p class="notice">These are people outside Agora. Note only what 7BP needs to work with them, say where their details came from, and delete anyone who asks to be removed. Every change is logged with who made it.</p>
+
+  <div class="tabs">
+    <button type="button" id="tabAll" aria-pressed="true">All contacts</button>
+    <button type="button" id="tabMine" aria-pressed="false">My follow-ups<span class="count" id="dueCount" hidden></span></button>
+    <button type="button" class="primary" id="newBtn" style="margin-left:auto">New contact</button>
+  </div>
+
+  <div class="filters" id="filters">
+    <input type="search" id="q" placeholder="Search name, organisation or email" aria-label="Search">
+    <select id="fKind" aria-label="Kind"></select>
+    <select id="fStatus" aria-label="Status"></select>
+    <select id="fCircle" aria-label="Circle"></select>
+    <button type="button" id="clearFilters">Clear</button>
+  </div>
+
+  <div class="layout">
+    <div class="panel list" id="list"><div class="empty">Loading…</div></div>
+    <div class="panel detail" id="detail">
+      <p class="empty" id="detailEmpty">Choose a contact, or add a new one.</p>
+      <form id="form" hidden novalidate>
+        <h2 id="formTitle">New contact</h2>
+        <div class="grid">
+          <label class="wide">Name<input name="name" required maxlength="255"></label>
+          <label>Organisation<input name="organisation" maxlength="255"></label>
+          <label>Kind<select name="kind"></select></label>
+          <label>Email<input name="email" type="email" maxlength="255"></label>
+          <label>Phone<input name="phone" maxlength="50"></label>
+          <label>Website<input name="website" maxlength="255"></label>
+          <label>Status<select name="status"></select></label>
+          <label class="wide">Circle that mainly deals with them<select name="circle_id"></select></label>
+          <label class="wide">Where the details came from<input name="source" maxlength="2000" placeholder="For example: met at the Utrecht event, business card"></label>
+          <label class="wide check"><input type="checkbox" name="consent"> They agreed that 7BP may contact them</label>
+          <label>Next step on<input name="follow_up_on" type="date"></label>
+          <label>Who does it<select name="follow_up_owner_id"></select></label>
+          <label class="wide">Next step<input name="follow_up_what" maxlength="1000" placeholder="For example: send the playbook draft"></label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary" id="saveBtn">Save</button>
+          <button type="button" id="cancelBtn">Cancel</button>
+          <span class="error" id="formError" hidden></span>
+          <span class="ok" id="formOk" hidden></span>
+          <span style="margin-left:auto"></span>
+          <button type="button" class="danger" id="deleteBtn" hidden>Delete this contact</button>
+        </div>
+        <div class="actions" id="deleteConfirm" hidden>
+          <span>This removes the contact and all notes for good. Sure?</span>
+          <button type="button" class="danger" id="deleteYes">Yes, delete</button>
+          <button type="button" id="deleteNo">Keep</button>
+        </div>
+
+        <section class="sub" id="notesSection" hidden>
+          <h3>Notes</h3>
+          <textarea id="noteBody" maxlength="5000" placeholder="What was said or done"></textarea>
+          <div class="actions"><button type="button" id="noteBtn">Add note</button><span class="error" id="noteError" hidden></span></div>
+          <div id="notes"></div>
+        </section>
+        <section class="sub" id="changesSection" hidden>
+          <h3>Changes</h3>
+          <div id="changes"></div>
+        </section>
+      </form>
+    </div>
+  </div>
+</main>
+<script>
+  const BOOT = "__AGORA_BOOT__";
+
+  const KIND_LABELS = { partner: 'Partner', press: 'Press', funder: 'Funder', interested: 'Interested', other: 'Other' };
+  const STATUS_LABELS = { new: 'New', in_touch: 'In touch', active: 'Active', paused: 'Paused' };
+  const FIELD_LABELS = {
+    name: 'name', organisation: 'organisation', kind: 'kind', email: 'email', phone: 'phone', website: 'website',
+    status: 'status', circle_id: 'circle', source: 'source', consent: 'consent', follow_up_on: 'next step date',
+    follow_up_what: 'next step', follow_up_owner_id: 'who does the next step'
+  };
+
+  const $ = id => document.getElementById(id);
+  const form = $('form');
+  let meta = { kinds: [], statuses: [], circles: [], members: [] };
+  let mine = false;
+  let current = null; // id of the contact in the form, or null for a new one
+  let searchTimer = null;
+
+  function el (tag, attrs, text) {
+    const node = document.createElement(tag);
+    Object.assign(node, attrs || {});
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+  // Today's date on this computer, as YYYY-MM-DD (the Swedish format happens to be exactly that)
+  function today () { return new Date().toLocaleDateString('sv-SE'); }
+  function when (iso) { return iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; }
+  function day (d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''; }
+
+  async function api (path, body) {
+    const options = { credentials: 'same-origin', headers: { 'X-Agora': '1' } };
+    if (body !== undefined) {
+      options.method = 'POST';
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch(BOOT.api + path, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again in a minute.');
+    return data;
+  }
+
+  function fillSelect (select, options, emptyLabel) {
+    select.replaceChildren();
+    if (emptyLabel !== undefined) select.append(el('option', { value: '' }, emptyLabel));
+    for (const [value, label] of options) select.append(el('option', { value }, label));
+  }
+
+  function setDue (count) {
+    $('dueCount').textContent = String(count);
+    $('dueCount').hidden = !count;
+  }
+
+  async function loadMeta () {
+    meta = await api('/meta');
+    const kinds = meta.kinds.map(k => [k, KIND_LABELS[k] || k]);
+    const statuses = meta.statuses.map(s => [s, STATUS_LABELS[s] || s]);
+    const circles = meta.circles.map(c => [c.id, c.name]);
+    fillSelect($('fKind'), kinds, 'Every kind');
+    fillSelect($('fStatus'), statuses, 'Every status');
+    fillSelect($('fCircle'), circles, 'Every circle');
+    fillSelect(form.elements.kind, kinds);
+    fillSelect(form.elements.status, statuses);
+    fillSelect(form.elements.circle_id, circles, 'No circle');
+    fillSelect(form.elements.follow_up_owner_id, meta.members.map(m => [m.id, m.name]), 'Nobody yet');
+    setDue(meta.dueCount);
+  }
+
+  async function loadList () {
+    const params = new URLSearchParams();
+    if (mine) params.set('mine', '1');
+    else {
+      if ($('q').value.trim()) params.set('q', $('q').value.trim());
+      if ($('fKind').value) params.set('kind', $('fKind').value);
+      if ($('fStatus').value) params.set('status', $('fStatus').value);
+      if ($('fCircle').value) params.set('circle', $('fCircle').value);
+    }
+    const list = $('list');
+    let contacts;
+    try {
+      contacts = (await api('/list?' + params)).contacts;
+    } catch (e) {
+      list.replaceChildren(el('div', { className: 'empty' }, e.message));
+      return;
+    }
+    list.replaceChildren();
+    if (!contacts.length) {
+      list.append(el('div', { className: 'empty' }, mine ? 'You have no follow-ups.' : 'No contacts found.'));
+      return;
+    }
+    for (const c of contacts) {
+      const row = el('button', { type: 'button', className: 'row' });
+      if (c.id === current) row.setAttribute('aria-current', 'true');
+      const left = el('div');
+      left.append(el('div', { className: 'who' }, c.name));
+      if (c.organisation) left.append(el('div', { className: 'org' }, c.organisation));
+      const tags = el('div', { className: 'meta' });
+      tags.append(el('span', { className: 'tag' }, KIND_LABELS[c.kind] || c.kind), el('span', { className: 'tag' }, STATUS_LABELS[c.status] || c.status));
+      if (c.circle_name) tags.append(el('span', {}, c.circle_name));
+      left.append(tags);
+      const next = el('div', { className: 'next' + (c.follow_up_on && c.follow_up_on <= today() ? ' due' : '') });
+      if (c.follow_up_on) {
+        next.append(el('div', {}, day(c.follow_up_on)));
+        if (c.follow_up_owner_name) next.append(el('div', { className: 'meta' }, c.follow_up_owner_name));
+      }
+      row.append(left, next);
+      row.addEventListener('click', () => openContact(c.id));
+      list.append(row);
+    }
+  }
+
+  function showForm (contact) {
+    $('detailEmpty').hidden = true;
+    form.hidden = false;
+    $('formError').hidden = true;
+    $('formOk').hidden = true;
+    $('deleteConfirm').hidden = true;
+    form.reset();
+    const c = contact || { kind: 'partner', status: 'new' };
+    for (const name of ['name', 'organisation', 'kind', 'email', 'phone', 'website', 'status', 'circle_id', 'source', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id']) {
+      form.elements[name].value = c[name] || '';
+    }
+    form.elements.consent.checked = !!c.consent;
+    $('formTitle').textContent = contact ? contact.name : 'New contact';
+    $('deleteBtn').hidden = !contact;
+    $('notesSection').hidden = !contact;
+    $('changesSection').hidden = !contact;
+    if (contact) {
+      $('notes').replaceChildren(...(contact.notes.length
+        ? contact.notes.map(n => { const d = el('div', { className: 'note' }, n.body); d.append(el('small', {}, (n.author_name || 'Someone') + ', ' + when(n.created_at))); return d; })
+        : [el('div', { className: 'ok' }, 'No notes yet.')]));
+      $('changes').replaceChildren(...contact.changes.map(h => {
+        const fields = Array.isArray(h.fields) ? h.fields.map(f => FIELD_LABELS[f] || f).join(', ') : '';
+        const what = { created: 'added this contact', updated: 'changed ' + fields, note: 'added a note' }[h.action] || h.action;
+        return el('span', { className: 'change' }, (h.user_name || 'Someone') + ' ' + what + ', ' + when(h.created_at));
+      }));
+    }
+    form.elements.name.focus();
+  }
+
+  async function openContact (id) {
+    current = id;
+    try {
+      const { contact } = await api('/' + encodeURIComponent(id));
+      showForm(contact);
+    } catch (e) {
+      $('detailEmpty').hidden = false;
+      $('detailEmpty').textContent = e.message;
+      form.hidden = true;
+    }
+    loadList();
+  }
+
+  function formValues () {
+    const v = {};
+    for (const name of ['name', 'organisation', 'kind', 'email', 'phone', 'website', 'status', 'circle_id', 'source', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id']) {
+      v[name] = form.elements[name].value;
+    }
+    v.consent = form.elements.consent.checked;
+    return v;
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    $('formError').hidden = true;
+    $('saveBtn').disabled = true;
+    try {
+      const { id } = await api(current ? '/' + current + '/update' : '/create', formValues());
+      current = id;
+      await openContact(id);
+      $('formOk').textContent = 'Saved.';
+      $('formOk').hidden = false;
+      setDue((await api('/due')).count);
+    } catch (e) {
+      $('formError').textContent = e.message;
+      $('formError').hidden = false;
+    } finally {
+      $('saveBtn').disabled = false;
+    }
+  });
+
+  $('noteBtn').addEventListener('click', async () => {
+    $('noteError').hidden = true;
+    try {
+      await api('/' + current + '/notes', { body: $('noteBody').value });
+      $('noteBody').value = '';
+      await openContact(current);
+    } catch (e) {
+      $('noteError').textContent = e.message;
+      $('noteError').hidden = false;
+    }
+  });
+
+  $('deleteBtn').addEventListener('click', () => { $('deleteConfirm').hidden = false; });
+  $('deleteNo').addEventListener('click', () => { $('deleteConfirm').hidden = true; });
+  $('deleteYes').addEventListener('click', async () => {
+    try {
+      await api('/' + current + '/delete', {});
+      current = null;
+      form.hidden = true;
+      $('detailEmpty').hidden = false;
+      $('detailEmpty').textContent = 'The contact was deleted.';
+      loadList();
+      setDue((await api('/due')).count);
+    } catch (e) {
+      $('formError').textContent = e.message;
+      $('formError').hidden = false;
+    }
+  });
+
+  $('cancelBtn').addEventListener('click', () => {
+    current = null;
+    form.hidden = true;
+    $('detailEmpty').hidden = false;
+    $('detailEmpty').textContent = 'Choose a contact, or add a new one.';
+    loadList();
+  });
+  $('newBtn').addEventListener('click', () => { current = null; showForm(null); loadList(); });
+
+  function setTab (showMine) {
+    mine = showMine;
+    $('tabAll').setAttribute('aria-pressed', String(!mine));
+    $('tabMine').setAttribute('aria-pressed', String(mine));
+    $('filters').hidden = mine;
+    loadList();
+  }
+  $('tabAll').addEventListener('click', () => setTab(false));
+  $('tabMine').addEventListener('click', () => setTab(true));
+  $('q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadList, 250); });
+  for (const id of ['fKind', 'fStatus', 'fCircle']) $(id).addEventListener('change', loadList);
+  $('clearFilters').addEventListener('click', () => { $('q').value = ''; $('fKind').value = ''; $('fStatus').value = ''; $('fCircle').value = ''; loadList(); });
+
+  $('home').href = BOOT.homeUrl;
+  if (location.hash === '#mine') setTab(true);
+  loadMeta().then(loadList).catch(e => { $('list').replaceChildren(el('div', { className: 'empty' }, e.message)); });
+</script>
+</body>
+</html>

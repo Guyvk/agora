@@ -54,6 +54,12 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora contacts: for Agora members. The page sends people to the login page itself.
+  AgoraContactsController: {
+    page: true,
+    '*': 'sessionAuth'
+  },
+
   ExportController: {
     '*': 'sessionAuth'
   },

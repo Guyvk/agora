@@ -205,6 +205,32 @@ async function run () {
     })
   }
 
+  // Made-up contacts outside Agora, for the shared Contacts page. Added once.
+  const Contacts = require('../lib/agora/contacts')
+  const existingContacts = await bookshelf.knex('agora_contacts').count('id as count').first()
+  if (Number(existingContacts.count) === 0) {
+    const inDays = days => {
+      const date = new Date(Contacts.today() + 'T12:00:00Z')
+      date.setUTCDate(date.getUTCDate() + days)
+      return date.toISOString().slice(0, 10)
+    }
+    const demoContacts = [
+      { by: people.amara, circle: '7bp-communications', name: 'Mila Jansen', organisation: 'De Dagkrant (made up)', kind: 'press', status: 'in_touch', email: 'mila@dagkrant.test', source: 'Demo data', consent: true, follow_up_on: inDays(0), follow_up_what: 'Send the press kit and three story ideas', owner: people.amara, note: 'Interested in a portrait of a circle at work. Prefers email.' },
+      { by: people.kenji, circle: '7bp-network', name: 'Commons Lab Utrecht (made up)', organisation: 'Commons Lab Utrecht (made up)', kind: 'partner', status: 'active', website: 'commonslab.test', source: 'Demo data', consent: true, follow_up_on: inDays(5), follow_up_what: 'Plan a joint evening in November', owner: people.kenji, note: 'Offers their space for meetings, free on weekday evenings.' },
+      { by: people.steward, circle: '7bp-governance', name: 'Stichting Nieuwe Bodem (made up)', organisation: 'Stichting Nieuwe Bodem (made up)', kind: 'funder', status: 'new', email: 'info@nieuwebodem.test', source: 'Demo data', consent: false, follow_up_on: inDays(-2), follow_up_what: 'Ask whether 7BP fits their spring call', owner: people.steward },
+      { by: people.priya, circle: '7bp-care', name: 'Tom Peeters', kind: 'interested', status: 'new', email: 'tom@peeters.test', source: 'Demo data', consent: true, follow_up_on: inDays(2), follow_up_what: 'Invite to the next welcome call', owner: people.priya, note: 'Signed up at the market stall. Wants to help with stories.' },
+      { by: people.sofia, circle: '7bp-stories', name: 'Ana Ruiz', organisation: 'Freelance photographer (made up)', kind: 'other', status: 'paused', phone: '+31 6 0000 0000', source: 'Demo data', consent: true }
+    ]
+    for (const c of demoContacts) {
+      const id = await Contacts.create(c.by.id, {
+        ...c,
+        circle_id: circles[c.circle] ? String(circles[c.circle].id) : null,
+        follow_up_owner_id: c.owner ? String(c.owner.id) : null
+      })
+      if (c.note) await Contacts.addNote(c.by.id, id, c.note)
+    }
+  }
+
   if (newLogin) {
     fs.writeFileSync(LOGIN_FILE, `email: ${steward.get('email')}\npassword: ${password}\n`, { mode: 0o600 })
   }

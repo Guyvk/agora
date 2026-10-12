@@ -96,6 +96,17 @@ module.exports.routes = {
   'GET    /noo/agora/files/:groupSlug':                   'AgoraFilesController.page',
   'GET    /noo/agora/files/:groupSlug/list':              'AgoraFilesController.list',
 
+  // Agora contacts: one shared list of people and organisations outside Agora
+  'GET    /noo/agora/contacts':                           'AgoraContactsController.page',
+  'GET    /noo/agora/contacts/api/list':                  'AgoraContactsController.list',
+  'GET    /noo/agora/contacts/api/meta':                  'AgoraContactsController.meta',
+  'GET    /noo/agora/contacts/api/due':                   'AgoraContactsController.dueCount',
+  'POST   /noo/agora/contacts/api/create':                'AgoraContactsController.create',
+  'GET    /noo/agora/contacts/api/:contactId':            'AgoraContactsController.show',
+  'POST   /noo/agora/contacts/api/:contactId/update':     'AgoraContactsController.update',
+  'POST   /noo/agora/contacts/api/:contactId/notes':      'AgoraContactsController.addNote',
+  'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }

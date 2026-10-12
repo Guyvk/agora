@@ -15,6 +15,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own name | The browser title and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
+| Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/backend/agora/contacts.html`, `api/controllers/AgoraContactsController.js`, `lib/agora/contacts.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -93,6 +94,17 @@ Agora reads Drive through a robot Google account, which Google calls a service a
 5. **Link it.** Restart Agora. In each circle's settings, a steward adds a link to its Files page to the circle's menu.
 
 If you use Google Workspace, two settings of the organisation can get in the way: sharing with people outside the organisation, and, for organisations made after May 2024, making keys for robot accounts. Google switches the second off by default. A Workspace admin can allow both for this one project or folder.
+
+## Contacts
+
+The Contacts button in the bar on the left opens one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
+
+- For each contact: name, organisation, kind, email, phone, website, status, the circle that mainly deals with them, where their details came from, and whether they agreed to be contacted.
+- Notes keep what was said or done, with who wrote them and when.
+- A follow-up is a next step with a date and a person. "My follow-ups" lists yours.
+- Every Agora member, meaning everyone in at least one circle, can read, add, change and delete contacts. Every change is logged with who made it and which fields changed, never what they said. Deleting a contact removes the person and their notes for good.
+
+These are people who never signed up to Agora, so their details are personal data under the GDPR. 7BP needs a reason to keep them, has to delete anyone who asks, and has to answer when someone asks what is kept about them. Before real contacts go in, an experienced developer looks at this part, and 7BP agrees who answers such questions. Until then, only the made-up demo contacts are in it.
 
 ## Email
 

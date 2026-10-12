@@ -185,7 +185,10 @@ export default function GlobalNavItem ({
     setIsHovered(false)
     // Groups with subgroups open a dropdown (handled by the Popover) instead of navigating.
     if (hasChildren) return
-    if (url) {
+    // Agora: pages the server makes itself (under /noo/) load as a whole page
+    if (url && url.startsWith('/noo/')) {
+      window.location.assign(url)
+    } else if (url) {
       navigate(url)
     }
   }, [url, navigate, hasChildren])

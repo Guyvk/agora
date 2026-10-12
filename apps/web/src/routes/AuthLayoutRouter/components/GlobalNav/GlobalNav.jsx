@@ -1,6 +1,6 @@
 import { cn } from 'util/index'
 import { get } from 'lodash/fp'
-import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench } from 'lucide-react'
+import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */ } from 'lucide-react'
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTour, { driveTour, isTourTestMode } from 'tours/useTour'
@@ -66,6 +66,7 @@ import markGroupAsRead from 'store/actions/markGroupAsRead'
 import logout from 'store/actions/logout'
 import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHomeLandingUrl } from '@hylo/navigation'
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
+import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
 import {
   LOCALE_DE,
@@ -555,6 +556,7 @@ export default function GlobalNav (props) {
   // download at all on desktop
   const showAppStoreLink = isMobileDevice() && !isWebView()
   const { t } = useTranslation()
+  const dueFollowUps = useDueFollowUps() // Agora: count on the Contacts button
   const [helpOpen, setHelpOpen] = useState(false)
   const tourSteps = useMemo(() => globalChromeTourSteps(t, { sandboxMode: isSandboxMode() }), [t])
   const { invitation: chromeTourInvitation } = useTour({
@@ -1090,6 +1092,21 @@ export default function GlobalNav (props) {
         >
           <MessagesSquare />
         </GlobalNavItem>
+
+        {/* Agora: the shared Contacts page, with the number of my follow-ups that are due */}
+        {!isSandboxMode() && (
+          <GlobalNavItem
+            darkTile
+            tooltip={t('Contacts')}
+            url={CONTACTS_URL}
+            className={isVisible(3)}
+            showTooltip={showLabels}
+            badgeCount={dueFollowUps}
+            dataTour='agora-contacts'
+          >
+            <BookUser />
+          </GlobalNavItem>
+        )}
 
         {/* Agora: The Commons is switched off, see src/agora/config.js */}
         {!isSandboxMode() && showCommons && (
