@@ -24,6 +24,8 @@ Run `./agora/setup-cloud.sh`. It installs PostgreSQL 17 with PostGIS, Redis and 
 
 - Backend tests empty the database they run on. Always run them with `DATABASE_URL` pointing at `agora_test`.
 - Web tests: `cd apps/web && yarn test --watchAll=false`. They mock `useParams`.
+- On the cloud machine of 13 October the script took about 5 minutes the first time and 30 seconds again. It needs only the npm registry, Ubuntu's package mirror and nodejs.org. If PostgreSQL's own package site is blocked, it uses Ubuntu's PostgreSQL 16, which works.
+- Tests that already fail on the cloud machine, with no change of ours (13 October). Backend: `UploadController uploading via file parses a multipart request` (no S3 settings), and the two `Media` tests (they download a Vimeo picture, which the cloud network blocks; the failed download also makes four later tests fail with `ECONNRESET` in a full run, though they pass alone). Web: `mixpanelMiddleware` (three tests, they expect a Mixpanel token, Agora has none by design), and two `MapExplorer.store` snapshot tests (the saved snapshot lacks the `afterTime` query field).
 - Start Agora with `./agora/start.sh` and log in as `steward@agora.test`; the password is in `apps/backend/.agora-demo-login`.
 
 ## Never

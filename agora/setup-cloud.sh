@@ -18,7 +18,6 @@ cd "$(dirname "$0")/.."
 
 DB_NAME="${AGORA_DB_NAME:-agora}"
 TEST_DB_NAME="${AGORA_TEST_DB_NAME:-agora_test}"
-PG_MAJOR="17"
 NODE_VERSION="v24.21.0"
 NODE_DIR="${AGORA_NODE_DIR:-$HOME/.local/share/agora-node24}"
 step() { printf '\n\033[1m%s\033[0m\n' "$1"; }
@@ -30,23 +29,47 @@ fi
 SUDO=""
 [[ "$(id -u)" != "0" ]] && SUDO="sudo"
 export DEBIAN_FRONTEND=noninteractive
+# Run a command as the database administrator user (works with or without sudo).
+as_postgres () { if [[ -z "$SUDO" ]]; then runuser -u postgres -- "$@"; else sudo -u postgres "$@"; fi; }
 
-step "1/7  Installing PostgreSQL $PG_MAJOR with PostGIS, and Redis"
+step "1/7  Installing PostgreSQL with PostGIS, and Redis"
 # Hylo's schema.sql was made on PostgreSQL 17. Most Ubuntu versions ship an
-# older one, so it comes from PostgreSQL's own package site.
-if ! dpkg -s "postgresql-$PG_MAJOR-postgis-3" >/dev/null 2>&1; then
-  $SUDO apt-get update -qq
+# older one, so the script first tries PostgreSQL's own package site. Some
+# cloud machines block that site; then it uses the version Ubuntu ships
+# (16 on Ubuntu 24.04), which loads the same schema and passes the tests.
+# An already installed PostgreSQL with PostGIS is used as it is.
+installed_pg () {
+  for v in 17 16 15; do
+    dpkg -s "postgresql-$v-postgis-3" >/dev/null 2>&1 && { echo "$v"; return; }
+  done
+}
+PG_MAJOR="$(installed_pg || true)"
+if [[ -z "$PG_MAJOR" ]]; then
+  $SUDO apt-get update -qq || true
   $SUDO apt-get install -y -qq curl ca-certificates gnupg lsb-release >/dev/null
-  if [[ ! -f /etc/apt/sources.list.d/pgdg.list ]]; then
-    $SUDO install -d /usr/share/postgresql-common/pgdg
-    $SUDO curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-      https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  PG_MAJOR="17"
+  have_pgdg=0
+  if [[ -f /etc/apt/sources.list.d/pgdg.list ]]; then
+    have_pgdg=1
+  elif $SUDO install -d /usr/share/postgresql-common/pgdg \
+    && $SUDO curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+      https://www.postgresql.org/media/keys/ACCC4CF8.asc; then
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
       | $SUDO tee /etc/apt/sources.list.d/pgdg.list >/dev/null
-    $SUDO apt-get update -qq
+    have_pgdg=1
   fi
-  $SUDO apt-get install -y -qq "postgresql-$PG_MAJOR" "postgresql-$PG_MAJOR-postgis-3" >/dev/null
+  if [[ "$have_pgdg" == 1 ]] && $SUDO apt-get update -qq \
+    && $SUDO apt-get install -y -qq "postgresql-17" "postgresql-17-postgis-3" >/dev/null; then
+    :
+  else
+    echo "  PostgreSQL's package site is not reachable. Using Ubuntu's own PostgreSQL."
+    $SUDO rm -f /etc/apt/sources.list.d/pgdg.list
+    $SUDO apt-get update -qq || true
+    PG_MAJOR="$(apt-cache depends postgresql | sed -n 's/.*Depends: postgresql-\([0-9]*\)$/\1/p' | head -1)"
+    $SUDO apt-get install -y -qq "postgresql-$PG_MAJOR" "postgresql-$PG_MAJOR-postgis-3" >/dev/null
+  fi
 fi
+echo "  PostgreSQL $PG_MAJOR"
 command -v redis-server >/dev/null || $SUDO apt-get install -y -qq redis-server >/dev/null
 
 step "2/7  Installing Node 24"
@@ -76,16 +99,16 @@ fi
 pg_isready -q || { echo "PostgreSQL did not start."; exit 1; }
 # A database user with the same name as this machine's user, like on the Mac.
 me="$(id -un)"
-if ! $SUDO -u postgres psql -tAc "select 1 from pg_roles where rolname='$me'" | grep -q 1; then
-  $SUDO -u postgres createuser --superuser "$me"
+if ! as_postgres psql -tAc "select 1 from pg_roles where rolname='$me'" | grep -q 1; then
+  as_postgres createuser --superuser "$me"
 fi
 # Local connections without a password, as on the Mac. Only this machine can connect.
-hba="$($SUDO -u postgres psql -tAc 'show hba_file')"
+hba="$(as_postgres psql -tAc 'show hba_file')"
 if ! $SUDO grep -q '^# Agora' "$hba"; then
   printf '# Agora: local connections without a password\nlocal all all trust\nhost all all 127.0.0.1/32 trust\nhost all all ::1/128 trust\n' \
     | $SUDO tee "$hba.agora" >/dev/null
   $SUDO sh -c "cat '$hba' >> '$hba.agora' && mv '$hba.agora' '$hba'"
-  $SUDO -u postgres psql -qc 'select pg_reload_conf()' >/dev/null
+  as_postgres psql -qc 'select pg_reload_conf()' >/dev/null
 fi
 if ! redis-cli ping >/dev/null 2>&1; then
   redis-server --daemonize yes --bind 127.0.0.1 --port 6379
@@ -96,7 +119,12 @@ redis-cli ping >/dev/null || { echo "Redis did not start."; exit 1; }
 step "4/7  Installing Agora's own building blocks (this is the slow part)"
 corepack enable 2>/dev/null || $SUDO env "PATH=$PATH" corepack enable
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-yarn install
+# Fetch Yarn from the npm registry. Some cloud machines cannot reach repo.yarnpkg.com.
+export COREPACK_NPM_REGISTRY="${COREPACK_NPM_REGISTRY:-https://registry.npmjs.org}"
+# Few downloads at a time, and a second try: through a cloud machine's proxy,
+# many at once can drop connections. Yarn keeps what it already fetched.
+export YARN_NETWORK_CONCURRENCY=4
+yarn install || yarn install || yarn install
 yarn build-packages
 
 step "5/7  Writing the settings files"
