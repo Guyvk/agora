@@ -144,8 +144,20 @@ make_db () {
 }
 make_db "$DB_NAME"
 make_db "$TEST_DB_NAME"
-(cd apps/backend && yarn migrate >/dev/null)
-(cd apps/backend && DATABASE_URL="postgres://$me@localhost:5432/$TEST_DB_NAME" yarn migrate >/dev/null)
+# Bring both databases up to date. The tests empty the list of finished
+# migrations in agora_test, so that one is only migrated when the list has rows.
+migrate_db () {
+  local n
+  n="$(psql -d "$1" -tAc 'select count(*) from knex_migrations' 2>/dev/null || echo 0)"
+  if [[ "$n" -gt 0 ]]; then
+    (cd apps/backend && DATABASE_URL="postgres://$me@localhost:5432/$1" yarn migrate >/dev/null 2>&1) \
+      || echo "  \"$1\": could not be migrated; if this is the test database that is fine, the tests only need its tables."
+  else
+    echo "  \"$1\": no migration list (the tests empty it), leaving it as it is."
+  fi
+}
+migrate_db "$DB_NAME"
+migrate_db "$TEST_DB_NAME"
 
 step "7/7  Adding the made-up demo data"
 (cd apps/backend && node scripts/agora-demo.js 2>&1 | tail -3)
