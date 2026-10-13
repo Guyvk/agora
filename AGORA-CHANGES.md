@@ -26,6 +26,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
+| `apps/web/src/components/CookiePreferencesPanel/CookiePreferencesPanel.js` | The cookie notice names no tracking or support service and has no switches (Agora has neither) |
+| `apps/web/src/routes/NonAuthLayoutRouter/NonAuthLayoutRouter.js` | The login pages show the 7BP mark instead of Hylo's logo |
+| `apps/web/src/routes/NonAuthLayoutRouter/Login/Login.js` | No "Continue with Google" button |
+| `apps/web/public/locales/*.json (cookie notice)` | Two new texts, the cookie notice sentence and "Got it", in every language |
 | `apps/web/src/routes/GroupSettings/GroupSettings.js` | Hands the result of deleting a group back to the Delete tab |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.js` | Says when a group could not be deleted, instead of doing nothing |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.test.js` | Checks that message |
@@ -46,6 +50,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
 - `apps/backend/api/services/Transcription.js`, `MeetingMinutes.js`
 - `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`, `apps/backend/lib/agora/contacts.js`
+- `apps/web/src/agora/AgoraLogo.js`, `AgoraCookieNotice.js`, `AgoraCookieNotice.test.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
