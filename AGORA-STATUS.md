@@ -2,7 +2,7 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 13 October 2026, about 23:15, by Claude Code on the Mac. Added cloud work (`AGORA-CLOUD.md`, `agora/setup-cloud.sh`) and started the first cloud session. "On this Mac" was confirmed on 12 October.
+**Last updated:** 14 October 2026, by a Claude Code cloud session (the first). Cloud setup works, two small jobs are open as draft pull requests.
 
 ## What Agora is
 
@@ -53,6 +53,16 @@ On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
 - Guy held a test meeting. No minutes came, because speech to text is not connected: there are no keys in `apps/backend/.env` yet.
 - Unfinished: the keys for speech to text, Claude and Google Drive are missing.
 
+## Cloud sessions
+
+Done in the first cloud session (13 to 14 October), all draft pull requests on `Guyvk/agora`:
+
+- #1 `agora-cloud-setup`: `./agora/setup-cloud.sh` works on the cloud machine (5 minutes the first time, 30 seconds again). Test results are in the comment on #1: backend 7 failing, web 6 failing, none caused by us (a blocked Vimeo download, missing upload settings, tests that expect a Mixpanel token, old snapshots). They are listed in `AGORA-CLOUD.md`.
+- #2 `cloud/cookie-and-login`: the cookie notice and login page no longer show Hylo's services or logo. Waits for Guy: Terms and Privacy links still point to hylo.com, and the translations need a native check.
+- #3 `cloud/hide-commons-mentions`: no more words about The Commons while it is off. Waits for Guy: should "public posts" stay?
+
+Both #2 and #3 start from #1, so merge #1 first. Nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
+
 ## Not tested yet
 
 Real voices and real microphones. The kMeet call inside the room with real muting. A summary written by Claude itself. Infomaniak's speech to text: its price per minute, and whether it accepts the sound format the room sends. The Files pages against a real Google Drive. Sending email through Brevo. Phones.
@@ -63,9 +73,9 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 
 **Jobs a cloud session can do without keys or Guy**, in this order:
 
-1. Make `agora/setup-cloud.sh` work in the cloud and run all backend and web tests there.
-2. The small jobs below that change only texts or screens: the cookie notice, the login page, the Commons mentions.
-3. Email texts for event invitations and digests.
+1. (Done, #1.) Cloud setup and tests.
+2. (Done, #2 and #3.) Cookie notice, login page, Commons mentions.
+3. Email texts for event invitations and digests. **Next cloud job.**
 4. Translations of the Contacts texts.
 5. The playbook page (step 9), on demo data.
 6. The weekly update (step 8) with a fallback that works without a Claude key, and a "Copy for Signal" button (Signal option A in the Build Plan).
@@ -87,12 +97,10 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 
 Small jobs for in between:
 
-- Reword the cookie notice. It still names Mixpanel and Intercom.
 - Add email texts for event invitations and digests.
 - Offer the fix in `Websockets.js` back to Hylo. That is a public pull request, so ask Guy first.
 - The Build Plan doc still says the setup script has not run on a Mac. Correct it: it has, and the demo opened.
-- The login page still shows the Hylo logo and a "Continue with Google" button, though logging in with Google is not used.
-- "Public post" and "Add my group into the commons" still mention The Commons.
+- The Terms of Service and Privacy Policy links on the login pages still point to hylo.com. Agora needs its own texts.
 
 ## Ideas and where each one stands
 
@@ -126,4 +134,6 @@ Small jobs for in between:
 - The server's file watcher (nodemon) runs out of open files on this Mac and then stops the worker, so no minutes get written. `./agora/start.sh dev` sets `CHOKIDAR_USEPOLLING=1`; the normal start uses no watcher.
 - Hylo's database tests empty the database they run on. Always run them with `DATABASE_URL` pointing at `agora_test`.
 - Tests also put jobs on the Redis queue. They now use their own queue (`q-test`, set in `test/setup/core.js`); without it, the running Agora's worker runs them on the demo data.
+- On a cloud machine, postgresql.org and repo.yarnpkg.com are blocked. The cloud script uses Ubuntu's PostgreSQL 16 and fetches Yarn from the npm registry, and `yarn install` needs `YARN_NETWORK_CONCURRENCY=4` because 16 downloads at once drop connections.
+- Backend tests leave the `knex_migrations` list of `agora_test` empty, so the setup script only migrates a database whose list has rows.
 - Each server program keeps up to 30 database connections open, more than Heroku's smallest database plan allows.
