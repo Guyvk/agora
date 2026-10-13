@@ -19,6 +19,7 @@ import { baseUrl, createGroupModalUrl, groupUrl, myHomeLandingUrl, isMyHomePath 
 
 // import s from './Drawer.module.scss' // eslint-disable-line no-unused-vars
 import s from './Drawer.module.scss'
+import { showCommons } from 'agora/config'
 
 export default function Drawer (props) {
   const navigate = useNavigate()
@@ -108,12 +109,15 @@ export default function Drawer (props) {
         <ul className={s.groupsList}>
           <ContextRow currentLocation={currentLocation} group={myHome} explicitPath={myHome.explicitPath} />
         </ul>
-        <ul className={s.groupsList}>
-          <li className={cn(s.sectionTitle, s.sectionTitleSeparator)}>{t('Public')}</li>
-          {defaultContexts && defaultContexts.map(context =>
-            <ContextRow currentLocation={currentLocation} group={context} key={context.id} explicitPath={context.explicitPath} />
-          )}
-        </ul>
+        {/* Agora: the Public section only leads to The Commons, which is off */}
+        {showCommons && (
+          <ul className={s.groupsList}>
+            <li className={cn(s.sectionTitle, s.sectionTitleSeparator)}>{t('Public')}</li>
+            {defaultContexts && defaultContexts.map(context =>
+              <ContextRow currentLocation={currentLocation} group={context} key={context.id} explicitPath={context.explicitPath} />
+            )}
+          </ul>
+        )}
         <ul className={s.groupsList}>
           <li className={cn(s.sectionTitle, s.sectionTitleSeparator)}>{t('My Groups')}</li>
           <ContextRow currentLocation={currentLocation} group={allMyGroups} />

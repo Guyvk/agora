@@ -20,6 +20,7 @@ import {
 } from 'store/models/Group'
 import SaveButton from '../SaveButton'
 import SettingsSection from '../SettingsSection'
+import { showCommons } from 'agora/config'
 
 function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSettings }) {
   const { t } = useTranslation()
@@ -151,7 +152,8 @@ function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSet
         </div>
       </SettingsSection>
 
-      {visibility === GROUP_VISIBILITY.Public && !group.allowInPublic && (
+      {/* Agora: no applying to The Commons while it is off */}
+      {showCommons && visibility === GROUP_VISIBILITY.Public && !group.allowInPublic && (
         <SettingsSection>
           <h3 className='text-foreground font-bold mb-2'>{t('Add my group into the commons')}</h3>
           <p className='text-foreground/70 mb-2'>{t('commonsExplainerText1')}</p>
