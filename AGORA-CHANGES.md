@@ -8,6 +8,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 | File | What changed |
 | --- | --- |
+| `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
 | `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link |
 | `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
@@ -39,7 +40,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 ## Files that are new
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
-- `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
+- `agora/setup-mac.sh`, `agora/setup-cloud.sh`, `AGORA-CLOUD.md`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
 - `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
 - `apps/backend/api/controllers/MeetingController.js`, `apps/backend/api/controllers/AgoraFilesController.js`, `apps/backend/api/controllers/AgoraContactsController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
