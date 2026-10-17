@@ -1,4 +1,4 @@
-import { showCommons } from 'agora/config'
+import { showCommons } from '@/agora/config'
 
 export const POST_EDITOR_TOUR_ID = 'post-editor'
 

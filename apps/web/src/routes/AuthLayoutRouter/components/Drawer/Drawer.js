@@ -19,7 +19,7 @@ import { baseUrl, createGroupModalUrl, groupUrl, myHomeLandingUrl, isMyHomePath 
 
 // import s from './Drawer.module.scss' // eslint-disable-line no-unused-vars
 import s from './Drawer.module.scss'
-import { showCommons } from 'agora/config'
+import { showCommons } from '@/agora/config'
 
 export default function Drawer (props) {
   const navigate = useNavigate()

@@ -20,7 +20,7 @@ import {
 } from 'store/models/Group'
 import SaveButton from '../SaveButton'
 import SettingsSection from '../SettingsSection'
-import { showCommons } from 'agora/config'
+import { showCommons } from '@/agora/config'
 
 function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSettings }) {
   const { t } = useTranslation()
