@@ -16170,6 +16170,7 @@ __metadata:
     mock-require: "npm:^2.0.2"
     nock: "npm:^13.5.5"
     node-fetch: "npm:^2.7.0"
+    nodemailer: "npm:10.0.14"
     nodemon: "npm:^1.12.1"
     nyc: "npm:^17.1.0"
     oidc-provider: "npm:^7.11.3"
@@ -33010,6 +33011,13 @@ __metadata:
   version: 1.16.0
   resolution: "node-stream-zip@npm:1.16.0"
   checksum: 10/172af3d7856d33706dadd1fe299c9a8d6a13a5fdd270abf8e4e8c4c62f0c02722815f3b0966e862746546fc77142dcc58ce087d5702627f7ee7dfdca0f4b98dc
+  languageName: node
+  linkType: hard
+
+"nodemailer@npm:10.0.14":
+  version: 10.0.14
+  resolution: "nodemailer@npm:10.0.14"
+  checksum: 10/18bd677a8719990f8fd84e187ea8b0b38e92f1aa07f2ea8eb89dcab96abc63a65e396cbf1159b06bf2fce05d5d72f4db09e62ed61a1d053f57c8bcb1d9ea16fe
   languageName: node
   linkType: hard
 

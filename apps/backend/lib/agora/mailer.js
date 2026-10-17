@@ -14,7 +14,12 @@
  * Settings (see .env.example):
  *   AGORA_EMAIL_TRANSPORT    "log" (default) prints emails in the terminal and sends nothing.
  *                            "brevo" sends them through Brevo.
+ *                            "smtp" sends them through any mail server, e.g. a 7BP mailbox.
  *   BREVO_API_KEY            the key of the Brevo account, when the transport is "brevo"
+ *   AGORA_SMTP_HOST          the mail server, when the transport is "smtp", e.g. smtp.gmail.com
+ *   AGORA_SMTP_PORT          587 (default) or 465
+ *   AGORA_SMTP_USER          the mailbox that logs in, e.g. agora@7billionpresidents.org
+ *   AGORA_SMTP_PASSWORD      its password (for Google: an app password)
  *   EMAIL_SENDER             the address emails come from, e.g. agora@7billionpresidents.org
  *   AGORA_EMAIL_SENDER_NAME  the name shown next to that address, default "Agora"
  */
@@ -448,6 +453,43 @@ async function deliverWithBrevo ({ to, from, content, attachments = [] }) {
   return response.json().catch(() => ({}))
 }
 
+let smtpTransport = null
+
+/**
+ * Sends through any mail server that speaks SMTP: a 7BP mailbox at Google
+ * Workspace, Infomaniak's mail service, or Brevo's SMTP. The transport is made
+ * once and reused.
+ */
+async function deliverWithSmtp ({ to, from, content, attachments = [] }) {
+  if (!process.env.AGORA_SMTP_HOST) throw new Error('AGORA_SMTP_HOST is not set')
+  if (!from.email) throw new Error('EMAIL_SENDER is not set')
+
+  if (!smtpTransport) {
+    const nodemailer = require('nodemailer')
+    const port = Number(process.env.AGORA_SMTP_PORT || 587)
+    smtpTransport = nodemailer.createTransport({
+      host: process.env.AGORA_SMTP_HOST,
+      port,
+      // Port 465 talks encrypted from the start; 587 switches to encryption first (STARTTLS).
+      secure: port === 465,
+      requireTLS: port !== 465,
+      auth: process.env.AGORA_SMTP_USER
+        ? { user: process.env.AGORA_SMTP_USER, pass: process.env.AGORA_SMTP_PASSWORD }
+        : undefined
+    })
+  }
+
+  return smtpTransport.sendMail({
+    from: { name: from.name, address: from.email },
+    to,
+    replyTo: from.replyTo || undefined,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+    attachments: attachments.map(a => ({ filename: a.name, content: a.content, encoding: 'base64' }))
+  })
+}
+
 async function deliverToLog ({ to, from, content, attachments = [] }) {
   console.log([
     '',
@@ -467,7 +509,8 @@ async function deliverToLog ({ to, from, content, attachments = [] }) {
 
 const TRANSPORTS = {
   log: deliverToLog,
-  brevo: deliverWithBrevo
+  brevo: deliverWithBrevo,
+  smtp: deliverWithSmtp
 }
 
 /**

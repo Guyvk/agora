@@ -184,6 +184,51 @@ describe('Agora mailer', () => {
     }
   })
 
+  it('sends through an SMTP server with encryption, the calendar file and no Hylo reply address', async () => {
+    const nodemailerPath = require.resolve('nodemailer')
+    const saved = { cached: require.cache[nodemailerPath], env: { ...process.env } }
+    let transportOptions, mail
+    require.cache[nodemailerPath] = {
+      id: nodemailerPath,
+      filename: nodemailerPath,
+      loaded: true,
+      exports: {
+        createTransport: options => {
+          transportOptions = options
+          return { sendMail: async message => { mail = message; return { messageId: 'x' } } }
+        }
+      }
+    }
+    Object.assign(process.env, {
+      AGORA_EMAIL_TRANSPORT: 'smtp',
+      AGORA_SMTP_HOST: 'smtp.agora.test',
+      AGORA_SMTP_USER: 'agora@agora.test',
+      AGORA_SMTP_PASSWORD: 'test-only',
+      EMAIL_SENDER: 'agora@agora.test',
+      INBOUND_EMAIL_DOMAIN: 'inbound.agora.test'
+    })
+    try {
+      await new Promise((resolve, reject) => mailer.send({
+        email_id: 'tem_YCTQy4pJywkRDw6pfhShDg9H',
+        recipient: { address: 'amara@agora.test' },
+        sender: { name: 'Network (via Hylo)', reply_to: 'reply-1@inbound.agora.test' },
+        email_data: { event_name: 'Circle meeting', date: 'Mon, Oct 20' },
+        files: [{ id: 'invite.ics', data: 'QkVHSU46VkNBTEVOREFS' }]
+      }, err => err ? reject(err) : resolve()))
+      expect(transportOptions).to.include({ host: 'smtp.agora.test', port: 587, secure: false, requireTLS: true })
+      expect(transportOptions.auth).to.deep.equal({ user: 'agora@agora.test', pass: 'test-only' })
+      expect(mail.from).to.deep.equal({ name: 'Network (via Agora)', address: 'agora@agora.test' })
+      expect(mail.replyTo).to.equal(undefined)
+      expect(mail.subject).to.equal('Cancelled: Circle meeting')
+      expect(mail.attachments).to.deep.equal([{ filename: 'invite.ics', content: 'QkVHSU46VkNBTEVOREFS', encoding: 'base64' }])
+    } finally {
+      if (saved.cached) require.cache[nodemailerPath] = saved.cached
+      else delete require.cache[nodemailerPath]
+      for (const key of Object.keys(process.env)) if (!(key in saved.env)) delete process.env[key]
+      Object.assign(process.env, saved.env)
+    }
+  })
+
   it('does not send an email it has no text for', done => {
     mailer.send({ email_id: 'tem_does_not_exist', recipient: { address: 'x@agora.test' } }, (err, result) => {
       expect(err).to.equal(null)
