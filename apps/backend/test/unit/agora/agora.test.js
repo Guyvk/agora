@@ -104,6 +104,13 @@ describe('Agora mailer', () => {
     expect(email.html).to.contain('&lt;script&gt;')
   })
 
+  it('keeps the subject on one line and only strips "(via ...)" from names', () => {
+    const email = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
+      post: { title: 'Two\nlines', url: 'https://agora.test/p/5' }
+    }, { sender: { name: 'Sam (they/them)' } })
+    expect(email.subject).to.equal('Sam (they/them) invites you to Two lines')
+  })
+
   it('names the inviter in an event invitation', () => {
     const email = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
       group_name: 'Network',

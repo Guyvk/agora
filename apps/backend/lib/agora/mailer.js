@@ -66,7 +66,7 @@ function ourName (value) {
 
 /** "Lars (via Hylo)" becomes "Lars". */
 function personName (senderName) {
-  return senderName ? String(senderName).replace(/\s*\([^)]*\)\s*$/, '').trim() : ''
+  return senderName ? String(senderName).replace(/\s*\(via [^)]*\)\s*$/i, '').trim() : ''
 }
 
 /**
@@ -120,7 +120,8 @@ function compose ({ subject, lines, sections = [], button, footer }) {
     '</div>'
   ].join('')
 
-  return { subject, text, html }
+  // A subject is one line, whatever a post title holds.
+  return { subject: String(subject == null ? '' : subject).replace(/\s+/g, ' ').trim(), text, html }
 }
 
 /**
@@ -473,6 +474,9 @@ async function deliverWithSmtp ({ to, from, content, attachments = [] }) {
       // Port 465 talks encrypted from the start; 587 switches to encryption first (STARTTLS).
       secure: port === 465,
       requireTLS: port !== 465,
+      // Give up on an unreachable server quickly, so a background job is not stuck.
+      connectionTimeout: 15000,
+      socketTimeout: 30000,
       auth: process.env.AGORA_SMTP_USER
         ? { user: process.env.AGORA_SMTP_USER, pass: process.env.AGORA_SMTP_PASSWORD }
         : undefined
