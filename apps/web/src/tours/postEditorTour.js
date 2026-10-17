@@ -1,3 +1,5 @@
+import { showCommons } from 'agora/config'
+
 export const POST_EDITOR_TOUR_ID = 'post-editor'
 
 /**
@@ -43,7 +45,10 @@ export function postEditorTourSteps (t) {
       element: '[data-tour="post-public"]',
       popover: {
         title: t('Public posts'),
-        description: t('Make a post visible beyond your groups — anyone can see it and it can appear in The Commons.'),
+        // Agora: no mention of The Commons while it is off
+        description: showCommons
+          ? t('Make a post visible beyond your groups — anyone can see it and it can appear in The Commons.')
+          : t('Make a post visible beyond your groups. Anyone can see it.'),
         side: 'top'
       }
     }

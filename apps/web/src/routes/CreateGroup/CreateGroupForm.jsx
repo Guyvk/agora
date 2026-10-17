@@ -37,6 +37,7 @@ import { bgImageStyle, cn } from 'util/index'
 import { groupUrl } from '@hylo/navigation'
 import { createGroup, fetchGroupExists } from './CreateGroup.store'
 import { nameToSlug, SLUG_MAX_LENGTH, slugValidatorRegex } from './slug'
+import { showCommons } from 'agora/config'
 
 const STANDARD_VIEW_TYPES = new Set(['all', 'chat', 'map', 'members', 'welcome', ...Object.values(POST_TYPE_TO_VIEW_TYPE)])
 
@@ -934,7 +935,8 @@ const CreateGroupForm = forwardRef(function CreateGroupForm ({ onClose, bodyClas
             : <HomeViewPicker value={homeView} onChange={setHomeView} customHomeRow={customHomeRow} options={HOME_VIEW_OPTIONS} />}
         </div>
 
-        {visibility === GROUP_VISIBILITY.Public && (
+        {/* Agora: no applying to The Commons while it is off */}
+        {showCommons && visibility === GROUP_VISIBILITY.Public && (
           <div className='rounded-xl bg-foreground/5 p-4 mt-5'>
             <h3 className='font-semibold mb-2 text-sm'>{t('Optional') + ': ' + t('Add my group into the commons')}</h3>
             <p className='text-xs opacity-70 mb-2'>{t('commonsExplainerText1')}</p>

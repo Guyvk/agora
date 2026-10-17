@@ -10,7 +10,7 @@ import setReturnToPath from 'store/actions/setReturnToPath'
 import { getAuthenticated } from 'store/selectors/getSignupState'
 import particlesjsConfig from './particlesjsConfig'
 import LocaleDropdown from 'routes/AuthLayoutRouter/components/GlobalNav/LocaleDropdown/LocaleDropdown'
-import useAppearance from 'hooks/useAppearance'
+import AgoraLogo from 'agora/AgoraLogo'
 import Button from 'components/ui/button'
 import JoinGroup from 'routes/JoinGroup'
 import Login from 'routes/NonAuthLayoutRouter/Login'
@@ -42,10 +42,6 @@ export default function NonAuthLayoutRouter (props) {
     : returnToPathFromQueryString
   const locale = getLocaleFromLocalStorage()
   const localeDisplay = localeToFlagEmoji(locale)
-  // Follow the scheme AppearanceSync actually applies to the document, not raw
-  // prefers-color-scheme — the two disagree when the app theme overrides the OS
-  const { effectiveColorScheme } = useAppearance()
-  const logoSrc = effectiveColorScheme === 'dark' ? '/hylo-logo-light-horizontal.svg' : '/hylo-logo-dark-horizontal.svg'
 
   useEffect(() => {
     if (returnToPath && returnToPath !== '/') {
@@ -70,8 +66,9 @@ export default function NonAuthLayoutRouter (props) {
           <Particles options={particlesjsConfig} style={particlesStyle} />
         </div>
         <div className='flex justify-between items-center w-full px-4 absolute top-0'>
+          {/* Agora: the 7BP mark instead of Hylo's logo */}
           <a href='/'>
-            <img className='h-10' src={logoSrc} alt={t('Hylo logo')} />
+            <AgoraLogo className='h-10' />
           </a>
           <LocaleDropdown renderToggleChildren={<span className='text-foreground'>{t('Locale')}: {locale} {localeDisplay}</span>} />
         </div>
