@@ -7,6 +7,16 @@ if (!process.env.DATABASE_URL) {
 
 const databaseUrl = new URL(process.env.DATABASE_URL)
 
+// Agora: DB_POOL_MIN and DB_POOL_MAX lower the number of database connections
+// per program on a small server, where the database allows only a few for all
+// programs together. Anything that is not a whole number is ignored.
+const poolSetting = (name, fallback, lowest) => {
+  const text = String(process.env[name] || '').trim()
+  return /^\d+$/.test(text) && Number(text) >= lowest ? Number(text) : fallback
+}
+const poolMax = poolSetting('DB_POOL_MAX', 30, 1)
+const poolMin = Math.min(poolSetting('DB_POOL_MIN', 5, 0), poolMax)
+
 const defaults = {
   client: 'pg',
   connection: {
@@ -19,8 +29,8 @@ const defaults = {
   },
   pool: {
     // https://github.com/Vincit/objection.js/issues/1137
-    min: 5, // default 2
-    max: 30, // default 10
+    min: poolMin, // default 2. Agora: 5 unless DB_POOL_MIN says otherwise
+    max: poolMax, // default 10. Agora: 30 unless DB_POOL_MAX says otherwise
     // https://github.com/knex/knex/issues/2820#issuecomment-481710112
     propagateCreateError: false, // default true (false NOT recommended),
     idleTimeoutMillis: 60000

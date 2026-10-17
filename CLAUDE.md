@@ -1,3 +1,5 @@
+> Agora: this copy is Agora, not Hylo. In the cloud, read `AGORA-CLOUD.md` first; its rules win over the GitHub and ticket parts below.
+
 # Hylo - Claude Code Project Guide
 
 ## Project Structure

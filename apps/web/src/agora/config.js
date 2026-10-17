@@ -16,3 +16,16 @@ export const showCommons = false
 export function isCommonsPath (pathname) {
   return pathname === '/public' || String(pathname).startsWith('/public/')
 }
+
+/**
+ * Logging in with Google. Agora logs in with email and password only, so the
+ * "Continue with Google" button is hidden.
+ */
+export const showGoogleLogin = false
+
+/**
+ * The analytics and support switches of the cookie notice. Agora has no
+ * tracking and no support chat, so its notice has no switches and only names
+ * the cookies it needs.
+ */
+export const showTrackingChoices = false

@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { cn } from 'util/index'
 import SwitchStyled from 'components/SwitchStyled'
 import classes from './PublicToggle.module.scss'
+import { showCommons } from 'agora/config'
 
 const PublicToggle = ({ isPublic = false, togglePublic, selectedGroups = [] }) => {
   const { t } = useTranslation()
-  const allowedInTheCommons = selectedGroups.some(group => group.allowInPublic)
+  // Agora: no mention of The Commons while it is off
+  const allowedInTheCommons = showCommons && selectedGroups.some(group => group.allowInPublic)
   return (
     <div className='flex flex-col gap-2'>
       <div className={cn('w-full text-foreground/50 hover:text-foreground/100 text-xs cursor-pointer rounded', { [classes.postIsPublic]: isPublic })} onClick={togglePublic} role='button'>
