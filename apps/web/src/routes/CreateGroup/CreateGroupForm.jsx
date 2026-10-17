@@ -37,7 +37,7 @@ import { bgImageStyle, cn } from 'util/index'
 import { groupUrl } from '@hylo/navigation'
 import { createGroup, fetchGroupExists } from './CreateGroup.store'
 import { nameToSlug, SLUG_MAX_LENGTH, slugValidatorRegex } from './slug'
-import { showCommons } from 'agora/config'
+import { showCommons } from '@/agora/config'
 
 const STANDARD_VIEW_TYPES = new Set(['all', 'chat', 'map', 'members', 'welcome', ...Object.values(POST_TYPE_TO_VIEW_TYPE)])
 

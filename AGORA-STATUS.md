@@ -2,7 +2,7 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 14 October 2026, by a Claude Code cloud session (the first). Cloud setup works, two small jobs are open as draft pull requests.
+**Last updated:** 17 October 2026, about 22:00, by Claude Code on the Mac. The Mac now runs everything merged on GitHub (#1 to #7), plus the build fix in #8.
 
 ## What Agora is
 
@@ -32,7 +32,7 @@ Built on 11 October 2026 in Claude's cloud workspace, on top of Hylo `dev` at co
 On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
 
 - Agora runs at http://localhost:3000 from the main folder, started with `./agora/start.sh`, and Guy has used it in his browser.
-- The main folder is up to date: its branch `agora` has every commit below. The working copy `.claude/worktrees/mac-setup` (branch `agora-mac-setup`) holds the same commits and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
+- 17 October: the main folder was moved to GitHub's `agora` branch (#1 to #7 merged), the Drive table was added to the `agora` database, and Agora was restarted. The main folder is now on branch `agora-fix-web-build` (#8). After Guy merges #8: `git checkout agora && git pull fork agora`. The old local commit (Iberozoa ideas and an older note) is kept in branch `agora-mac-backup-2026-10-17`; `ideas-from-iberozoa.md` stays on disk, hidden from git by `.git/info/exclude`. A backup of the demo database from before is `agora-before-update.dump` in the Claude job folder. The working copies under `.claude/worktrees` are all merged and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
 - Tools, all without Homebrew, which builds everything from source on macOS 13: Postgres.app with PostgreSQL 17 and PostGIS in Applications, Node 24 in `~/.local/share/agora-node24`, Redis built from source in `~/.local/share/agora-redis`. Databases: `agora` with the demo data, and `agora_test`, which the tests empty every time.
 - Committed on `agora-mac-setup`, each one tested:
   - `50c985f` The setup script uses Postgres.app, Node from nodejs.org and Redis from source. It ran twice from scratch. The build of an old picture tool (sharp 0.32.6) is skipped in `package.json`.
@@ -47,7 +47,6 @@ On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
   - `4e12d75` Tests keep their background jobs in their own queue (`q-test`). Before this, test runs leaked jobs into the running Agora, which added about 150 extra activities and notifications and a few event invitations to the demo data on 12 October.
   - `bf4f8fd` The Delete tab of a circle's settings says when deleting failed, instead of doing nothing.
   - `37ffc40` The Contacts page is part of the app at `/contacts`, like Messages: the left bar stays, it looks like the rest of Agora, nothing reloads, and each contact has its own address. The loading screen shows the 7BP mark and the word Agora.
-  - `37ffc40` is not in the main folder yet: Guy brings it in with `git merge --ff-only agora-mac-setup` in his own Terminal, then Agora is restarted. The web app is rebuilt then, which takes a few minutes.
 - Cleaned on 12 October: the 153 activities, 152 notifications and 6 event invitations that leaked test jobs added to the demo data, and the unread counters they raised. Guy's own chat message stayed. A backup from before is in the Claude job folder (`agora-before-cleanup.dump`).
 - Guy tried to delete the Network circle and it stayed. Demo Steward is allowed to, and Hylo's delete works (tried and rolled back). Most likely the confirmation box was closed without clicking OK. Network is still there.
 - Guy held a test meeting. No minutes came, because speech to text is not connected: there are no keys in `apps/backend/.env` yet.
@@ -55,13 +54,21 @@ On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
 
 ## Cloud sessions
 
-Done in the first cloud session (13 to 14 October), all draft pull requests on `Guyvk/agora`:
+Done in the first cloud session (13 to 14 October), all merged on 13 October:
 
 - #1 `agora-cloud-setup`: `./agora/setup-cloud.sh` works on the cloud machine (5 minutes the first time, 30 seconds again). Test results are in the comment on #1: backend 7 failing, web 6 failing, none caused by us (a blocked Vimeo download, missing upload settings, tests that expect a Mixpanel token, old snapshots). They are listed in `AGORA-CLOUD.md`.
 - #2 `cloud/cookie-and-login`: the cookie notice and login page no longer show Hylo's services or logo. Waits for Guy: Terms and Privacy links still point to hylo.com, and the translations need a native check.
 - #3 `cloud/hide-commons-mentions`: no more words about The Commons while it is off. Waits for Guy: should "public posts" stay?
 
-Both #2 and #3 start from #1, so merge #1 first. Nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
+Merged on 17 October, made in a Mac chat:
+
+- #5 Email texts for events, posts, mentions and digests, and sending through any mail server (SMTP).
+- #6 Circle members add files to Google Drive (off unless `AGORA_DRIVE_UPLOADS=on`). An administrator links each circle's folder with `scripts/agora-drive-link.js`.
+- #7 Agora on its own server at Infomaniak (VPS Lite M, Switzerland) instead of Heroku: `agora/vps/`. Not yet run on a real server.
+
+Open: #8 `agora-fix-web-build`. After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors. **Guy: merge #8.**
+
+In the cloud, nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
 
 ## Not tested yet
 
@@ -75,18 +82,17 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 
 1. (Done, #1.) Cloud setup and tests.
 2. (Done, #2 and #3.) Cookie notice, login page, Commons mentions.
-3. Email texts for event invitations and digests. **Next cloud job.**
-4. Translations of the Contacts texts.
+3. (Done, #5.) Email texts.
+4. Translations of the Contacts texts. **Next cloud job.** Before opening a pull request that touches `apps/web`, run the web build (`cd apps/web && node scripts/build.js`): the tests alone missed the broken build.
 5. The playbook page (step 9), on demo data.
 6. The weekly update (step 8) with a fallback that works without a Claude key, and a "Copy for Signal" button (Signal option A in the Build Plan).
 7. A welcome for new volunteers (part of step 12).
 
-1. Bring in `37ffc40` and restart Agora (see "On this Mac"). From the next session on, `.claude/settings.local.json` lets Claude Code update this file itself.
+1. Guy merges #8, then the main folder goes back to branch `agora` (see "On this Mac").
 2. Before real contacts go into the Contacts page: an experienced developer reviews it, and 7BP agrees who answers when someone asks what is kept about them or asks to be removed.
-3. Put the code on GitHub as `Guyvk/agora`. The fork will be public, so ask Guy first.
 4. Connect speech to text with Infomaniak (chosen on 12 October; Scaleway in France is the backup). Guy puts the address and key into `apps/backend/.env` himself, plus a Claude key for the summaries. Then one short test recording.
 5. Try the meeting room with real voices: three or four people with headphones, ten minutes.
-6. Put Agora online on Heroku in the EU, at agora.7billionpresidents.org. See "Going online" in the README. Needs whoever holds the login of the domain.
+6. Put Agora online on an Infomaniak VPS Lite M, at agora.7billionpresidents.org. The steps are in "Going online" in the README (#7). Costs about 10 euros a month and needs whoever holds the login of the domain, so Guy decides when.
 7. Connect Google Drive once Guy has the 7BP Google login. The steps are under "Google Drive" in the README. The Files pages are built.
 8. The weekly update written by the assistant. A steward approves it during the first month.
 9. A playbook page: every chapter with its owner and status.
@@ -97,7 +103,6 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 
 Small jobs for in between:
 
-- Add email texts for event invitations and digests.
 - Offer the fix in `Websockets.js` back to Hylo. That is a public pull request, so ask Guy first.
 - The Build Plan doc still says the setup script has not run on a Mac. Correct it: it has, and the demo opened.
 - The Terms of Service and Privacy Policy links on the login pages still point to hylo.com. Agora needs its own texts.
@@ -136,4 +141,7 @@ Small jobs for in between:
 - Tests also put jobs on the Redis queue. They now use their own queue (`q-test`, set in `test/setup/core.js`); without it, the running Agora's worker runs them on the demo data.
 - On a cloud machine, postgresql.org and repo.yarnpkg.com are blocked. The cloud script uses Ubuntu's PostgreSQL 16 and fetches Yarn from the npm registry, and `yarn install` needs `YARN_NETWORK_CONCURRENCY=4` because 16 downloads at once drop connections.
 - Backend tests leave the `knex_migrations` list of `agora_test` empty, so the setup script only migrates a database whose list has rows.
-- Each server program keeps up to 30 database connections open, more than Heroku's smallest database plan allows.
+- Each server program keeps up to 30 database connections open. `DB_POOL_MIN`/`DB_POOL_MAX` (#6) lower that.
+- On this Mac, backend tests hang at the start with `DATABASE_URL=postgres://localhost/agora_test`. Use `postgres://guyvk@localhost:5432/agora_test` and run mocha directly: `node node_modules/mocha/bin/mocha -r test/setup/core -r @babel/register --exit --timeout 60000 test/unit/agora/` from `apps/backend`. The `agora_test` migration list is empty, so `yarn migrate` fails there; the tests rebuild it from `schema.sql`.
+- Jest finds imports written `agora/...`, the web build does not. Always write `@/agora/...`.
+- Playwright has no browser of its own on this Mac. Use the installed Chrome with `chromium.launch({ channel: 'chrome' })`. Hylo's `yarn screenshot` does not work here (it expects a database user `postgres`).

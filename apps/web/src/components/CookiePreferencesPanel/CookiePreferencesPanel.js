@@ -5,8 +5,8 @@ import Button from 'components/ui/button'
 import { Switch } from 'components/ui/switch'
 import { cn } from 'util/index'
 import { getCookieConsent } from 'util/cookieConsent'
-import { showTrackingChoices } from 'agora/config'
-import AgoraCookieNotice from 'agora/AgoraCookieNotice'
+import { showTrackingChoices } from '@/agora/config'
+import AgoraCookieNotice from '@/agora/AgoraCookieNotice'
 
 export default function CookiePreferencesPanel () {
   const { t } = useTranslation()

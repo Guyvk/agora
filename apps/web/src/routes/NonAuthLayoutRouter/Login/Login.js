@@ -13,7 +13,7 @@ import GoogleButton from 'components/GoogleButton'
 import Button from 'components/ui/button'
 import classes from './Login.module.scss'
 import { cn } from 'util/index'
-import { showGoogleLogin } from 'agora/config'
+import { showGoogleLogin } from '@/agora/config'
 
 export default function Login (props) {
   const dispatch = useDispatch()

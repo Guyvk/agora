@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from 'util/index'
 import SwitchStyled from 'components/SwitchStyled'
 import classes from './PublicToggle.module.scss'
-import { showCommons } from 'agora/config'
+import { showCommons } from '@/agora/config'
 
 const PublicToggle = ({ isPublic = false, togglePublic, selectedGroups = [] }) => {
   const { t } = useTranslation()
