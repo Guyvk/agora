@@ -66,6 +66,8 @@ Merged on 17 October, made in a Mac chat:
 - #6 Circle members add files to Google Drive (off unless `AGORA_DRIVE_UPLOADS=on`). An administrator links each circle's folder with `scripts/agora-drive-link.js`.
 - #7 Agora on its own server at Infomaniak (VPS Lite M, Switzerland) instead of Heroku: `agora/vps/`. Not yet run on a real server.
 
+Open: #10 `agora-event-invites`, from Guy's test on 17 October. People invited to an event were not told, member search failed on the Mac, and the demo people had email switched off. Waits for Guy: switch on email for the existing demo people (one line, given in the chat of 17 October), restart Agora from the branch, redo the event test, then merge.
+
 #8 `agora-fix-web-build` (merged 17 October). After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors.
 
 In the cloud, nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
