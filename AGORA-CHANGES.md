@@ -13,6 +13,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
 | `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages and the Contacts page |
 | `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
+| `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables and the three contact tables, with their links deferrable like Hylo's own |
@@ -40,6 +41,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
 - `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
+- `agora/vps/setup-server.sh`, `agora/vps/server-env.mjs`, `agora/vps/update.sh`, `agora/vps/backup.sh` (the server at Infomaniak)
 - `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
 - `apps/backend/api/controllers/MeetingController.js`, `apps/backend/api/controllers/AgoraFilesController.js`, `apps/backend/api/controllers/AgoraContactsController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`

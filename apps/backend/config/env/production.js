@@ -41,6 +41,7 @@ module.exports = {
   },
 
   sockets: {
-    onlyAllowOrigins: [...HYLO_TRUSTED_BROWSER_ORIGINS]
+    // Agora: also allow the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain
+    onlyAllowOrigins: [...HYLO_TRUSTED_BROWSER_ORIGINS, ...(process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)]
   }
 };
