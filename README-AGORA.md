@@ -14,7 +14,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations and join requests | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
-| Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
+| Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
@@ -83,17 +83,64 @@ Things to know:
 
 Each circle has a Files page at `/noo/agora/files/<circle>`, where `<circle>` is the last part of the circle's address in Agora (for example `7bp-governance` in `/groups/7bp-governance`). It lists the circle's Drive folder: names, who changed a file last and when. Clicking a file opens it in Google Drive, so Drive keeps deciding who may read or edit it. Anyone logged in to Agora can see every circle's Files page. They see the names of all files, including files they cannot open.
 
-How Agora finds the folder: there is one main 7BP folder in Drive, and inside it a folder for each circle, named exactly like the circle in Agora. Capitals and extra spaces do not matter. Renaming a circle or its folder breaks the match until the other is renamed too. Agora never shows anything outside the main folder.
+How Agora finds the folder: there is one main 7BP folder in Drive, and inside it a folder for each circle, named exactly like the circle in Agora. Capitals and extra spaces do not matter. Renaming a circle or its folder breaks the match until the other is renamed too. Agora never shows or adds anything outside the main folder.
 
-Agora reads Drive through a robot Google account, which Google calls a service account. It only ever reads. Setting it up, once:
+### Adding files from Agora
 
-1. **The folders.** In Google Drive, make the main folder and a folder per circle inside it.
-2. **The robot account.** Go to [console.cloud.google.com](https://console.cloud.google.com), signed in with the 7BP Google account. Make a project called Agora. Under *APIs and services*, switch on the *Google Drive API*. Under *IAM and admin*, then *Service accounts*, create an account called `agora-drive-reader`, with no roles. Open it, choose *Keys*, *Add key*, *JSON*. Your browser downloads a key file. Keep it secret: anyone with it can read the main folder.
-3. **Share.** Share the main folder with the robot account's email address (it ends in `iam.gserviceaccount.com`) as a *Viewer*. In a shared drive, add it as a member with the *Viewer* role.
-4. **Tell Agora.** In `apps/backend/.env`, set `AGORA_DRIVE_FOLDER_ID` to the main folder's Drive link, and `AGORA_GOOGLE_SERVICE_ACCOUNT_KEY` to the key file in base64. In the Terminal, `base64 -i ~/Downloads/<the key file>.json | pbcopy` copies it, ready to paste. Then put the key file in the password manager and delete it from Downloads.
-5. **Link it.** Restart Agora. In each circle's settings, a steward adds a link to its Files page to the circle's menu.
+When adding is switched on (`AGORA_DRIVE_UPLOADS=on`), members of a circle see three buttons on its Files page:
 
-If you use Google Workspace, two settings of the organisation can get in the way: sharing with people outside the organisation, and, for organisations made after May 2024, making keys for robot accounts. Google switches the second off by default. A Workspace admin can allow both for this one project or folder.
+- **Add files**: pick one or more files. They go into the folder that is open and show up in the list when they are done. Files can also be dropped on the list.
+- **New folder**: makes a folder in the folder that is open.
+- **My folder**: opens the folder with your own name in the folder that is open, and makes it the first time. This is how 7BP works in Drive today: each person puts photos and videos in a folder under their own name.
+
+Only members of that circle can add to its folder; everyone else still only sees the list. Agora never changes, moves or deletes what is already in Drive.
+
+Big videos are fine, up to 5 GB a file (`AGORA_DRIVE_MAX_UPLOAD_MB`). They do not pass through Agora: Agora checks that you are a member, asks Google for a one-time upload address for that one file in that one folder, and your browser sends the file straight to Google in pieces of 8 MB, with a percentage on screen. If the connection breaks, a piece is tried again. Keep the page open until it says "Added"; the browser asks before you leave halfway. If a browser cannot send to Google directly, files up to 25 MB go through Agora's server instead, and bigger ones have to be put in Drive by hand. Whether browsers can send to Google directly has been tested with a pretend Google only, so try it with one real big video first.
+
+In Drive, an added file belongs to Agora's Google account. The Files page shows the name of the member who added it.
+
+**Travel receipts and tickets.** These often carry bank account numbers (IBANs), amounts and travel details: financial personal data. Keep them out of Agora's Files pages until 7BP has agreed how it handles personal data (see "Contacts"), or keep them in a folder that is not inside the main folder, so Agora never shows them.
+
+### Which Google account Agora uses
+
+Google does not let a robot account (a "service account") store files in a normal Drive, because a robot has no storage of its own. So there are two ways:
+
+| | Way 1: a shared drive | Way 2: a Google account for 7BP |
+| --- | --- | --- |
+| Needs | Google Workspace for 7BP. Nonprofits can get it free through [Google for Nonprofits](https://www.google.com/nonprofits/), with far more storage than one account | A normal Google account made only for 7BP, for example `agora.7bp@gmail.com`. Free with 15 GB, which a few videos fill. Google One sells more (2 TB for about 10 euros a month) |
+| Where files live | A shared drive, owned by 7BP as an organisation | The "My Drive" of that account |
+| Agora logs in with | A robot account and its key | That account, which allowed Agora in once |
+| Choose it when | 7BP has or gets Workspace. This is the better way | 7BP has no Workspace |
+
+Do not use your own personal Google account for way 2: Agora would then be allowed into all of your own Drive. The code only looks inside the main folder, but the permission would be there.
+
+Ask the founder first whether 7BP has Google Workspace. Then follow one of the two.
+
+### Way 1, a shared drive (with Google Workspace)
+
+1. **The shared drive.** In Google Drive, signed in with the 7BP Workspace account, choose *Shared drives*, *New*, and call it `7BP Agora`. Inside it, make a folder per circle, named exactly like the circle in Agora. This shared drive is the main folder.
+2. **The robot account.** Go to [console.cloud.google.com](https://console.cloud.google.com), signed in with the 7BP account. Make a project called Agora. Under *APIs and services*, switch on the *Google Drive API*. Under *IAM and admin*, then *Service accounts*, create an account called `agora-drive`, with no roles. Open it, choose *Keys*, *Add key*, *JSON*. Your browser downloads a key file. Keep it secret: anyone with it can read and add to the main folder. For organisations made after May 2024, Google blocks making keys: a Workspace admin allows it for this one project (the policy is called *Disable service account key creation*).
+3. **Share.** Open the shared drive, choose *Manage members*, and add the robot account's email address (it ends in `iam.gserviceaccount.com`) as *Contributor*. Contributor can add files but cannot delete anything. For reading only, *Viewer* is enough.
+4. **Tell Agora.** In `apps/backend/.env`, set `AGORA_DRIVE_FOLDER_ID` to the shared drive's link (open it in Drive and copy the address), `AGORA_GOOGLE_SERVICE_ACCOUNT_KEY` to the key file in base64, and `AGORA_DRIVE_UPLOADS=on`. In the Terminal, `base64 -i ~/Downloads/<the key file>.json | pbcopy` copies the key, ready to paste. Then put the key file in the password manager and delete it from Downloads.
+5. Restart Agora, and see "Link it" below.
+
+If sharing with people outside the organisation is switched off in Workspace, a Workspace admin allows it for this shared drive.
+
+### Way 2, a Google account for 7BP (without Workspace)
+
+1. **The account.** Make a new Google account for 7BP at [accounts.google.com](https://accounts.google.com), for example `agora.7bp@gmail.com`. Put its password in the password manager, and give two other key holders access, like every outside account.
+2. **The folders.** Signed in as that account, make the main folder in its Google Drive, called `7BP Agora`, and a folder per circle inside it, named exactly like the circle in Agora. Share the main folder with the people who should also see it in Drive. Folders that someone else owns also work, if they share them with this account as *Editor*.
+3. **The project.** Go to [console.cloud.google.com](https://console.cloud.google.com), signed in as that account. Make a project called Agora. Under *APIs and services*, switch on the *Google Drive API*.
+4. **The login screen.** Under *APIs and services*, then *OAuth consent screen* (newer screens call it *Google Auth Platform*): choose *External*, app name `Agora`, and the account's own email address for both contact fields. Skip the scopes and test users. Then, under *Audience*, choose **Publish app** and confirm. This step matters: while the app is in "Testing", Google ends Agora's login after seven days. Google does not need to check the app, because only this one account ever logs in to it.
+5. **The login client.** Under *Clients* (or *Credentials*, *Create credentials*, *OAuth client ID*), make a client of the type **Desktop app**, called `Agora`. Google shows a client ID and a client secret. Put them in `apps/backend/.env` yourself, as `AGORA_GOOGLE_OAUTH_CLIENT_ID` and `AGORA_GOOGLE_OAUTH_CLIENT_SECRET`. Also set `AGORA_DRIVE_FOLDER_ID` to the main folder's Drive link and `AGORA_DRIVE_UPLOADS=on`.
+6. **Let Agora in.** In the Terminal, in the Agora folder, run `node agora/google-drive-login.mjs`. Your browser opens Google's login page. Log in as the 7BP account, not your own. Google warns that it has not verified the app: choose *Advanced*, then *Go to Agora*, then *Continue*. The script writes `AGORA_GOOGLE_OAUTH_REFRESH_TOKEN` into `apps/backend/.env` without showing it, and says which account it used.
+7. Restart Agora, and see "Link it" below.
+
+If Agora ever says Google refused its login, for example after the account's password was changed, run step 6 again.
+
+### Link it
+
+In each circle's settings, a steward adds a link to its Files page to the circle's menu. Online, the settings above go into Heroku as well, see "Going online".
 
 ## Contacts
 
@@ -124,11 +171,36 @@ Emails that Agora has no text for yet, such as event invitations and digests, ar
 
 ## Going online
 
-Not done yet. The plan is Heroku in the EU region, at `agora.7billionpresidents.org`. Before the first deploy:
+Prepared, not done yet. Agora goes on Heroku, in its EU region (Dublin), and later at `agora.7billionpresidents.org`. One script does the work: `./agora/heroku-setup.sh`. Run without anything after it, it only shows every step and what it costs, and changes nothing.
 
-- The server keeps up to 30 database connections open per process, which is more than Heroku's smallest database plan allows. Either lower the pool in `apps/backend/knexfile.js` or take the next plan up.
-- `OIDC_KEYS`, `COOKIE_SECRET` and `JWT_SECRET` must be made fresh for the online copy. Never reuse the ones from your Mac.
-- Never run `scripts/agora-demo.js` on the real Agora. It refuses when `NODE_ENV=production`.
+**How it is laid out.** Two Heroku apps, the way Hylo runs:
+
+| App | What runs there |
+| --- | --- |
+| `agora-7bp` | The web app: the pages people open. It passes every `/noo` call on to the server app |
+| `agora-7bp-api` | The server, its background worker (minutes, emails), the database (Heroku Postgres), Redis (Redis Cloud) and a timer (Heroku Scheduler) |
+
+**What it costs**, per month, at Heroku's prices of October 2026: three Basic dynos at 7 dollars (server, worker, web app), the smallest database at 5 dollars, Redis Cloud's free 30 MB plan, and a few cents for the timer. About 27 dollars a month. Google Drive storage is separate, see "Google Drive".
+
+**Steps**, in the Terminal, in the Agora folder:
+
+1. `heroku login`, once. It opens the browser to log in to Heroku.
+2. `./agora/heroku-setup.sh` shows the plan. Read it.
+3. `./agora/heroku-setup.sh create` makes the two apps, the database, Redis and the timer, and puts in the settings. Fresh secrets for cookies and logins are made on the spot and go straight into Heroku, never shown and never the ones from the Mac. This is where Heroku starts charging.
+4. Add the keys of other services from `apps/backend/.env`, without showing them: `./agora/heroku-setup.sh secret BREVO_API_KEY`, and the same for the Google Drive settings (`AGORA_DRIVE_FOLDER_ID`, then `AGORA_GOOGLE_SERVICE_ACCOUNT_KEY` or the three `AGORA_GOOGLE_OAUTH_...` ones), `ANTHROPIC_API_KEY`, `AGORA_TRANSCRIPTION_URL` and `AGORA_TRANSCRIPTION_KEY`. Settings that are not secret can also be set with `heroku config:set -a agora-7bp-api AGORA_DRIVE_UPLOADS=on`. To send real email, also `AGORA_EMAIL_TRANSPORT=brevo` and an `EMAIL_SENDER` that Brevo accepts.
+5. `./agora/heroku-setup.sh deploy` sends the branch `agora` to both apps. From then on Agora is online, at the address the script prints. The first time, the server fills the empty database by itself (`scripts/agora-init-db.js`). There is no demo data online, and there must never be: `scripts/agora-demo.js` refuses when `NODE_ENV=production`.
+6. Once, in the Heroku dashboard: the server app, *Resources*, *Heroku Scheduler*, add the three jobs the script prints (every 10 minutes, every hour, every day). The 10-minute one ends quiet meetings so their minutes get written.
+7. When the domain is ready: `./agora/heroku-setup.sh domain`. Whoever holds the login of `7billionpresidents.org` adds the two DNS records it prints, then deploy once more. Until then, live updates (a new chat message appearing by itself) do not work, because the login cookie cannot be shared between two `herokuapp.com` addresses.
+
+Things that were sorted out for this:
+
+- The server kept up to 30 database connections per program; the smallest Heroku database allows 20 for everything together. `DB_POOL_MAX` and `DB_POOL_MIN` in `apps/backend/knexfile.js` now set this; online it is 5 per program.
+- Heroku builds only the server or only the web app (`YARN2_WORKSPACE_PATH`), with its own Procfile from `agora/heroku/`, and skips the phone and desktop apps' downloads.
+- Heroku's own Redis needs an encrypted connection, which Hylo's job queue cannot make. Redis Cloud's plan works without.
+
+Not tried yet, because nothing has been deployed: whether the first build fits in Heroku's time and size limits (the code base is large), and whether 512 MB of memory per dyno is enough for the server. If a build or the server runs out, the script's `AGORA_HEROKU_DYNO=standard-2x` (50 dollars per dyno) is the bigger size.
+
+**Before real people's data goes online.** Heroku's EU region keeps the data in the EU. Still, before the Contacts page holds real contacts, the privacy review in `AGORA-STATUS.md` has to happen first. Travel receipts with bank details stay out of the Files pages for now, see "Google Drive".
 
 ## Changing Agora
 

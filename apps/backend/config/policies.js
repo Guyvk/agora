@@ -49,6 +49,7 @@ module.exports.policies = {
   },
 
   // Agora files: for anyone logged in. The page sends people to the login page itself.
+  // Adding files also checks that the person is a member of the circle.
   AgoraFilesController: {
     page: true,
     '*': 'sessionAuth'

@@ -19,8 +19,10 @@ const defaults = {
   },
   pool: {
     // https://github.com/Vincit/objection.js/issues/1137
-    min: 5, // default 2
-    max: 30, // default 10
+    // Agora: DB_POOL_MIN and DB_POOL_MAX lower these online. A small Heroku
+    // database allows only 20 connections for all programs together.
+    min: process.env.DB_POOL_MIN !== undefined && process.env.DB_POOL_MIN !== '' ? Number(process.env.DB_POOL_MIN) : 5, // default 2
+    max: Number(process.env.DB_POOL_MAX) > 0 ? Number(process.env.DB_POOL_MAX) : 30, // default 10
     // https://github.com/knex/knex/issues/2820#issuecomment-481710112
     propagateCreateError: false, // default true (false NOT recommended),
     idleTimeoutMillis: 60000

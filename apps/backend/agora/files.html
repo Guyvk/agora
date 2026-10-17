@@ -11,6 +11,11 @@
   last and when. Clicking a file opens it in Google Drive, where Drive decides
   whether you may read or edit it. Clicking a folder opens it here.
 
+  When adding is switched on (AGORA_DRIVE_UPLOADS=on), members of the circle
+  see "Add files", "New folder" and "My folder", and can drop files on the
+  list. The browser sends each file straight to Google Drive, in pieces of
+  8 MB, to a one-time address Agora asks Google for. Agora does not keep a copy.
+
   Plain HTML, CSS and JavaScript on purpose, like the meeting room, so it can
   be read and changed without building the rest of the web app.
 
@@ -65,6 +70,13 @@
   .message.warn { color: var(--warn); }
   .open-drive { font-size: 14px; }
   footer { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .tools button { font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  .tools button.plain { background: var(--surface); color: var(--accent); }
+  .tools button:disabled { opacity: .5; cursor: default; }
+  .tools .status { font-size: 14px; color: var(--muted); }
+  .tools .status.warn { color: var(--warn); }
+  .panel.dropping { outline: 2px dashed var(--accent); outline-offset: 2px; }
   @media (max-width: 520px) {
     .row { grid-template-columns: 44px 1fr; }
     .when { grid-column: 2; text-align: left; }
@@ -78,6 +90,13 @@
     <a class="back" id="back" href="#">Back to the circle</a>
   </header>
   <nav class="trail" id="trail" hidden></nav>
+  <div class="tools" id="tools" hidden>
+    <button type="button" id="add-files">Add files</button>
+    <button type="button" class="plain" id="new-folder">New folder</button>
+    <button type="button" class="plain" id="my-folder" title="The folder with your name here. It is made the first time.">My folder</button>
+    <input type="file" id="file-input" multiple hidden>
+    <span class="status" id="status" role="status" aria-live="polite"></span>
+  </div>
   <div class="panel" id="panel">
     <div class="message" id="message">Loading the files…</div>
     <div id="list" hidden></div>
@@ -185,9 +204,185 @@
     $('footer').hidden = false;
   }
 
-  async function load (folderId) {
+  // The folder shown now: null for the circle's own folder, or a folder's id.
+  let current = null;
+  let canAdd = false;
+  let maxUploadMb = 5120;
+  let relayMb = 25;
+  let busy = false;
+
+  function setStatus (text, warn) {
+    const status = $('status');
+    status.textContent = text || '';
+    status.className = 'status' + (warn ? ' warn' : '');
+  }
+
+  function setBusy (value) {
+    busy = value;
+    $('add-files').disabled = value;
+    $('new-folder').disabled = value;
+    $('my-folder').disabled = value;
+  }
+
+  function folderParam () {
+    return current ? '&folder=' + encodeURIComponent(current) : '';
+  }
+
+  async function post (path, body) {
+    const res = await fetch(BOOT.api + path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Agora': '1' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }
+
+  // Pieces of 8 MB. Google wants pieces in steps of 256 KB.
+  const PIECE = 32 * 256 * 1024;
+
+  // Sends one piece to Google. XMLHttpRequest instead of fetch, because only it reports how far an upload is.
+  function sendPiece (url, file, start, onProgress) {
+    const end = Math.min(start + PIECE, file.size);
+    return new Promise(resolve => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Range', 'bytes ' + start + '-' + (end - 1) + '/' + file.size);
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress((start + e.loaded) / file.size); };
+      // 308 means Google has this piece and waits for the next one.
+      xhr.onload = () => {
+        if (xhr.status === 308) {
+          const range = xhr.getResponseHeader('Range');
+          const got = range && range.match(/bytes=0-(\d+)/);
+          resolve({ next: got ? Number(got[1]) + 1 : end });
+        } else if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({ done: true });
+        } else {
+          resolve({ failed: xhr.status });
+        }
+      };
+      xhr.onerror = () => resolve({ failed: 0 });
+      xhr.send(file.slice(start, end));
+    });
+  }
+
+  // Sends a file straight to Google Drive, in pieces, so big videos never pass through Agora's server.
+  async function sendDirect (file, onProgress) {
+    const started = await post('/upload-session', { name: file.name, type: file.type || '', size: file.size, folder: current || '' });
+    if (!started.ok) return { ok: false, error: started.data.error || 'The file could not be added. Try again in a minute.' };
+    let start = 0;
+    let tries = 0;
+    while (true) {
+      const result = await sendPiece(started.data.uploadUrl, file, start, onProgress);
+      if (result.done) return { ok: true };
+      if (result.next !== undefined) { start = result.next; tries = 0; continue; }
+      // The browser may not send to Google at all: then the first piece fails at once.
+      if (start === 0 && result.failed === 0 && tries === 0) return { ok: false, blocked: true };
+      if (++tries > 3) return { ok: false, error: 'The connection to Google Drive broke off. Try again.' };
+      await new Promise(r => setTimeout(r, 2000 * tries));
+    }
+  }
+
+  async function sendFile (file, onProgress) {
+    const direct = await sendDirect(file, onProgress);
+    if (direct.ok || !direct.blocked) return direct;
+    if (file.size > relayMb * 1048576) {
+      return { ok: false, error: 'This browser could not send the file to Google Drive. Put it in Google Drive yourself.' };
+    }
+    return sendThroughAgora(file, onProgress);
+  }
+
+  // Small files can also go through Agora's own server, when the browser cannot reach Google directly.
+  function sendThroughAgora (file, onProgress) {
+    return new Promise(resolve => {
+      const xhr = new XMLHttpRequest();
+      const params = '?name=' + encodeURIComponent(file.name) + '&type=' + encodeURIComponent(file.type || '') + folderParam();
+      xhr.open('POST', BOOT.api + '/upload' + params);
+      xhr.withCredentials = true;
+      // Sent as plain bytes, so the server never tries to read the file as a form or as JSON.
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-Agora', '1');
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        let body = {};
+        try { body = JSON.parse(xhr.responseText); } catch (e) {}
+        resolve(xhr.status >= 200 && xhr.status < 300 ? { ok: true } : { ok: false, error: body.error || 'The file could not be added. Try again in a minute.' });
+      };
+      xhr.onerror = () => resolve({ ok: false, error: 'The file could not be sent. Check your connection and try again.' });
+      xhr.send(file);
+    });
+  }
+
+  async function addFiles (files) {
+    if (!canAdd || busy || !files.length) return;
+    const tooLarge = files.filter(f => f.size > maxUploadMb * 1048576);
+    const empty = files.filter(f => f.size === 0);
+    const good = files.filter(f => f.size > 0 && f.size <= maxUploadMb * 1048576);
+    setBusy(true);
+    const failed = [];
+    for (let i = 0; i < good.length; i++) {
+      const file = good[i];
+      const label = good.length > 1 ? ' (' + (i + 1) + ' of ' + good.length + ')' : '';
+      setStatus('Adding ' + file.name + label + '…');
+      const result = await sendFile(file, part => setStatus('Adding ' + file.name + label + ': ' + Math.round(part * 100) + '%'));
+      if (!result.ok) failed.push(file.name + ': ' + result.error);
+    }
+    setBusy(false);
+    const problems = failed
+      .concat(tooLarge.map(f => f.name + ': larger than ' + maxUploadMb + ' MB, so not added. Put it in Google Drive directly.'))
+      .concat(empty.map(f => f.name + ': empty, so not added.'));
+    if (problems.length) setStatus(problems.join(' '), true);
+    else setStatus(good.length === 1 ? 'Added.' : 'Added ' + good.length + ' files.');
+    if (good.length > failed.length) {
+      await post('/uploaded', { folder: current || '' }).catch(() => {});
+      load(current, true);
+    }
+  }
+
+  async function newFolder () {
+    if (!canAdd || busy) return;
+    const name = (window.prompt('Name of the new folder') || '').trim();
+    if (!name) return;
+    setBusy(true);
+    setStatus('Making the folder…');
+    try {
+      const res = await post('/folder', { name, folder: current || '' });
+      if (!res.ok) setStatus(res.data.error || 'The folder could not be made. Try again in a minute.', true);
+      else { setStatus('Folder made.'); load(current, true); }
+    } catch (e) {
+      setStatus('The folder could not be made. Check your connection and try again.', true);
+    }
+    setBusy(false);
+  }
+
+  // Opens the folder with your own name in the folder shown now, and makes it the first time.
+  async function myFolder () {
+    if (!canAdd || busy) return;
+    setBusy(true);
+    setStatus('Opening your folder…');
+    try {
+      const res = await post('/my-folder', { folder: current || '' });
+      if (!res.ok) setStatus(res.data.error || 'Your folder could not be opened. Try again in a minute.', true);
+      else {
+        setStatus('');
+        trail.push({ id: res.data.item.id, name: res.data.item.name });
+        load(res.data.item.id, true);
+      }
+    } catch (e) {
+      setStatus('Your folder could not be opened. Check your connection and try again.', true);
+    }
+    setBusy(false);
+  }
+
+  // Leaving the page stops an upload halfway, so the browser asks first.
+  window.addEventListener('beforeunload', e => { if (busy) { e.preventDefault(); e.returnValue = ''; } });
+
+  async function load (folderId, keepStatus) {
+    current = folderId || null;
+    if (!keepStatus) setStatus('');
     showMessage(['Loading the files…']);
-    const url = BOOT.api + (folderId ? '?folder=' + encodeURIComponent(folderId) : '');
+    const url = BOOT.api + '/list' + (folderId ? '?folder=' + encodeURIComponent(folderId) : '');
     let body;
     try {
       const res = await fetch(url, { credentials: 'same-origin' });
@@ -207,9 +402,38 @@
     }
     if (trail.length === 0) trail = [body.folder];
     else trail[trail.length - 1] = { ...trail[trail.length - 1], ...body.folder };
+    canAdd = Boolean(body.canAdd);
+    if (body.maxUploadMb) maxUploadMb = body.maxUploadMb;
+    if (body.relayMb) relayMb = body.relayMb;
+    $('tools').hidden = !canAdd;
     showTrail();
     showItems(body.folder, body.items || []);
   }
+
+  $('add-files').addEventListener('click', () => $('file-input').click());
+  $('file-input').addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    addFiles(files);
+  });
+  $('new-folder').addEventListener('click', newFolder);
+  $('my-folder').addEventListener('click', myFolder);
+
+  // Files can also be dropped on the list.
+  const panel = $('panel');
+  panel.addEventListener('dragover', e => {
+    if (!canAdd || busy) return;
+    e.preventDefault();
+    panel.classList.add('dropping');
+  });
+  panel.addEventListener('dragleave', () => panel.classList.remove('dropping'));
+  panel.addEventListener('drop', e => {
+    panel.classList.remove('dropping');
+    if (!canAdd || busy) return;
+    e.preventDefault();
+    // Only files can be dropped. A dropped folder fails with a message; use New folder instead.
+    addFiles(Array.from((e.dataTransfer && e.dataTransfer.files) || []));
+  });
 
   document.title = 'Files of ' + BOOT.circleName + ' · Agora';
   $('title').textContent = 'Files of ' + BOOT.circleName;

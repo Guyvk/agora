@@ -1,0 +1,6 @@
+# Agora online: the server app on Heroku (PROCFILE=agora/heroku/Procfile.api).
+# release runs before each new version starts: it fills an empty database
+# once, then adds new migrations. worker writes the minutes and sends emails.
+release: cd apps/backend && node scripts/agora-init-db.js && yarn migrate
+web: cd apps/backend && node --optimize_for_size --gc_interval=100 app.js
+worker: cd apps/backend && node --optimize_for_size --gc_interval=100 worker.js
