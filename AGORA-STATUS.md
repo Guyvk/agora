@@ -32,7 +32,7 @@ Built on 11 October 2026 in Claude's cloud workspace, on top of Hylo `dev` at co
 On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
 
 - Agora runs at http://localhost:3000 from the main folder, started with `./agora/start.sh`, and Guy has used it in his browser.
-- 17 October: the main folder was moved to GitHub's `agora` branch (#1 to #7 merged), the Drive table was added to the `agora` database, and Agora was restarted. The main folder is now on branch `agora-fix-web-build` (#8). After Guy merges #8: `git checkout agora && git pull fork agora`. The old local commit (Iberozoa ideas and an older note) is kept in branch `agora-mac-backup-2026-10-17`; `ideas-from-iberozoa.md` stays on disk, hidden from git by `.git/info/exclude`. A backup of the demo database from before is `agora-before-update.dump` in the Claude job folder. The working copies under `.claude/worktrees` are all merged and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
+- 17 October: the main folder was moved to GitHub's `agora` branch (#1 to #7 merged), the Drive table was added to the `agora` database, and Agora was restarted. The main folder is back on branch `agora`, equal to GitHub after #8. The old local commit (Iberozoa ideas and an older note) is kept in branch `agora-mac-backup-2026-10-17`; `ideas-from-iberozoa.md` stays on disk, hidden from git by `.git/info/exclude`. A backup of the demo database from before is `agora-before-update.dump` in the Claude job folder. The working copies under `.claude/worktrees` are all merged and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
 - Tools, all without Homebrew, which builds everything from source on macOS 13: Postgres.app with PostgreSQL 17 and PostGIS in Applications, Node 24 in `~/.local/share/agora-node24`, Redis built from source in `~/.local/share/agora-redis`. Databases: `agora` with the demo data, and `agora_test`, which the tests empty every time.
 - Committed on `agora-mac-setup`, each one tested:
   - `50c985f` The setup script uses Postgres.app, Node from nodejs.org and Redis from source. It ran twice from scratch. The build of an old picture tool (sharp 0.32.6) is skipped in `package.json`.
@@ -88,7 +88,6 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 6. The weekly update (step 8) with a fallback that works without a Claude key, and a "Copy for Signal" button (Signal option A in the Build Plan).
 7. A welcome for new volunteers (part of step 12).
 
-1. #8 is merged. The main folder can go back to branch `agora`: `git checkout agora && git pull fork agora` (see "On this Mac").
 2. Before real contacts go into the Contacts page: an experienced developer reviews it, and 7BP agrees who answers when someone asks what is kept about them or asks to be removed.
 4. Connect speech to text with Infomaniak (chosen on 12 October; Scaleway in France is the backup). Guy puts the address and key into `apps/backend/.env` himself, plus a Claude key for the summaries. Then one short test recording.
 5. Try the meeting room with real voices: three or four people with headphones, ten minutes.
