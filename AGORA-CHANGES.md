@@ -13,10 +13,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
 | `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages (with adding files and folders) and the Contacts page |
 | `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
-| `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for small Heroku databases. Without them nothing changes |
+| `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
-| `apps/backend/migrations/schema.sql` | Added the three meeting tables and the three contact tables, with their links deferrable like Hylo's own |
+| `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables and the table that links circles to their Drive folders, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/web/.env.example` | `PROXY_HOST` is empty by default |
@@ -41,14 +41,15 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
 - `agora/setup-mac.sh`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
-- `agora/google-drive-login.mjs`, `agora/heroku-setup.sh`, `agora/heroku-setup.mjs`, `agora/heroku/Procfile.api`, `agora/heroku/Procfile.web`
-- `apps/backend/scripts/agora-init-db.js`
+- `agora/google-drive-login.mjs`
+- `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
+- `apps/backend/migrations/20261017120000_add_agora_drive_folders.js`
 - `apps/backend/test/unit/agora/driveUpload.test.js`
 - `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
 - `apps/backend/api/controllers/MeetingController.js`, `apps/backend/api/controllers/AgoraFilesController.js`, `apps/backend/api/controllers/AgoraContactsController.js`
 - `apps/backend/api/models/MeetingSession.js`, `MeetingParticipant.js`, `MeetingSegment.js`
 - `apps/backend/api/services/Transcription.js`, `MeetingMinutes.js`
-- `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`, `apps/backend/lib/agora/contacts.js`
+- `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`, `apps/backend/lib/agora/driveLinks.js`, `apps/backend/lib/agora/contacts.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`

@@ -2,7 +2,7 @@
  * Agora: a circle's Files page, a live view of its Google Drive folder.
  *
  *   GET  /noo/agora/files/<circle>                 the page, for anyone logged in to Agora
- *   GET  /noo/agora/files/<circle>/list            what the page shows, as JSON
+ *   GET  /noo/agora/files/<circle>/list            what the page shows, for members of the circle
  *
  * For members of the circle, when AGORA_DRIVE_UPLOADS=on:
  *   POST /noo/agora/files/<circle>/upload-session  starts an upload; the browser then
@@ -13,12 +13,13 @@
  *   POST /noo/agora/files/<circle>/my-folder       opens, or makes, the member's own folder
  *
  * <circle> is the circle's short name from its address in Agora, for example
- * "governance" in /groups/governance. The folder is found by the circle's
- * name, see lib/agora/drive.js.
+ * "governance" in /groups/governance. Its Drive folder is the one an
+ * administrator linked to it (scripts/agora-drive-link.js), never one found by
+ * name.
  *
- * Big files (videos of a few GB) never pass through Agora's server: online,
- * Heroku cuts off a request after 30 seconds, and the server has little
- * memory. Agora checks the member and asks Google for a one-time upload
+ * Big files (videos of a few GB) never pass through Agora's server: a web
+ * server in front of Agora may cut off long requests, and the server has
+ * little memory. Agora checks the member and asks Google for a one-time upload
  * address for that one file in that one folder; the browser sends the file
  * there in pieces. Only when that fails does the page fall back to /upload,
  * for files up to RELAY_LIMIT. Its body is the file, sent as
@@ -29,10 +30,10 @@ import fs from 'fs'
 import path from 'path'
 import { Transform } from 'stream'
 import Drive from '../../lib/agora/drive'
+import DriveLinks from '../../lib/agora/driveLinks'
 
 const PAGE_PATH = path.join(__dirname, '..', '..', 'agora', 'files.html')
-// The largest file that may go through Agora's own server: small enough to
-// arrive well within Heroku's 30 seconds.
+// The largest file that may go through Agora's own server.
 const RELAY_LIMIT = 25 * 1024 * 1024
 let pageTemplate = null
 
@@ -69,17 +70,33 @@ async function isMember (userId, group) {
   return Boolean(userId) && GroupMembership.hasActiveMembership(userId, group.id)
 }
 
-const STATUS = { not_found: 404, no_folder: 409, bad_request: 400, too_large: 413, no_storage: 507, no_write: 403 }
+const STATUS = { not_found: 404, no_folder: 409, link_broken: 409, bad_request: 400, too_large: 413, no_storage: 507, no_write: 403 }
 
 function driveFailure (res, err) {
   if (!['not_found', 'bad_request', 'too_large'].includes(err.code)) sails.log.error(`Agora files: ${err.message}`)
   return res.status(STATUS[err.code] || 502).send({ error: err.message })
 }
 
+/** Runs an action that talks to Drive, and turns Drive errors into plain answers. */
+async function withDrive (res, fn) {
+  try {
+    return await fn()
+  } catch (err) {
+    if (err instanceof Drive.DriveError) return driveFailure(res, err)
+    throw err
+  }
+}
+
+/** A size given by the browser: a whole number of bytes, or NaN. */
+function sizeFrom (value) {
+  const text = String(value === undefined || value === null ? '' : value).trim()
+  return /^\d{1,16}$/.test(text) ? Number(text) : NaN
+}
+
 /**
- * Checks shared by the two calls that add something. Answers the request and
- * returns null when adding is not allowed; otherwise returns the circle and the
- * member's name.
+ * Checks shared by the calls that add something. Answers the request and
+ * returns null when adding is not allowed; otherwise returns the circle, its
+ * linked folder and the member's name.
  */
 async function checkAdding (req, res) {
   res.set('Cache-Control', 'no-store')
@@ -99,7 +116,12 @@ async function checkAdding (req, res) {
     return null
   }
   const user = await User.find(userId)
-  return { group, memberName: user ? user.get('name') : null, userId }
+  return {
+    group,
+    circleFolderId: await DriveLinks.folderFor(group.id),
+    memberName: user ? user.get('name') : null,
+    userId
+  }
 }
 
 /** Passes the file on as it arrives, and stops when it is larger than it said. */
@@ -112,6 +134,13 @@ function sizeGuard (size) {
       done(null, chunk)
     }
   })
+}
+
+/** Refuses an upload without reading it: the connection is closed once the answer is out. */
+function refuseBody (req, res, status, error) {
+  res.set('Connection', 'close')
+  if (typeof res.once === 'function') res.once('finish', () => req.destroy && req.destroy())
+  return res.status(status).send({ error })
 }
 
 module.exports = {
@@ -139,31 +168,31 @@ module.exports = {
 
   /**
    * The files in the circle's folder, or in a folder inside it (?folder=<id>).
+   * For members of the circle only.
    */
   list: async function (req, res) {
+    res.set('Cache-Control', 'no-store')
+    // The policy already asks for a login; this is a second lock on the same door.
+    if (!UserSession.isLoggedIn(req)) return res.status(401).send({ error: 'Log in first.' })
     const group = await loadCircle(req, res)
     if (!group) return
-    res.set('Cache-Control', 'no-store')
-
+    if (!(await isMember(req.session.userId, group))) {
+      return res.status(403).send({ error: 'Only members of this circle can see its files.' })
+    }
     if (!Drive.isConfigured()) {
       return res.ok({ configured: false })
     }
-    try {
-      const result = await Drive.circleFiles(group.get('name'), req.param('folder'))
-      // Agora: members of the circle may add files, when that is switched on.
-      const canAdd = Drive.uploadsEnabled() && Boolean(result.folder) && await isMember(req.session.userId, group)
+    return withDrive(res, async () => {
+      const result = await Drive.circleFiles(await DriveLinks.folderFor(group.id), req.param('folder'))
       return res.ok({
         configured: true,
         robotEmail: Drive.robotEmail(),
-        canAdd,
+        canAdd: Drive.uploadsEnabled() && Boolean(result.folder),
         maxUploadMb: Math.round(Drive.maxUploadBytes() / 1048576),
         relayMb: Math.round(Math.min(RELAY_LIMIT, Drive.maxUploadBytes()) / 1048576),
         ...result
       })
-    } catch (err) {
-      if (err instanceof Drive.DriveError) return driveFailure(res, err)
-      throw err
-    }
+    })
   },
 
   /**
@@ -173,23 +202,28 @@ module.exports = {
   startUpload: async function (req, res) {
     const allowed = await checkAdding(req, res)
     if (!allowed) return
-    try {
+    const size = sizeFrom(req.param('size'))
+    if (!Drive.goodSize(size)) {
+      return res.status(Number.isSafeInteger(size) && size > 0 ? 413 : 400).send({
+        error: Number.isSafeInteger(size) && size > 0
+          ? `The file is larger than ${Math.round(Drive.maxUploadBytes() / 1048576)} MB.`
+          : 'The file is empty, or its size is not a whole number of bytes.'
+      })
+    }
+    return withDrive(res, async () => {
       const session = await Drive.startUpload({
-        circleName: allowed.group.get('name'),
+        circleFolderId: allowed.circleFolderId,
         folderId: req.param('folder') || null,
         name: req.param('name'),
         mimeType: req.param('type'),
-        size: Number(req.param('size')),
+        size,
         addedBy: allowed.memberName,
         // Google then lets the browser on this website send the file.
         origin: `${process.env.PROTOCOL}://${process.env.DOMAIN}`
       })
       sails.log.info(`Agora files: user ${allowed.userId} started an upload to circle ${allowed.group.id}`)
       return res.ok({ uploadUrl: session.uploadUrl, folderId: session.folderId })
-    } catch (err) {
-      if (err instanceof Drive.DriveError) return driveFailure(res, err)
-      throw err
-    }
+    })
   },
 
   /**
@@ -198,13 +232,10 @@ module.exports = {
   uploaded: async function (req, res) {
     const allowed = await checkAdding(req, res)
     if (!allowed) return
-    try {
-      await Drive.forgetFolder(allowed.group.get('name'), req.param('folder') || null)
+    return withDrive(res, async () => {
+      await Drive.forgetFolder(allowed.circleFolderId, req.param('folder') || null)
       return res.ok({})
-    } catch (err) {
-      if (err instanceof Drive.DriveError) return driveFailure(res, err)
-      throw err
-    }
+    })
   },
 
   /**
@@ -213,17 +244,14 @@ module.exports = {
   myFolder: async function (req, res) {
     const allowed = await checkAdding(req, res)
     if (!allowed) return
-    try {
+    return withDrive(res, async () => {
       const item = await Drive.personalFolder({
-        circleName: allowed.group.get('name'),
+        circleFolderId: allowed.circleFolderId,
         folderId: req.param('folder') || null,
         memberName: allowed.memberName
       })
       return res.ok({ item })
-    } catch (err) {
-      if (err instanceof Drive.DriveError) return driveFailure(res, err)
-      throw err
-    }
+    })
   },
 
   /**
@@ -233,22 +261,21 @@ module.exports = {
     const allowed = await checkAdding(req, res)
     if (!allowed) return
 
-    const size = Number(req.headers['content-length'])
-    if (!Number.isInteger(size) || size <= 0) {
-      return res.status(411).send({ error: 'The file is empty, or its size is missing.' })
+    const size = sizeFrom(req.headers['content-length'])
+    if (!Number.isSafeInteger(size) || size <= 0) {
+      return refuseBody(req, res, 411, 'The file is empty, or its size is missing.')
     }
     const limit = Math.min(RELAY_LIMIT, Drive.maxUploadBytes())
     if (size > limit) {
-      req.resume()
-      return res.status(413).send({ error: `Files larger than ${Math.round(limit / 1048576)} MB can only be sent to Google Drive directly, and that did not work from this browser. Put the file in Google Drive yourself.` })
+      return refuseBody(req, res, 413, `Files larger than ${Math.round(limit / 1048576)} MB can only be sent to Google Drive directly, and that did not work from this browser. Put the file in Google Drive yourself.`)
     }
     if (String(req.headers['content-type'] || '').split(';')[0].trim() !== 'application/octet-stream') {
-      return res.status(415).send({ error: 'Send the file as application/octet-stream.' })
+      return refuseBody(req, res, 415, 'Send the file as application/octet-stream.')
     }
 
     try {
       const item = await Drive.uploadFile({
-        circleName: allowed.group.get('name'),
+        circleFolderId: allowed.circleFolderId,
         folderId: req.query.folder || null,
         name: req.query.name,
         mimeType: req.query.type,
@@ -272,18 +299,15 @@ module.exports = {
   createFolder: async function (req, res) {
     const allowed = await checkAdding(req, res)
     if (!allowed) return
-    try {
+    return withDrive(res, async () => {
       const item = await Drive.createFolder({
-        circleName: allowed.group.get('name'),
+        circleFolderId: allowed.circleFolderId,
         folderId: req.param('folder') || null,
         name: req.param('name'),
         addedBy: allowed.memberName
       })
       sails.log.info(`Agora files: user ${allowed.userId} made a folder in circle ${allowed.group.id}`)
       return res.ok({ item })
-    } catch (err) {
-      if (err instanceof Drive.DriveError) return driveFailure(res, err)
-      throw err
-    }
+    })
   }
 }

@@ -4,8 +4,8 @@
  * Hylo's oldest migrations no longer run on a fresh database, so a new Agora
  * starts from migrations/schema.sql instead, and every migration that file
  * already contains is marked as done. On the Mac, setup-mac.sh does this with
- * psql. Online there is no psql, so Heroku runs this script before every
- * release (see agora/heroku/Procfile.api). It does nothing when the database
+ * psql. This script does the same without psql, for a server: run it before
+ * "yarn migrate" on every new version. It does nothing when the database
  * already has Agora's tables, so it is safe to run again.
  *
  *   NODE_ENV=production node scripts/agora-init-db.js
@@ -24,7 +24,7 @@ const MIGRATIONS = path.join(__dirname, '..', 'migrations')
 /**
  * schema.sql is written for psql. Lines that start with a backslash are psql's
  * own commands, and comments on extensions need a database superuser, which
- * Heroku does not give. Both are left out; neither changes a table.
+ * hosted databases often do not give. Both are left out; neither changes a table.
  */
 function schemaForPlainSql (text) {
   return text

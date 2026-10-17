@@ -7,7 +7,8 @@
 <!--
   Agora: a circle's Files page.
 
-  Shows what is in the circle's Google Drive folder: names, who changed a file
+  Shows members of the circle what is in the Google Drive folder an
+  administrator linked to it: names, who changed a file
   last and when. Clicking a file opens it in Google Drive, where Drive decides
   whether you may read or edit it. Clicking a folder opens it here.
 
@@ -183,7 +184,8 @@
         row.type = 'button';
         row.addEventListener('click', () => { trail.push({ id: item.id, name: item.name }); load(item.id); });
       } else {
-        row.href = item.link || '#';
+        // Only real https links open; anything else stays a plain row.
+        row.href = /^https:\/\//.test(String(item.link || '')) ? item.link : '#';
         row.target = '_blank';
         row.rel = 'noopener noreferrer';
       }
@@ -199,8 +201,9 @@
       list.append(row);
     }
     const open = $('open-drive');
-    open.hidden = !folder.link;
-    if (folder.link) open.href = folder.link;
+    const safeLink = /^https:\/\//.test(String(folder.link || ''));
+    open.hidden = !safeLink;
+    if (safeLink) open.href = folder.link;
     $('footer').hidden = false;
   }
 
@@ -276,9 +279,10 @@
     while (true) {
       const result = await sendPiece(started.data.uploadUrl, file, start, onProgress);
       if (result.done) return { ok: true };
-      if (result.next !== undefined) { start = result.next; tries = 0; continue; }
+      if (result.next !== undefined && result.next > start) { start = result.next; tries = 0; continue; }
       // The browser may not send to Google at all: then the first piece fails at once.
-      if (start === 0 && result.failed === 0 && tries === 0) return { ok: false, blocked: true };
+      if (result.next === undefined && start === 0 && result.failed === 0 && tries === 0) return { ok: false, blocked: true };
+      // A failed piece, or Google took none of it: wait a little and send it again, three times at most.
       if (++tries > 3) return { ok: false, error: 'The connection to Google Drive broke off. Try again.' };
       await new Promise(r => setTimeout(r, 2000 * tries));
     }
@@ -381,6 +385,7 @@
   async function load (folderId, keepStatus) {
     current = folderId || null;
     if (!keepStatus) setStatus('');
+    $('tools').hidden = true;
     showMessage(['Loading the files…']);
     const url = BOOT.api + '/list' + (folderId ? '?folder=' + encodeURIComponent(folderId) : '');
     let body;
@@ -396,8 +401,8 @@
     }
     if (!body.folder) {
       return showMessage([
-        'There is no folder called "' + BOOT.circleName + '" in the main 7BP folder in Google Drive yet.',
-        'To add one, create a folder with exactly that name inside the main folder. It shows up here within a minute.'
+        'No Google Drive folder is linked to ' + BOOT.circleName + ' yet.',
+        'An administrator links one (see "Google Drive" in README-AGORA.md). It then shows up here.'
       ]);
     }
     if (trail.length === 0) trail = [body.folder];

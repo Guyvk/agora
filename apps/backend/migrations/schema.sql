@@ -7360,3 +7360,19 @@ ALTER TABLE ONLY public.agora_contacts
 ALTER TABLE ONLY public.agora_contacts
     ADD CONSTRAINT agora_contacts_updated_by_id_foreign FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
 
+-- Added by migrations/20261017120000_add_agora_drive_folders.js
+
+CREATE TABLE public.agora_drive_folders (
+    group_id bigint NOT NULL,
+    folder_id character varying(200) NOT NULL,
+    linked_by text,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_drive_folders
+    ADD CONSTRAINT agora_drive_folders_pkey PRIMARY KEY (group_id);
+
+ALTER TABLE ONLY public.agora_drive_folders
+    ADD CONSTRAINT agora_drive_folders_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+

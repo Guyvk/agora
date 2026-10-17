@@ -1,3 +1,0 @@
-# Agora online: the web app on Heroku (PROCFILE=agora/heroku/Procfile.web).
-# Serves the ready-built pages and passes /noo calls on to the server app.
-web: cd apps/web && node dist/server/index.js

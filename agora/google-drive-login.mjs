@@ -1,21 +1,25 @@
 #!/usr/bin/env node
 /**
- * Agora: lets Agora into the 7BP Google account's Google Drive, once.
+ * Agora: lets Agora into one Google account's Google Drive, once.
  *
- * Needed only for "way 2" in README-AGORA.md, "Google Drive": a normal Google
- * account made for 7BP holds the main folder, and Agora adds files as that
- * account. Not needed with a robot account in a shared drive.
+ * Needed only for the fallback way in README-AGORA.md, "Google Drive". The
+ * usual way, a robot account in 7BP's shared drive, does not need it.
+ *
+ * Log in with a Google account made only for Agora, that has the Contributor
+ * or Editor role on the 7BP folder and nothing else. Never your own personal
+ * account or a Workspace admin account: Agora is then allowed into the whole
+ * Drive of that account.
  *
  * Before running it, put AGORA_GOOGLE_OAUTH_CLIENT_ID and
  * AGORA_GOOGLE_OAUTH_CLIENT_SECRET in apps/backend/.env. Then:
  *
  *   node agora/google-drive-login.mjs
  *
- * Your browser opens Google's login page. Log in as the 7BP Google account
- * (not your own) and allow Agora. The script then writes
- * AGORA_GOOGLE_OAUTH_REFRESH_TOKEN into apps/backend/.env. It never shows the
- * token on screen. It prints the Google account's email address, so you can
- * check it is the right one.
+ * Your browser opens Google's login page. Log in as that account and allow
+ * Agora. The script then writes AGORA_GOOGLE_OAUTH_REFRESH_TOKEN into
+ * apps/backend/.env, which only you can read (chmod 600). It never shows the
+ * token on screen. It prints the account's email address, so you can check
+ * it is the right one.
  */
 import fs from 'fs'
 import path from 'path'
@@ -38,12 +42,14 @@ function readEnv () {
   return values
 }
 
-/** Replaces the NAME=... line, or adds it at the end. */
+/** Replaces the NAME=... line, or adds it at the end. The file stays readable by you only. */
 function writeEnvValue (name, value) {
   const text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : ''
   const line = new RegExp(`^${name}=.*$`, 'm')
   const next = line.test(text) ? text.replace(line, () => `${name}=${value}`) : `${text.trimEnd()}\n${name}=${value}\n`
   fs.writeFileSync(envPath, next, { mode: 0o600 })
+  // The mode above only counts for a new file; an existing one is set here.
+  fs.chmodSync(envPath, 0o600)
 }
 
 function stop (message) {
@@ -61,6 +67,7 @@ if (!clientId || !clientSecret) {
 const state = crypto.randomBytes(16).toString('hex')
 const verifier = crypto.randomBytes(32).toString('base64url')
 const challenge = crypto.createHash('sha256').update(verifier).digest('base64url')
+let redirectUri
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1')
@@ -68,15 +75,24 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(404).end()
     return
   }
-  const answer = (text) => {
+  /** Answers the browser, and once the answer is out, ends the script with the message. */
+  const finish = (pageText, message, failed) => {
+    res.on('finish', () => {
+      server.close()
+      if (failed) stop(message)
+      console.log(message)
+      process.exit(0)
+    })
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-    res.end(`<!doctype html><meta charset="utf-8"><title>Agora</title><body style="font:16px system-ui;padding:40px"><p>${text}</p></body>`)
+    res.end(`<!doctype html><meta charset="utf-8"><title>Agora</title><body style="font:16px system-ui;padding:40px"><p>${pageText}</p></body>`)
   }
-  if (url.searchParams.get('state') !== state) return answer('This page was not opened by the Agora login script. Close it and try again.')
+  if (url.searchParams.get('state') !== state) {
+    res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+    res.end('This page was not opened by the Agora login script. Close it and try again.')
+    return
+  }
   if (url.searchParams.get('error')) {
-    answer('Google said no. Close this tab and look in the Terminal.')
-    server.close()
-    stop(`Google said no (${url.searchParams.get('error')}). Run the script again and choose Allow.`)
+    return finish('Google said no. Close this tab and look in the Terminal.', `Google said no (${url.searchParams.get('error')}). Run the script again and choose Allow.`, true)
   }
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -93,9 +109,8 @@ const server = http.createServer(async (req, res) => {
     })
     const body = await tokenRes.json().catch(() => ({}))
     if (!tokenRes.ok || !body.refresh_token) {
-      answer('Something went wrong. Close this tab and look in the Terminal.')
-      server.close()
-      stop(`Google did not hand over a login for Agora (${tokenRes.status} ${body.error || 'no refresh token'}). Run the script again.`)
+      return finish('Something went wrong. Close this tab and look in the Terminal.',
+        `Google did not hand over a login for Agora (${tokenRes.status} ${body.error || 'no refresh token'}). Run the script again.`, true)
     }
     writeEnvValue('AGORA_GOOGLE_OAUTH_REFRESH_TOKEN', body.refresh_token)
 
@@ -105,20 +120,16 @@ const server = http.createServer(async (req, res) => {
     }).then(r => r.json()).catch(() => ({}))
     const email = (about.user && about.user.emailAddress) || 'an unknown account'
 
-    answer('Done. Agora can now use this Google Drive. You can close this tab.')
-    server.close()
-    console.log(`\nDone. Agora uses the Google Drive of ${email}.`)
-    console.log('AGORA_GOOGLE_OAUTH_REFRESH_TOKEN is now in apps/backend/.env. Restart Agora.')
-    console.log('If that is not the 7BP account, run this script again and log in as the 7BP account.\n')
-    process.exit(0)
+    return finish('Done. Agora can now use this Google Drive. You can close this tab.', [
+      `\nDone. Agora uses the Google Drive of ${email}.`,
+      'AGORA_GOOGLE_OAUTH_REFRESH_TOKEN is now in apps/backend/.env. Restart Agora.',
+      'If that is not the account made for Agora, run this script again and log in as that account.\n'
+    ].join('\n'))
   } catch (err) {
-    answer('Something went wrong. Close this tab and look in the Terminal.')
-    server.close()
-    stop(`Could not reach Google: ${err.message}`)
+    return finish('Something went wrong. Close this tab and look in the Terminal.', `Could not reach Google: ${err.message}`, true)
   }
 })
 
-let redirectUri
 server.listen(0, '127.0.0.1', () => {
   redirectUri = `http://127.0.0.1:${server.address().port}`
   const auth = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
@@ -133,7 +144,7 @@ server.listen(0, '127.0.0.1', () => {
     code_challenge_method: 'S256'
   })
   console.log('\nYour browser opens Google\'s login page now.')
-  console.log('Log in as the 7BP Google account, not your own, and choose Allow.')
+  console.log('Log in as the Google account made for Agora, never your own or an admin account, and choose Allow.')
   console.log('If Google says it has not verified the app: choose Advanced, then "Go to Agora".')
   console.log('\nIf no browser opens, copy this address into one:\n')
   console.log(auth + '\n')
