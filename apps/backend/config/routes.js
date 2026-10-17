@@ -92,9 +92,14 @@ module.exports.routes = {
   'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
   'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
 
-  // Agora files: a circle's Google Drive folder, read only
+  // Agora files: a circle's Google Drive folder. Members may add files and folders
   'GET    /noo/agora/files/:groupSlug':                   'AgoraFilesController.page',
   'GET    /noo/agora/files/:groupSlug/list':              'AgoraFilesController.list',
+  'POST   /noo/agora/files/:groupSlug/upload-session':    'AgoraFilesController.startUpload',
+  'POST   /noo/agora/files/:groupSlug/uploaded':          'AgoraFilesController.uploaded',
+  'POST   /noo/agora/files/:groupSlug/upload':            'AgoraFilesController.upload',
+  'POST   /noo/agora/files/:groupSlug/folder':            'AgoraFilesController.createFolder',
+  'POST   /noo/agora/files/:groupSlug/my-folder':         'AgoraFilesController.myFolder',
 
   // Agora contacts: one shared list of people and organisations outside Agora
   'GET    /noo/agora/contacts':                           'AgoraContactsController.page',
