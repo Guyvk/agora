@@ -1288,6 +1288,8 @@ module.exports = bookshelf.Model.extend(merge({
   async createEventCalendarSubscription ({ groupId }) {
     const group = await Group.find(groupId)
     if (!group) return
+    // Agora: the calendar file is kept in S3, which Agora does not use (yet)
+    if (!process.env.AWS_S3_BUCKET) return
 
     if (!group.get('calendar_token')) {
       await group.save({ calendar_token: uuidv4() }, { patch: true })

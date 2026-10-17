@@ -550,6 +550,48 @@ describe('Post', function () {
       })
     })
 
+    // Agora: invitees are only told once their invitations exist
+    it('queues createActivities after the invitations are made', async () => {
+      const calls = []
+      const postInstance = await Post.find(post.id)
+      postInstance.updateEventInvitees = spy(async () => { calls.push('invitations') })
+      postInstance.sendUserRsvp = spy(async () => {})
+      postInstance.createGroupEventCalendarSubscriptions = spy(async () => {})
+      Post.find = spy(() => Promise.resolve(postInstance))
+      spyify(EventInvitation, 'find', () => Promise.resolve(null))
+      spyify(Queue, 'classMethod', (model, method) => { calls.push(`${model}.${method}`) })
+
+      try {
+        await Post.processEventCreated({ postId: post.id, eventInviteeIds: [2], userId: user.id, params })
+      } finally {
+        unspyify(Queue, 'classMethod')
+        unspyify(EventInvitation, 'find')
+      }
+
+      expect(calls.indexOf('Post.createActivities')).to.be.above(calls.indexOf('invitations'))
+      expect(calls.indexOf('invitations')).to.equal(0)
+    })
+
+    it('does not queue createActivities for a silent event', async () => {
+      const calls = []
+      const postInstance = await Post.find(post.id)
+      postInstance.updateEventInvitees = spy(async () => {})
+      postInstance.sendUserRsvp = spy(async () => {})
+      postInstance.createGroupEventCalendarSubscriptions = spy(async () => {})
+      Post.find = spy(() => Promise.resolve(postInstance))
+      spyify(EventInvitation, 'find', () => Promise.resolve(null))
+      spyify(Queue, 'classMethod', (model, method) => { calls.push(`${model}.${method}`) })
+
+      try {
+        await Post.processEventCreated({ postId: post.id, eventInviteeIds: [2], userId: user.id, params, silent: true })
+      } finally {
+        unspyify(Queue, 'classMethod')
+        unspyify(EventInvitation, 'find')
+      }
+
+      expect(calls).not.to.include('Post.createActivities')
+    })
+
     it('calls sendUserRsvp with correct arguments', async () => {
       const sendUserRsvpSpy = spy(async () => {})
       const postInstance = await Post.find(post.id)

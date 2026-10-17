@@ -10,7 +10,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | --- | --- |
 | `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
-| `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link |
+| `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
+| `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice |
+| `apps/backend/api/models/Group.js` | A circle's calendar file is skipped when no S3 bucket is set, instead of failing again and again |
+| `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
 | `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
 | `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages (with adding files and folders) and the Contacts page |
 | `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
