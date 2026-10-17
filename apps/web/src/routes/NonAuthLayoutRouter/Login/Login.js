@@ -13,6 +13,7 @@ import GoogleButton from 'components/GoogleButton'
 import Button from 'components/ui/button'
 import classes from './Login.module.scss'
 import { cn } from 'util/index'
+import { showGoogleLogin } from 'agora/config'
 
 export default function Login (props) {
   const dispatch = useDispatch()
@@ -151,9 +152,12 @@ export default function Login (props) {
             {t('Sign in')}
           </Button>
         </div>
-        <div className='flex justify-center px-4 pb-4'>
-          <GoogleButton onClick={() => handleLoginWithService('google')} />
-        </div>
+        {/* Agora: logging in with Google is not used */}
+        {showGoogleLogin && (
+          <div className='flex justify-center px-4 pb-4'>
+            <GoogleButton onClick={() => handleLoginWithService('google')} />
+          </div>
+        )}
       </div>
     </>
   )
