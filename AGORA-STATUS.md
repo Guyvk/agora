@@ -2,7 +2,7 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 17 October 2026, about 22:00, by Claude Code on the Mac. The Mac now runs everything merged on GitHub (#1 to #7), plus the build fix in #8.
+**Last updated:** 17 October 2026, about 22:00, by Claude Code on the Mac. The Mac now runs everything merged on GitHub (#1 to #7), plus the build fix in #8, merged the same evening.
 
 ## What Agora is
 
@@ -32,7 +32,7 @@ Built on 11 October 2026 in Claude's cloud workspace, on top of Hylo `dev` at co
 On this Mac (2017 Intel MacBook, macOS 13), confirmed on 12 October:
 
 - Agora runs at http://localhost:3000 from the main folder, started with `./agora/start.sh`, and Guy has used it in his browser.
-- 17 October: the main folder was moved to GitHub's `agora` branch (#1 to #7 merged), the Drive table was added to the `agora` database, and Agora was restarted. The main folder is now on branch `agora-fix-web-build` (#8). After Guy merges #8: `git checkout agora && git pull fork agora`. The old local commit (Iberozoa ideas and an older note) is kept in branch `agora-mac-backup-2026-10-17`; `ideas-from-iberozoa.md` stays on disk, hidden from git by `.git/info/exclude`. A backup of the demo database from before is `agora-before-update.dump` in the Claude job folder. The working copies under `.claude/worktrees` are all merged and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
+- 17 October: the main folder was moved to GitHub's `agora` branch (#1 to #7 merged), the Drive table was added to the `agora` database, and Agora was restarted. The main folder is back on branch `agora`, equal to GitHub after #8. The old local commit (Iberozoa ideas and an older note) is kept in branch `agora-mac-backup-2026-10-17`; `ideas-from-iberozoa.md` stays on disk, hidden from git by `.git/info/exclude`. A backup of the demo database from before is `agora-before-update.dump` in the Claude job folder. The working copies under `.claude/worktrees` are all merged and can be removed. The code is on GitHub as `Guyvk/agora` (public, main branch `agora`). `ideas-from-iberozoa.md` stays on the Mac only: it describes a members-only app.
 - Tools, all without Homebrew, which builds everything from source on macOS 13: Postgres.app with PostgreSQL 17 and PostGIS in Applications, Node 24 in `~/.local/share/agora-node24`, Redis built from source in `~/.local/share/agora-redis`. Databases: `agora` with the demo data, and `agora_test`, which the tests empty every time.
 - Committed on `agora-mac-setup`, each one tested:
   - `50c985f` The setup script uses Postgres.app, Node from nodejs.org and Redis from source. It ran twice from scratch. The build of an old picture tool (sharp 0.32.6) is skipped in `package.json`.
@@ -66,7 +66,7 @@ Merged on 17 October, made in a Mac chat:
 - #6 Circle members add files to Google Drive (off unless `AGORA_DRIVE_UPLOADS=on`). An administrator links each circle's folder with `scripts/agora-drive-link.js`.
 - #7 Agora on its own server at Infomaniak (VPS Lite M, Switzerland) instead of Heroku: `agora/vps/`. Not yet run on a real server.
 
-Open: #8 `agora-fix-web-build`. After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors. **Guy: merge #8.**
+#8 `agora-fix-web-build` (merged 17 October). After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors.
 
 In the cloud, nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
 
@@ -88,7 +88,6 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 6. The weekly update (step 8) with a fallback that works without a Claude key, and a "Copy for Signal" button (Signal option A in the Build Plan).
 7. A welcome for new volunteers (part of step 12).
 
-1. Guy merges #8, then the main folder goes back to branch `agora` (see "On this Mac").
 2. Before real contacts go into the Contacts page: an experienced developer reviews it, and 7BP agrees who answers when someone asks what is kept about them or asks to be removed.
 4. Connect speech to text with Infomaniak (chosen on 12 October; Scaleway in France is the backup). Guy puts the address and key into `apps/backend/.env` himself, plus a Claude key for the summaries. Then one short test recording.
 5. Try the meeting room with real voices: three or four people with headphones, ten minutes.
