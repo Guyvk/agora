@@ -174,11 +174,50 @@ Emails that Agora has no text for yet, such as event invitations and digests, ar
 
 ## Going online
 
-Not done yet. The plan is Heroku in the EU region, at `agora.7billionpresidents.org`. Before the first deploy:
+Agora runs on one rented server in Switzerland: an Infomaniak **VPS Lite M** (2 processors, 4 GB memory, 80 GB disk, about 10 euros a month without VAT), with Ubuntu 24.04. One script sets everything up: the database, the job queue, Agora itself, https, the scheduled jobs (digests, reminders) and a nightly backup. The files are in `agora/vps/`.
 
-- The server keeps up to 30 database connections open per process, which is more than Heroku's smallest database plan allows. Either lower the pool in `apps/backend/knexfile.js` or take the next plan up.
-- `OIDC_KEYS`, `COOKIE_SECRET` and `JWT_SECRET` must be made fresh for the online copy. Never reuse the ones from your Mac.
-- Never run `scripts/agora-demo.js` on the real Agora. It refuses when `NODE_ENV=production`.
+**Once, before you start**
+
+1. Make an ssh key on your Mac, if you have none yet: open Terminal and type `ssh-keygen -t ed25519`, then press Enter three times. Your public key is in `~/.ssh/id_ed25519.pub`. That file is safe to share; the other one (without `.pub`) never leaves your Mac.
+2. In the Infomaniak Manager, order a **VPS Lite**, size **M**, with **Ubuntu 24.04**. When it asks for an ssh key, paste the contents of `id_ed25519.pub`.
+3. Note the server's IP address (Manager, your VPS, overview).
+4. In the Infomaniak Manager, open the VPS firewall and allow ports 22 (ssh), 80 (http) and 443 (https).
+5. Ask whoever manages the domain to add an **A record**: `agora` pointing at that IP address. Until then you can use a test address, for example `agora.guyvankoolwijk.nl`.
+
+**Setting up the server** (about 30 minutes, most of it waiting)
+
+```
+ssh ubuntu@<the IP address>
+curl -fsSLO https://raw.githubusercontent.com/Guyvk/agora/agora/agora/vps/setup-server.sh
+sudo bash setup-server.sh agora.7billionpresidents.org
+```
+
+The user name may be `ubuntu` or `root`; the Manager shows which. At the end it says where to open Agora. The certificate for https is made on the first visit.
+
+**What it does, in order:** updates Ubuntu; turns on the firewall, automatic security updates and fail2ban (it blocks addresses that keep guessing passwords); turns off logging in with a password when a key works; adds 4 GB swap for building; installs Node 24 (checked against its published checksum), PostgreSQL with PostGIS, Redis and Caddy; makes a user `agora` that owns the code in `/srv/agora`; makes the database with its own password (in `/home/agora/.agora-db-password`); writes the settings with fresh secrets (`agora/vps/server-env.mjs`); installs and builds; fills the empty database; and starts everything with systemd. No demo data goes in. `scripts/agora-demo.js` refuses to run when `NODE_ENV=production`.
+
+**After the setup**
+
+- Sign up yourself first. Until a mailbox is connected, emails are written to the log instead of sent, so read your sign-up code with `sudo journalctl -u agora-worker -n 50`.
+- **Email:** when the 7BP mailbox exists, add these lines to `/srv/agora/apps/backend/.env` (with `sudo -u agora nano /srv/agora/apps/backend/.env`), then `sudo systemctl restart agora-api agora-worker`:
+  ```
+  AGORA_EMAIL_TRANSPORT=smtp
+  AGORA_SMTP_HOST=smtp.gmail.com
+  AGORA_SMTP_PORT=587
+  AGORA_SMTP_USER=agora@7billionpresidents.org
+  AGORA_SMTP_PASSWORD=<the app password>
+  EMAIL_SENDER=agora@7billionpresidents.org
+  ```
+  You type the password in yourself. Nobody else needs to see it.
+- **Updates:** after a change is merged on GitHub, `sudo /srv/agora/agora/vps/update.sh`. It backs up the database first.
+- **Is it running?** `sudo systemctl status agora-api agora-worker agora-web`. Logs: `sudo journalctl -u agora-api -f`.
+
+**Still to do**
+
+- The nightly backups (`/var/backups/agora`, 14 days) sit on the same server. A second copy elsewhere, for example Infomaniak's Swiss Backup, is not set up yet.
+- Profile pictures and other uploads inside Hylo still expect Amazon S3. Until Swiss Backup or Google Drive takes that over, those uploads do not work.
+- Anyone who finds the address can sign up and make a circle. Before inviting people, decide whether sign-ups should need an invitation.
+- The script was written for Ubuntu 24.04 and checked line by line, but it has not run on a real VPS yet. The first run is the test.
 
 ## Changing Agora
 
