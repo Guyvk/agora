@@ -1,0 +1,62 @@
+# Agora: the playbook page of a group. See lib/agora/playbook.js.
+# Added to Hylo's schema in api/graphql/makeSchema.js.
+
+# A group's playbook: its chapters, sorted by their order
+type AgoraPlaybook {
+  groupId: ID
+  groupSlug: String
+  groupName: String
+  # Whether the person asking may add, change and remove chapters (stewards)
+  canEdit: Boolean
+  # The statuses a chapter can have, in order: not_started, draft, in_review, agreed
+  statuses: [String]
+  chapters: [AgoraPlaybookChapter]
+  # The members of the group, to choose an owner from. Empty unless canEdit
+  members: [AgoraPlaybookPerson]
+}
+
+type AgoraPlaybookChapter {
+  id: ID
+  groupId: ID
+  # Chapters are listed by this number, lowest first
+  position: Int
+  title: String
+  # not_started, draft, in_review or agreed
+  status: String
+  # A short text about the chapter
+  summary: String
+  # A web address, for example a Google Doc or a post
+  link: String
+  owner: AgoraPlaybookPerson
+  updatedBy: AgoraPlaybookPerson
+  # When the chapter was last changed, as an ISO date and time
+  updatedAt: String
+}
+
+type AgoraPlaybookPerson {
+  id: ID
+  name: String
+}
+
+input AgoraPlaybookChapterInput {
+  title: String
+  status: String
+  summary: String
+  link: String
+  ownerId: ID
+  position: Int
+}
+
+extend type Query {
+  # The playbook of a group, for its members. Null for anyone else
+  agoraPlaybook(groupSlug: String, groupId: ID): AgoraPlaybook
+}
+
+extend type Mutation {
+  # For a steward: add a chapter to a group's playbook
+  createAgoraPlaybookChapter(groupId: ID!, data: AgoraPlaybookChapterInput!): AgoraPlaybookChapter
+  # For a steward: change a chapter. Fields that are left out keep their value
+  updateAgoraPlaybookChapter(id: ID!, data: AgoraPlaybookChapterInput!): AgoraPlaybookChapter
+  # For a steward: remove a chapter for good
+  deleteAgoraPlaybookChapter(id: ID!): GenericResult
+}

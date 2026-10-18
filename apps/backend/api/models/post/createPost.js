@@ -141,7 +141,8 @@ export function afterCreatingPost (post, opts) {
     // Mass GroupMembership / GroupViewUser new_post_count updates can touch thousands of
     // rows. Run in the background like delete. Silent posts skip the member fan-out.
     .then(() => !opts.silent && Queue.classMethod('Post', 'incrementNewPostCountForCreatedPost', { postId: post.id }, 0))
-    .then(() => !opts.silent && Queue.classMethod('Post', 'createActivities', { postId: post.id }))
+    // Agora: for an event, processEventCreated queues this once the invitations exist, so invitees are told
+    .then(() => !opts.silent && !post.isEvent() && Queue.classMethod('Post', 'createActivities', { postId: post.id }))
     .then(() => !opts.silent && opts.fundingRoundId && post.get('type') === Post.Type.SUBMISSION && Queue.classMethod('FundingRound', 'notifyStewardsOfSubmission', { fundingRoundId: opts.fundingRoundId, postId: post.id, userId }))
     .then(() => !opts.silent && Queue.classMethod('Post', 'notifySlack', { postId: post.id }))
     .then(() => !opts.silent && Queue.classMethod('Post', 'zapierTriggers', { postId: post.id }))

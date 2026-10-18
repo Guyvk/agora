@@ -3,7 +3,7 @@
 import root from 'root-path'
 import setup from '../../setup'
 import factories from '../../setup/factories'
-import { expectEqualQuery, spyify, unspyify } from '../../setup/helpers'
+import { expectEqualQuery, mockify, spyify, unspyify } from '../../setup/helpers'
 
 export function myGroupIdsSqlFragment (userId) {
   return `(select "groups"."id" from "group_memberships"
@@ -617,9 +617,13 @@ describe('Group', function () {
     let group, user, event1, event2, event3, eventPastYear, eventOlderThanYear
     let calendarContent
     let storageModule
+    let originalBucket
     const { DateTime } = require('luxon')
 
     before(async () => {
+      // Agora: the calendar is only written when a storage bucket is set
+      originalBucket = process.env.AWS_S3_BUCKET
+      process.env.AWS_S3_BUCKET = 'test-bucket'
       await setup.clearDb()
       user = await factories.user().save()
       group = await factories.group().save()
@@ -706,6 +710,11 @@ describe('Group', function () {
 
     afterEach(() => {
       unspyify(storageModule, 'writeStringToS3')
+    })
+
+    after(() => {
+      if (originalBucket === undefined) delete process.env.AWS_S3_BUCKET
+      else process.env.AWS_S3_BUCKET = originalBucket
     })
 
     it('includes active events when creating calendar subscription', async () => {
@@ -815,6 +824,19 @@ describe('Group', function () {
       await Group.createEventCalendarSubscription({ groupId: 'non-existent-id' })
 
       expect(storageModule.writeStringToS3).to.not.have.been.called
+    })
+
+    // Agora: without S3 the calendar file goes to the server's own disk, so it is still written
+    it('still writes the calendar file when no storage bucket is set (Agora)', async () => {
+      const writes = []
+      mockify(storageModule, 'writeStringToS3', async (content) => { writes.push(content) })
+      delete process.env.AWS_S3_BUCKET
+      try {
+        await Group.createEventCalendarSubscription({ groupId: group.id })
+      } finally {
+        process.env.AWS_S3_BUCKET = 'test-bucket'
+      }
+      expect(writes).to.have.length(1)
     })
   })
 

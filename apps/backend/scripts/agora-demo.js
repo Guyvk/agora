@@ -5,7 +5,7 @@
  *
  * Fills an empty copy of Agora with a small, made-up version of 7BP, so there
  * is something to click through: a main group, a group per circle, a few
- * people, sample playbook proposals and two meetings.
+ * people, sample playbook proposals, playbook chapters and two meetings.
  *
  *   cd apps/backend
  *   node scripts/agora-demo.js
@@ -101,7 +101,8 @@ async function ensureGroup (stewardId, data) {
 async function addPeople (group, userIds) {
   const now = new Date()
   await group.addMembers(userIds, {
-    settings: { showJoinForm: false, agreementsAcceptedAt: now, joinQuestionsAnsweredAt: now }
+    // Passing settings replaces Hylo's defaults, so the notification choices a normal join gets go in too
+    settings: { showJoinForm: false, agreementsAcceptedAt: now, joinQuestionsAnsweredAt: now, postNotifications: 'all', digestFrequency: 'daily', sendEmail: true, sendPushNotifications: true }
   })
 }
 
@@ -228,6 +229,37 @@ async function run () {
         follow_up_owner_id: c.owner ? String(c.owner.id) : null
       })
       if (c.note) await Contacts.addNote(c.by.id, id, c.note)
+    }
+  }
+
+  // Made-up playbook chapters for the playbook page of the main group, each
+  // with an owner and a status. Added once. The links go to a sample proposal
+  // in the governance circle and to a Google Doc address that does not exist.
+  const Playbook = require('../lib/agora/playbook')
+  const existingChapters = await bookshelf.knex('agora_playbook_chapters').where({ group_id: main.id }).count('id as count').first()
+  if (Number(existingChapters.count) === 0) {
+    const site = `${process.env.PROTOCOL || 'http'}://${process.env.DOMAIN || 'localhost:3000'}`
+    const decidePost = await bookshelf.knex('posts')
+      .join('groups_posts', 'groups_posts.post_id', 'posts.id')
+      .where({ 'groups_posts.group_id': governance.id, 'posts.name': 'Playbook: How we decide (sample)', 'posts.active': true })
+      .first('posts.id')
+    const demoChapters = [
+      { title: 'Onboarding', status: 'agreed', owner: people.priya, summary: 'How a new activist joins, finds a circle and gets a buddy. Made up for the demo.' },
+      { title: 'Governance', status: 'in_review', owner: people.lars, summary: 'How we decide and who decides what. Open for responses in the governance circle.', link: decidePost ? `${site}/groups/${governance.get('slug')}/post/${decidePost.id}` : null },
+      { title: 'Communications', status: 'draft', owner: people.amara, summary: 'The message house and who speaks for 7BP.', link: 'https://docs.google.com/document/d/agora-demo-made-up' },
+      { title: 'Fundraising', status: 'not_started' },
+      { title: 'Events', status: 'draft', owner: people.sofia, summary: 'How a circle plans an event, from the first idea to the thank-you mail.' },
+      { title: 'Tech', status: 'in_review', owner: people.steward, summary: 'Which tools 7BP uses, and who looks after them.' }
+    ]
+    for (const [i, c] of demoChapters.entries()) {
+      await Playbook.createChapter(steward.id, main.id, {
+        title: c.title,
+        status: c.status,
+        position: i + 1,
+        ownerId: c.owner ? String(c.owner.id) : null,
+        summary: c.summary || null,
+        link: c.link || null
+      })
     }
   }
 
