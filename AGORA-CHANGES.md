@@ -21,12 +21,12 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
-| `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL questions and changes (from `api/graphql/agora/`) for logged-in people |
+| `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |
 | `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` | A Playbook line in a group's menu, above More Spaces |
 | `apps/web/.env.example` | `PROXY_HOST` is empty by default |
 | `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
-| `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the words "Contacts" and "Playbook" and the playbook statuses, and the message when a group cannot be deleted |
-| `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The words "Contacts" and "Playbook", the playbook statuses and the message when a group cannot be deleted, in each language |
+| `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", the texts of the playbook page, and the message when a group cannot be deleted |
+| `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts", the texts of the playbook page and the message when a group cannot be deleted, in each language |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |

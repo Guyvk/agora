@@ -162,7 +162,7 @@ These are people who never signed up to Agora, so their details are personal dat
 Each group has a playbook page at `/groups/<group>/playbook`, for example `/groups/7bp/playbook`. It lists the chapters of the group's playbook (such as onboarding, governance, communications, fundraising, events and tech) in their order. For each chapter it shows the owner (a member of the group), the status (not started, draft, in review or agreed), when it was last changed and by whom, a short text, and a link, for example to a Google Doc or a post.
 
 - Members of the group read it. People outside the group see nothing.
-- Stewards of the group (people with the Administration responsibility) add, change and remove chapters on the same page. The server checks this for every change.
+- Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
 - The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
 - The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
 

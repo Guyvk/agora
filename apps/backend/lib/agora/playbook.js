@@ -7,7 +7,9 @@
  * Who may do what, checked here on the server for every request:
  * - members of the group read the playbook
  * - stewards of the group (people with the Administration responsibility)
- *   add, change and remove chapters
+ *   read it too, and add, change and remove chapters. For a space this
+ *   includes the stewards of its parent group, as everywhere in Hylo, even
+ *   when they did not join the space itself
  * - anyone else gets nothing, not even whether chapters exist
  *
  * The web page talks to this through GraphQL, see api/graphql/agora/playbook.js.
@@ -36,9 +38,11 @@ async function findGroup ({ groupId, groupSlug }) {
   return null
 }
 
+/** Members read, and so do stewards (who may be stewards of a space's parent without joining the space). */
 async function canRead (userId, groupId) {
   if (!userId || !groupId) return false
-  return GroupMembership.hasActiveMembership(userId, groupId)
+  if (await GroupMembership.hasActiveMembership(userId, groupId)) return true
+  return canEdit(userId, groupId)
 }
 
 async function canEdit (userId, groupId) {
@@ -71,7 +75,7 @@ function cleanLink (value) {
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
     throw new PlaybookError('The link must be a web address that starts with https://')
   }
-  return v
+  return url.href
 }
 
 /** Checks and tidies what a steward typed. Fields that are left out keep their value. */
@@ -81,7 +85,8 @@ async function clean (groupId, input = {}, current = null) {
 
   if (has('title') || !current) c.title = text(input.title, 'A title', 200, { required: true })
 
-  if (has('status') || !current) {
+  // A status of null counts as left out: an existing chapter keeps its status, a new one starts as not_started.
+  if (input.status != null || !current) {
     c.status = input.status || 'not_started'
     if (!STATUSES.includes(c.status)) throw new PlaybookError('That status does not exist.')
   }
@@ -151,8 +156,9 @@ async function members (groupId) {
 }
 
 /**
- * The playbook of a group, for a member. Returns null for someone who is not
- * a member, so outsiders cannot tell whether the group has one.
+ * The playbook of a group, for a member or steward. Returns null for anyone
+ * else, so outsiders cannot tell whether the group has one. members is a
+ * function, so GraphQL only looks the members up when the page asks for them.
  */
 async function playbook (userId, { groupId, groupSlug }) {
   const group = await findGroup({ groupId, groupSlug })
@@ -170,7 +176,7 @@ async function playbook (userId, { groupId, groupSlug }) {
     canEdit: editable,
     statuses: STATUSES,
     chapters: rows.map(present),
-    members: editable ? await members(group.id) : []
+    members: () => editable ? members(group.id) : []
   }
 }
 

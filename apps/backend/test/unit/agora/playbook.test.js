@@ -3,10 +3,11 @@
  * Agora: the playbook page of a group, through GraphQL as the web page uses it.
  *
  * These checks need a database, and empty it first. Never point them at a
- * database you want to keep:
+ * database you want to keep. Run them with the other Agora tests, so the test
+ * setup loads first:
  *
  *   cd apps/backend
- *   DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/playbook.test.js
+ *   DATABASE_URL=postgres://$USER@localhost:5432/agora_test node node_modules/mocha/bin/mocha -r test/setup/core -r @babel/register --exit --timeout 60000 test/unit/agora/
  */
 import { createRequestHandler } from '../../../api/graphql'
 import Playbook from '../../../lib/agora/playbook'
@@ -124,6 +125,16 @@ describe('Agora playbook', () => {
       expect(new Date(changed.updatedAt).getTime()).to.be.above(new Date(before).getTime())
     })
 
+    it('keeps the status when an update sends status null', async () => {
+      const changed = (await gql(UPDATE, { id: onboarding.id, data: { status: null } }, steward)).data.updateAgoraPlaybookChapter
+      expect(changed.status).to.equal('in_review')
+    })
+
+    it('stores a link as a tidy web address', async () => {
+      const changed = (await gql(UPDATE, { id: onboarding.id, data: { link: '//made-up.example/doc' } }, steward)).data.updateAgoraPlaybookChapter
+      expect(changed.link).to.equal('https://made-up.example/doc')
+    })
+
     it('lets a steward clear the owner, the text and the link', async () => {
       const changed = (await gql(UPDATE, { id: onboarding.id, data: { ownerId: null, summary: '', link: '' } }, steward)).data.updateAgoraPlaybookChapter
       expect(changed.owner).to.equal(null)
@@ -169,6 +180,33 @@ describe('Agora playbook', () => {
       expect(await AgoraPlaybookChapter.where({ id: onboarding.id }).fetch()).to.equal(null)
       const again = await gql(DELETE, { id: onboarding.id }, steward)
       expect(errorOf(again)).to.equal('This chapter does not exist.')
+    })
+
+    it('lets a steward of the main group run the playbook of a space they did not join; its members only read', async () => {
+      const space = await new Group({ slug: '7bp-space', name: 'A space', type: 'space', parent_id: group.id, active: true }).save()
+      await member.joinGroup(space)
+      expect(await GroupMembership.hasActiveMembership(steward.id, space.id)).to.equal(false)
+
+      const created = await gql(CREATE, { groupId: space.id, data: { title: 'Space chapter', ownerId: member.id } }, steward)
+      expect(created.errors).to.equal(undefined)
+      const id = created.data.createAgoraPlaybookChapter.id
+
+      const read = (await gql(PLAYBOOK, { groupSlug: '7bp-space' }, steward)).data.agoraPlaybook
+      expect(read.canEdit).to.equal(true)
+      expect(read.chapters.map(c => c.title)).to.deep.equal(['Space chapter'])
+      expect(read.members.map(m => m.name)).to.deep.equal(['Amara'])
+
+      const updated = await gql(UPDATE, { id, data: { status: 'agreed' } }, steward)
+      expect(updated.errors).to.equal(undefined)
+      expect(updated.data.updateAgoraPlaybookChapter.status).to.equal('agreed')
+
+      const asMember = (await gql(PLAYBOOK, { groupSlug: '7bp-space' }, member)).data.agoraPlaybook
+      expect(asMember.canEdit).to.equal(false)
+      expect(asMember.chapters.length).to.equal(1)
+      expect(errorOf(await gql(UPDATE, { id, data: { status: 'draft' } }, member))).to.equal('Only stewards of this group can change the playbook.')
+
+      const removed = await gql(DELETE, { id }, steward)
+      expect(removed.data.deleteAgoraPlaybookChapter.success).to.equal(true)
     })
 
     it('keeps each group to its own playbook', async () => {
