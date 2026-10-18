@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import Button from 'components/ui/button'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +12,11 @@ import loginWithService from 'store/actions/loginWithService'
 import GoogleButton from 'components/GoogleButton'
 import TextInput from 'components/TextInput'
 import { cn, validateEmail } from 'util/index'
+import getReturnToPath from 'store/selectors/getReturnToPath'
+import Loading from 'components/Loading'
+import { showGoogleLogin } from '@/agora/config'
+import { invitationFromPath, useInviteOnly } from '@/agora/signup'
+import AgoraInviteOnlyNotice from '@/agora/AgoraInviteOnlyNotice'
 export default function Signup (props) {
   const dispatch = useDispatch()
   const [email, setEmail] = useState()
@@ -19,9 +24,12 @@ export default function Signup (props) {
   const [error, setError] = useState(getQuerystringParam('error', location))
   const [redirectTo, setRedirectTo] = useState()
   const { t } = useTranslation()
+  // Agora: sign-up by invitation only. An invitation or join link keeps itself in returnToPath
+  const invitation = invitationFromPath(useSelector(getReturnToPath))
+  const inviteOnly = useInviteOnly()
 
   const sendEmailVerification = async email => {
-    const { payload } = await dispatch(sendEmailVerificationAction(email))
+    const { payload } = await dispatch(sendEmailVerificationAction(email, invitation)) // Agora: with the invitation
     const { success, error } = payload.getData()
 
     if (error) setError(error)
@@ -81,6 +89,10 @@ export default function Signup (props) {
 
   if (redirectTo) return <Navigate to={redirectTo} replace />
 
+  // Agora: without an invitation, say that Agora is by invitation instead of showing the form
+  if (inviteOnly === null) return <Loading />
+  if (inviteOnly && !invitation) return <AgoraInviteOnlyNotice />
+
   return (
     <>
       <Helmet>
@@ -117,9 +129,12 @@ export default function Signup (props) {
           {t('Create account')}
         </Button>
 
-        <div className='flex justify-center'>
-          <GoogleButton onClick={() => handleSignupWithService('google')} />
-        </div>
+        {/* Agora: signing up with Google is not used, as on the login page */}
+        {showGoogleLogin && (
+          <div className='flex justify-center'>
+            <GoogleButton onClick={() => handleSignupWithService('google')} />
+          </div>
+        )}
       </div>
     </>
   )

@@ -158,6 +158,8 @@ migrate_db () {
 }
 migrate_db "$DB_NAME"
 migrate_db "$TEST_DB_NAME"
+# What stewards may do (invite people and so on): schema.sql has no rows for it.
+(cd apps/backend && node scripts/agora-steward-roles.js 2>&1 | tail -1)
 
 step "7/7  Adding the made-up demo data"
 (cd apps/backend && node scripts/agora-demo.js 2>&1 | tail -3)

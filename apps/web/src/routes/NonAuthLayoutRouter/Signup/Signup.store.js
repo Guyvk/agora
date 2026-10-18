@@ -7,20 +7,23 @@ export const SEND_EMAIL_VERIFICATION = `${MODULE_NAME}/SEND_EMAIL_VERIFICATION`
 export const VERIFY_EMAIL = `${MODULE_NAME}/VERIFY_EMAIL`
 export const CHECK_REGISTRATION_STATUS = `${MODULE_NAME}/CHECK_REGISTRATION_STATUS`
 
-export function sendEmailVerification (email) {
+// Agora: invitation is { invitationToken } or { accessCode }, the invitation a new person signs up with
+export function sendEmailVerification (email, invitation) {
   return {
     type: SEND_EMAIL_VERIFICATION,
     graphql: {
       query: `
-        mutation SendEmailVerification ($email: String!) {
-          sendEmailVerification(email: $email) {
+        mutation SendEmailVerification ($email: String!, $invitationToken: String, $accessCode: String) {
+          sendEmailVerification(email: $email, invitationToken: $invitationToken, accessCode: $accessCode) {
             success
             error
           }
         }
       `,
       variables: {
-        email
+        email,
+        invitationToken: invitation?.invitationToken,
+        accessCode: invitation?.accessCode
       }
     },
     meta: {

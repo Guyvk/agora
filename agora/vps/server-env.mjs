@@ -93,7 +93,10 @@ write('apps/backend/.env', {
   PRETTY_JSON: 'false',
   GRAPHQL_YOGA_LOG_LEVEL: 'warn',
   SAILS_LOG_LEVEL: 'warn',
-  DISABLE_SEGMENT: '1'
+  DISABLE_SEGMENT: '1',
+  // New accounts need an invitation to a circle. The first person gets in with
+  // scripts/agora-allow-signup.js (see README-AGORA.md).
+  AGORA_INVITE_ONLY: 'on'
 })
 
 write('apps/web/.env', {

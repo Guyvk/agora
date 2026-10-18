@@ -34,6 +34,8 @@ as_agora bash -c "cd '$APP_DIR/apps/web' && NODE_OPTIONS=--max-old-space-size=30
 
 echo "Updating the database"
 as_agora bash -c "cd '$APP_DIR/apps/backend' && yarn migrate >/dev/null"
+# Only adds what is missing: what stewards may do, also for circles made before
+as_agora bash -c "cd '$APP_DIR/apps/backend' && node scripts/agora-steward-roles.js"
 
 echo "Restarting"
 systemctl restart agora-api agora-worker agora-web

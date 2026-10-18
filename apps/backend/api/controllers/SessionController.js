@@ -6,6 +6,7 @@ import { Validators } from '@hylo/shared'
 import OIDCAdapter from '../services/oidc/KnexAdapter'
 import { mintTokensForUser } from '../services/OIDCTokens'
 import { authenticateWithRateLimit } from '../../lib/rateLimit'
+import AgoraSignup from '../../lib/agora/signup' // Agora: sign-up by invitation only
 
 const sentry = require('../../lib/sentry')
 
@@ -95,6 +96,12 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
           await LinkedAccount.create(user.id, { type: service, profile }, { updateUser: true })
         }
         return user
+      }
+
+      // Agora: on an invitation-only Agora a first login with Google, Apple and the like
+      // only makes an account for someone with a valid invitation. See lib/agora/signup.js.
+      if (!(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(req), profile.email))) {
+        throw new Error(AgoraSignup.INVITE_ONLY_ERROR)
       }
 
       const attrs = {

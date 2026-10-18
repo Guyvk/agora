@@ -17,6 +17,7 @@ const path = require('path')
 const environment = process.env.NODE_ENV || 'development'
 const config = require('../knexfile')[environment]
 const knex = require('knex')(config)
+const { ensureStewardResponsibilities } = require('../lib/agora/stewardRoles')
 
 const SCHEMA = path.join(__dirname, '..', 'migrations', 'schema.sql')
 const MIGRATIONS = path.join(__dirname, '..', 'migrations')
@@ -37,7 +38,8 @@ function schemaForPlainSql (text) {
 async function main () {
   const { rows } = await knex.raw("SELECT to_regclass('public.users') AS users")
   if (rows[0].users) {
-    console.log('Agora database: the tables are there already, nothing to do.')
+    await stewardResponsibilities()
+    console.log('Agora database: the tables are there already, nothing else to do.')
     return
   }
   console.log('Agora database: empty, loading migrations/schema.sql ...')
@@ -49,7 +51,14 @@ async function main () {
   for (const name of names) {
     await knex('public.knex_migrations').insert({ name, batch: 1, migration_time: knex.fn.now() })
   }
+  await stewardResponsibilities()
   console.log(`Agora database: ready, ${names.length} migrations marked as done.`)
+}
+
+/** The rows that let stewards invite people, which schema.sql lacks (see lib/agora/stewardRoles.js). */
+async function stewardResponsibilities () {
+  const added = await ensureStewardResponsibilities(knex)
+  if (added.length) console.log(`Agora database: added the steward responsibilities ${added.join(', ')}.`)
 }
 
 main()

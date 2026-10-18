@@ -164,6 +164,8 @@ if [[ "${NEW_DATABASE:-0}" == 1 ]]; then
   as_agora bash -c "cd '$APP_DIR/apps/backend' && yarn knex seed:run --specific=migrations.js >/dev/null"
 fi
 as_agora bash -c "cd '$APP_DIR/apps/backend' && yarn migrate >/dev/null"
+# What stewards may do (invite people and so on): schema.sql has no rows for it.
+as_agora bash -c "cd '$APP_DIR/apps/backend' && node scripts/agora-steward-roles.js"
 echo "  The database is up to date. No demo data: this is the real Agora."
 
 step "9/10  Services, scheduled jobs and backups"
