@@ -75,6 +75,8 @@ function cleanLink (value) {
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
     throw new PlaybookError('The link must be a web address that starts with https://')
   }
+  // The tidied address can be longer than what was typed (spaces become %20).
+  if (url.href.length > 1000) throw new PlaybookError('The link is too long (at most 1000 characters).')
   return url.href
 }
 
@@ -85,8 +87,8 @@ async function clean (groupId, input = {}, current = null) {
 
   if (has('title') || !current) c.title = text(input.title, 'A title', 200, { required: true })
 
-  // A status of null counts as left out: an existing chapter keeps its status, a new one starts as not_started.
-  if (input.status != null || !current) {
+  // A status of null or "" counts as left out: an existing chapter keeps its status, a new one starts as not_started.
+  if ((input.status != null && input.status !== '') || !current) {
     c.status = input.status || 'not_started'
     if (!STATUSES.includes(c.status)) throw new PlaybookError('That status does not exist.')
   }

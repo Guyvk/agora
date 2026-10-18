@@ -125,9 +125,14 @@ describe('Agora playbook', () => {
       expect(new Date(changed.updatedAt).getTime()).to.be.above(new Date(before).getTime())
     })
 
-    it('keeps the status when an update sends status null', async () => {
-      const changed = (await gql(UPDATE, { id: onboarding.id, data: { status: null } }, steward)).data.updateAgoraPlaybookChapter
-      expect(changed.status).to.equal('in_review')
+    it('keeps the status when an update sends status null or empty', async () => {
+      for (const status of [null, '']) {
+        const changed = (await gql(UPDATE, { id: onboarding.id, data: { status } }, steward)).data.updateAgoraPlaybookChapter
+        expect(changed.status).to.equal('in_review')
+      }
+      const fresh = (await gql(CREATE, { groupId: group.id, data: { title: 'Empty status', status: '' } }, steward)).data.createAgoraPlaybookChapter
+      expect(fresh.status).to.equal('not_started')
+      await gql(DELETE, { id: fresh.id }, steward)
     })
 
     it('stores a link as a tidy web address', async () => {
@@ -167,7 +172,8 @@ describe('Agora playbook', () => {
         [{ title: 'Events', status: 'finished' }, 'That status does not exist.'],
         [{ title: 'Events', link: 'javascript:alert(1)' }, 'The link must be a web address that starts with https://'],
         [{ title: 'Events', ownerId: outsider.id }, 'The owner must be a member of this group.'],
-        [{ title: 'Events', position: -1 }, 'The order must be a whole number from 0 to 9999.']
+        [{ title: 'Events', position: -1 }, 'The order must be a whole number from 0 to 9999.'],
+        [{ title: 'Events', link: 'https://made-up.example/' + 'a b'.repeat(325) }, 'The link is too long (at most 1000 characters).']
       ]
       for (const [data, message] of cases) {
         expect(errorOf(await gql(CREATE, { groupId: group.id, data }, steward))).to.equal(message)
