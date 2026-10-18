@@ -76,6 +76,12 @@ write('apps/backend/.env', {
   // Hylo's example turns off checking the certificates of other sites. Not here.
   NODE_TLS_REJECT_UNAUTHORIZED: '1',
   STRIPE_SECRET_KEY: 'sk_test_agora_payments_not_used',
+  // No Amazon S3: pictures and files are kept on this server's own disk and
+  // served at https://<address>/noo/uploads/... (apps/backend/lib/agora/diskUploads.js)
+  AWS_S3_BUCKET: '',
+  AWS_S3_CONTENT_URL: '',
+  UPLOADER_PATH_PREFIX: 'evo-uploads',
+  AGORA_UPLOADS_DIR: '/var/lib/agora/uploads',
   // Emails are only written to the log until a mailbox is connected
   // (AGORA_EMAIL_TRANSPORT=smtp and the AGORA_SMTP_ settings).
   AGORA_EMAIL_TRANSPORT: 'log',

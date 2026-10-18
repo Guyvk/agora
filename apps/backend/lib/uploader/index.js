@@ -12,6 +12,9 @@ import { createS3StorageStream } from './storage'
 import { validate } from './validation'
 import * as types from './types'
 
+// Agora: upload types that only take pictures
+const PICTURE_TYPES = [types.USER_AVATAR, types.USER_BANNER, types.GROUP_AVATAR, types.GROUP_BANNER]
+
 const REMOTE_FETCH_HEADERS = {
   'User-Agent': 'Hylo/1.0 (https://www.hylo.com; hello@hylo.com) image-rehost'
 }
@@ -93,6 +96,12 @@ export function upload (args) {
 
           const fileType = guessFileType(data, filename)
           const mimetype = fileType && fileType.mime
+
+          // Agora: profile pictures and banners must really be pictures, whatever their name says
+          if (PICTURE_TYPES.includes(type) && !(mimetype && mimetype.startsWith('image/'))) {
+            passthrough = null
+            return reject(new Error('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP'))
+          }
 
           converter = createConverterStream(type, id, { fileType })
           converter.on('error', err => reject(err))

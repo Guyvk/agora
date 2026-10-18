@@ -15,6 +15,11 @@ export function validate ({ type, id, userId, url, stream }) {
     return Promise.reject(new GraphQLError('Validation error: No id'))
   }
 
+  // Agora: the id becomes part of the file's path, so only plain ids ("new", 42, a slug) are allowed
+  if (!/^[\w-]+$/.test(String(id))) {
+    return Promise.reject(new GraphQLError('Validation error: Invalid id'))
+  }
+
   return hasPermission(userId, type, id)
 }
 

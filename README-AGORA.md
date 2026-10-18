@@ -17,7 +17,8 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
-| Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
+| Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
+| Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
 Everything Agora changed in Hylo's own files is listed in [AGORA-CHANGES.md](AGORA-CHANGES.md).
@@ -186,6 +187,15 @@ sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora
 
 It only adds what is missing, so it is safe to run again.
 
+## Playbook
+
+Each group has a playbook page at `/groups/<group>/playbook`, for example `/groups/7bp/playbook`. It lists the chapters of the group's playbook (such as onboarding, governance, communications, fundraising, events and tech) in their order. For each chapter it shows the owner (a member of the group), the status (not started, draft, in review or agreed), when it was last changed and by whom, a short text, and a link, for example to a Google Doc or a post.
+
+- Members of the group read it. People outside the group see nothing.
+- Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
+- The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
+- The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
+
 ## Email
 
 On your own computer no email is sent. Every email is printed in the Terminal instead, so you can copy sign-up codes and links from there.
@@ -194,24 +204,53 @@ To send real email, set `AGORA_EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` and `EMAI
 
 Emails that Agora has no text for yet, such as event invitations and digests, are not sent. A line in the log says so. Notification emails stay off while `EMAIL_NOTIFICATIONS_ENABLED=false`.
 
+## Uploads
+
+Profile pictures, banners, pictures and files added to posts and comments, and the calendar files people subscribe to, are kept on Agora's own server, in one folder:
+
+- on the server: `/var/lib/agora/uploads`, readable only by the user `agora`, and copied into the nightly backup;
+- on a Mac: `apps/backend/.agora-uploads` (git ignores it).
+
+The setting `AGORA_UPLOADS_DIR` in `apps/backend/.env` changes the folder. Agora's own server hands the files out at `https://<Agora's address>/noo/uploads/...`. Clicking an upload button opens your browser's own file picker, and the file goes straight to Agora; nothing passes through Filestack or Amazon. A file can be up to 10 MB (Hylo's limit). Profile pictures are made 200 by 200 pixels, and pictures in posts at most 1200 pixels wide, like in Hylo. Big videos belong in the circle's Google Drive.
+
+Things to know:
+
+- **Anyone with the address of a file can open it**, also without logging in, and also when it was posted in a private circle. This is how Hylo works with Amazon S3 too. The addresses are long and hard to guess, but they are not secret: whoever gets a link can pass it on. Put nothing in an upload that must stay inside a circle; use the circle's Drive folder for that.
+- Web pages, SVG drawings and other files that a browser could run are offered as downloads, never shown as part of Agora. Profile pictures and banners must really be pictures: JPEG, PNG, GIF or WebP.
+- **iPhone photos (HEIC) and AVIF pictures are not accepted as profile pictures or banners yet.** Convert them first, for example with *Export* in the Photos app or by taking a screenshot. They can still be added to posts as files.
+- A shortcut (a "symbolic link") inside the uploads folder is followed, so it could hand out a file from elsewhere on the server. Only someone who can log in to the server can make one; Agora itself never does.
+- **A server set up before uploads moved to disk** needs the folder made once, because `update.sh` does not make it. Log in to the server and run:
+  ```
+  sudo install -d -o agora -g agora -m 750 /var/lib/agora /var/lib/agora/uploads
+  sudo apt-get install -y rsync
+  sudo sed -i 's|^AGORA_UPLOADS_DIR=.*|AGORA_UPLOADS_DIR=/var/lib/agora/uploads|' /srv/agora/apps/backend/.env
+  sudo grep -q '^AGORA_UPLOADS_DIR=' /srv/agora/apps/backend/.env || echo 'AGORA_UPLOADS_DIR=/var/lib/agora/uploads' | sudo -u agora tee -a /srv/agora/apps/backend/.env
+  sudo /srv/agora/agora/vps/update.sh --force
+  ```
+  The update step also runs `yarn install`, which the new building block (`send`) needs.
+- If a bucket and key for Amazon S3 are set (`AWS_S3_BUCKET` and `AWS_ACCESS_KEY_ID`), Agora uses S3 like Hylo, and the folder is not used. Setting a Filestack key brings Hylo's Filestack picker back.
+
 ## What is switched off
 
 - **Tracking.** `DISABLE_SEGMENT=1` stops the server from sending usage events to Segment. The Mixpanel and Intercom keys are empty. The cookie banner still mentions them and needs to be changed.
 - **Payments.** Not used. The server insists on a `STRIPE_SECRET_KEY`, so the settings file holds a placeholder.
-- **Uploads.** Pictures and attachments need a storage bucket and a Filestack key, which are not set up yet. Files live in Google Drive. The plan is to store uploads with Infomaniak's Swiss Backup later, with an upload button of our own.
+- **Filestack and Amazon S3.** Hylo sends uploads through Filestack and keeps them in Amazon S3. Agora uses neither: see "Uploads" below.
 - **The Commons.** Hylo's public area, with public posts, a public group directory and a public map. Agora has nothing public yet, so its button and tab are hidden and its pages go to My Home. One switch in `apps/web/src/agora/config.js` brings it back.
 - **Phone apps and push notifications.** Agora is a website.
 
 ## Going online
 
-Agora runs on one rented server in Switzerland: an Infomaniak **VPS Lite M** (2 processors, 4 GB memory, 80 GB disk, about 10 euros a month without VAT), with Ubuntu 24.04. One script sets everything up: the database, the job queue, Agora itself, https, the scheduled jobs (digests, reminders) and a nightly backup. The files are in `agora/vps/`.
+Agora runs on one rented server in Switzerland, with Ubuntu 24.04: an instance in Infomaniak's **Public Cloud** with 2 processors and 4 GB memory (about 9 to 12 euros a month, paid per hour at the end of each month, no commitment; new accounts get CHF 300 of credit for the first 3 months). Guy chose this on 17 October because the cheaper VPS Lite is only sold by the year. Any Ubuntu 24.04 server works the same way, a VPS Lite too. One script sets everything up: the database, the job queue, Agora itself, https, the scheduled jobs (digests, reminders) and a nightly backup. The files are in `agora/vps/`.
 
 **Once, before you start**
 
 1. Make an ssh key on your Mac, if you have none yet: open Terminal and type `ssh-keygen -t ed25519`, then press Enter three times. Your public key is in `~/.ssh/id_ed25519.pub`. That file is safe to share; the other one (without `.pub`) never leaves your Mac.
-2. In the Infomaniak Manager, order a **VPS Lite**, size **M**, with **Ubuntu 24.04**. When it asks for an ssh key, paste the contents of `id_ed25519.pub`.
-3. Note the server's IP address (Manager, your VPS, overview).
-4. In the Infomaniak Manager, open the VPS firewall and allow ports 22 (ssh), 80 (http) and 443 (https).
+2. In the Infomaniak Manager, order a **Public Cloud** and wait for the email that it is ready. Then create a **project** in it. You choose the project's password yourself and keep it to yourself.
+3. In the project's dashboard:
+   - **Key pairs:** import your key under the name `guy-mac`, by pasting the contents of `id_ed25519.pub`.
+   - **Security groups:** make a group `agora-web` that lets in TCP ports 22 (ssh), 80 (http) and 443 (https) from anywhere.
+   - **Instances, Launch:** name `agora`, image **Ubuntu 24.04**, a size with 2 processors and 4 GB memory (for example `a2-ram4-disk50-perf1`), the public network, key pair `guy-mac`, security group `agora-web`.
+4. Note the instance's public IP address. The login user on Infomaniak's Ubuntu images is `ubuntu`.
 5. Ask whoever manages the domain to add an **A record**: `agora` pointing at that IP address. Until then you can use a test address, for example `agora.guyvankoolwijk.nl`.
 
 **Setting up the server** (about 30 minutes, most of it waiting)
@@ -248,8 +287,8 @@ The user name may be `ubuntu` or `root`; the Manager shows which. At the end it 
 
 **Still to do**
 
-- The nightly backups (`/var/backups/agora`, 14 days) sit on the same server. A second copy elsewhere, for example Infomaniak's Swiss Backup, is not set up yet.
-- Profile pictures and other uploads inside Hylo still expect Amazon S3. Until Swiss Backup or Google Drive takes that over, those uploads do not work.
+- The nightly backups (`/var/backups/agora`, 14 days, the database and the uploads) sit on the same server. A second copy elsewhere, for example Infomaniak's Swiss Backup, is not set up yet. A file that did not change is stored only once across the 14 nights, so the uploads backup stays about as big as the uploads themselves plus what was added in two weeks. To bring back the uploads of one night: `sudo rsync -a /var/backups/agora/uploads-<date>/ /var/lib/agora/uploads/`.
+- Profile pictures, banners and attachments now work: they are kept on the server's own disk (see "Uploads"). The 80 GB disk holds them for a long time at 10 MB a file at most; `df -h /` shows how full it is.
 - Anyone with an account can make a new circle. Decide whether only stewards should be able to.
 - The script was written for Ubuntu 24.04 and checked line by line, but it has not run on a real VPS yet. The first run is the test.
 

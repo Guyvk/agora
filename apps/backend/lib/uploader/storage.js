@@ -4,6 +4,8 @@ import { parse } from 'url'
 import { PassThrough } from 'stream'
 import mime from 'mime'
 import sanitize from 'sanitize-filename'
+// Agora: without S3, uploads are kept on Agora's own disk
+import * as diskUploads from '../agora/diskUploads'
 
 // Avatar/banner uploads intentionally overwrite the previous file at the same path.
 const OVERWRITE_UPLOAD_TYPES = new Set([
@@ -33,6 +35,8 @@ export function uniqueBasename (basename) {
 }
 
 export function createS3StorageStream (uploadType, id, { userId, fileType, filename }) {
+  // Agora: without S3, the file goes to Agora's own disk
+  if (diskUploads.inUse()) return diskUploads.createStream(makePath(uploadType, id, { userId, fileType, filename }))
   ;[
     'AWS_ACCESS_KEY_ID',
     'AWS_SECRET_ACCESS_KEY',
@@ -67,6 +71,8 @@ export function createS3StorageStream (uploadType, id, { userId, fileType, filen
 }
 
 export function deleteS3Objects (urls) {
+  // Agora: without S3, the files are deleted from Agora's own disk
+  if (diskUploads.inUse()) return diskUploads.removeUrls(urls)
   ;[
     'AWS_ACCESS_KEY_ID',
     'AWS_SECRET_ACCESS_KEY',
@@ -160,6 +166,8 @@ function getMimetypeFromFileType (fileType, filename) {
 
 // Write a string directly to S3
 export function writeStringToS3 (content, key, options = {}) {
+  // Agora: without S3, the text is written to Agora's own disk
+  if (diskUploads.inUse()) return diskUploads.writeString(content, key)
   const {
     ACL = 'public-read',
     ContentType = 'text/plain'
@@ -203,6 +211,8 @@ export function writeStringToS3 (content, key, options = {}) {
 
 // Delete a single file from S3 by key (path)
 export function deleteFromS3 (key) {
+  // Agora: without S3, the file is deleted from Agora's own disk
+  if (diskUploads.inUse()) return diskUploads.remove(key)
   ;[
     'AWS_ACCESS_KEY_ID',
     'AWS_SECRET_ACCESS_KEY',

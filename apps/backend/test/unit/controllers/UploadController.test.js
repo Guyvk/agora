@@ -69,7 +69,9 @@ describe('UploadController', () => {
         // this error is thrown by createS3StorageStream; the fact that it is
         // thrown confirms that busboy was able to parse the request and set up
         // the stream pipeline.
-        expect(res.body.type).to.equal('userAvatar')
+        // Agora: a profile picture must be a picture, so this text file is refused
+        // as one, after busboy has read the type, the id and the file
+        expect(res.body.error).to.equal('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP')
       })
     })
   })

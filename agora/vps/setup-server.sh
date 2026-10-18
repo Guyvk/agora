@@ -13,12 +13,14 @@
 #
 # What ends up on the server:
 #   /srv/agora               Agora's code, owned by the user "agora"
+#   /var/lib/agora/uploads   profile pictures, banners and attachments people
+#                            upload, readable by the user "agora" only
 #   PostgreSQL with PostGIS  the database "agora", only reachable from this server
 #   Redis                    the job queue, only reachable from this server
 #   Caddy                    the web server in front, with https certificates
 #   systemd services         agora-api, agora-worker, agora-web, and timers for
 #                            the scheduled jobs and a nightly database backup
-#   /var/backups/agora       the nightly backups, kept for 14 days
+#   /var/backups/agora       the nightly backups (database and uploads), kept for 14 days
 #
 # Later updates: sudo /srv/agora/agora/vps/update.sh
 #
@@ -50,7 +52,7 @@ step "1/10  Updating the server and installing what Agora needs"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq ca-certificates curl git ufw fail2ban unattended-upgrades \
-  build-essential python3 postgresql postgresql-contrib redis-server caddy >/dev/null
+  build-essential python3 rsync postgresql postgresql-contrib redis-server caddy >/dev/null
 PG_MAJOR="$(apt-cache depends postgresql | sed -n 's/.*Depends: postgresql-\([0-9]*\)$/\1/p' | head -1)"
 apt-get install -y -qq "postgresql-$PG_MAJOR-postgis-3" >/dev/null
 echo "  PostgreSQL $PG_MAJOR, Redis $(redis-server --version | awk '{print $3}'), Caddy $(caddy version | awk '{print $1}')"
@@ -111,6 +113,10 @@ if [[ ! -d "$APP_DIR/.git" ]]; then
   as_agora git clone --quiet --branch "$BRANCH" "$REPO" "$APP_DIR"
 fi
 echo "  $(as_agora git -C "$APP_DIR" log --oneline -1)"
+# Uploads live outside the code, so updates never touch them. Only the user
+# "agora" can read them: Agora's server hands them out at /noo/uploads/...
+install -d -o "$APP_USER" -g "$APP_USER" -m 750 /var/lib/agora /var/lib/agora/uploads
+echo "  Uploads go to /var/lib/agora/uploads"
 
 step "6/10  The database and the job queue"
 systemctl enable --now postgresql redis-server >/dev/null 2>&1
@@ -240,7 +246,7 @@ timer daily '*-*-* 03:30'
 
 unit agora-backup.service <<EOF
 [Unit]
-Description=Agora nightly database backup
+Description=Agora nightly backup of the database and the uploads
 [Service]
 Type=oneshot
 User=$APP_USER
@@ -248,7 +254,7 @@ ExecStart=/bin/bash $APP_DIR/agora/vps/backup.sh
 EOF
 unit agora-backup.timer <<EOF
 [Unit]
-Description=Agora nightly database backup
+Description=Agora nightly backup of the database and the uploads
 [Timer]
 OnCalendar=*-*-* 02:30
 Persistent=true

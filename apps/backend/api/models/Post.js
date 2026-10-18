@@ -1408,6 +1408,8 @@ module.exports = bookshelf.Model.extend(Object.assign({
     const ownerInvitation = await EventInvitation.find({ userId, eventId: postId }) || eventInvitation
     if (!silent) {
       await post.sendUserRsvp({ eventInvitationId: ownerInvitation.id, eventChanges: { new: true } })
+      // Agora: queued here instead of in createPost, after the invitations exist
+      Queue.classMethod('Post', 'createActivities', { postId })
     }
     Queue.classMethod('User', 'createRsvpCalendarSubscription', { userId })
   },

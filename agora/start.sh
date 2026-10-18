@@ -21,6 +21,20 @@ agora_start_services
 
 trap 'kill 0' EXIT INT TERM
 
+# Hylo's regular jobs: every 10 minutes the search index is refreshed (finding
+# members needs it) and quiet meetings are closed so their minutes get written.
+# Every hour, chat digests go out. On a server, timers do this (agora/vps).
+(
+  ticks=0
+  sleep 60
+  while true; do
+    (cd apps/backend && node --env-file=.env cron.js --interval every10minutes >/dev/null 2>&1) &
+    (( ticks % 6 == 0 )) && (cd apps/backend && node --env-file=.env cron.js --interval hourly >/dev/null 2>&1) &
+    ticks=$((ticks + 1))
+    sleep 600
+  done
+) &
+
 if [[ "$MODE" == "dev" ]]; then
   echo "Starting Agora for changing its code. The first start takes a minute or two."
   echo "When you see \"You can now view web in the browser\", open http://localhost:3000"

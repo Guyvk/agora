@@ -14,6 +14,8 @@
 import customMiddleware from './customMiddleware'
 import responseCompression from '../lib/responseCompression'
 import { magenta } from 'chalk'
+// Agora: uploads kept on Agora's own disk are served at /noo/uploads
+import { serveUploads } from '../lib/agora/diskUploads'
 
 module.exports.http = {
 
@@ -31,6 +33,7 @@ module.exports.http = {
 
   middleware: {
 
+    agoraUploads: serveUploads,
     passportInit: require('passport').initialize(),
     passportSession: require('passport').session(),
     sentry: require('../lib/sentry').errorHandler(),
@@ -53,6 +56,7 @@ module.exports.http = {
     ***************************************************************************/
 
     order: [
+      'agoraUploads', // Agora: files need no session, so they come first
       'cookieParser',
       'session',
       'passportInit',

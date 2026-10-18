@@ -45,14 +45,29 @@ describe('Uploader.storage.makePath', () => {
 
 describe('Uploader.storage.createS3StorageStream', () => {
   let storage, listener
+  // Agora: S3 is only used when it is set up; without it files go to disk
+  const s3Settings = { AWS_S3_BUCKET: 'a-bucket', AWS_ACCESS_KEY_ID: 'made-up-id', AWS_SECRET_ACCESS_KEY: 'made-up-secret', UPLOADER_PATH_PREFIX: 'evo-uploads' }
+  const savedSettings = {}
+  beforeEach(() => Object.entries(s3Settings).forEach(([k, v]) => { savedSettings[k] = process.env[k]; process.env[k] = v }))
+  afterEach(() => Object.entries(savedSettings).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v }))
+
+  // Agora: put the real storage module back afterwards. Otherwise later tests
+  // (Group calendar) replace functions on this mocked copy and miss.
+  const storagePath = require.resolve('./storage')
+  let realStorage
 
   before(() => {
+    realStorage = require.cache[storagePath]
     mockRequire('aws-sdk', {S3: mockS3})
     storage = mockRequire.reRequire('./storage')
     mockRequire.reRequire('aws-sdk')
   })
 
-  after(() => mockRequire.stopAll())
+  after(() => {
+    mockRequire.stopAll()
+    if (realStorage) require.cache[storagePath] = realStorage // Agora
+    else delete require.cache[storagePath] // Agora
+  })
 
   it('allows listening for a "progress" event', () => {
     const stream = storage.createS3StorageStream('comment', 1, {})

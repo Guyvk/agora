@@ -55,6 +55,9 @@ write('apps/backend/.env', {
   JWT_SECRET: crypto.randomBytes(32).toString('hex'),
   OIDC_KEYS: Buffer.from(privateKey).toString('base64'),
   STRIPE_SECRET_KEY: 'sk_test_agora_payments_not_used',
+  // No Amazon S3: uploads go to apps/backend/.agora-uploads
+  AWS_S3_BUCKET: '',
+  AWS_S3_CONTENT_URL: '',
   EMAIL_SENDER: 'agora@localhost',
   EMAIL_NOTIFICATIONS_ENABLED: 'false',
   DEBUG_SQL: '',

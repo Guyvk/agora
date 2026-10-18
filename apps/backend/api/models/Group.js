@@ -1076,7 +1076,8 @@ module.exports = bookshelf.Model.extend(merge({
 
   eventCalendarUrl: function () {
     return this.get('calendar_token')
-      ? `${process.env.AWS_S3_CONTENT_URL}/${this.getEventCalendarPath()}`
+      // Agora: on Agora's own disk when S3 is not used
+      ? `${require('../../lib/agora/diskUploads').contentUrl()}/${this.getEventCalendarPath()}`
       : null
   }
 }, HasSettings), {
