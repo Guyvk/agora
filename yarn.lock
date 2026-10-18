@@ -16196,6 +16196,7 @@ __metadata:
     sails-hook-sockets: "npm:^3.0.1"
     sanitize-filename: "npm:^1.6.1"
     semver: "npm:^5.4.1"
+    send: "npm:0.19.0"
     sendwithus: "npm:^2.8.0"
     sharp: "npm:^0.35.3"
     socket.io-client: "npm:^2.3.1"
