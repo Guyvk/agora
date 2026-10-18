@@ -18,13 +18,15 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
-| `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables and the table that links circles to their Drive folders, with their links deferrable like Hylo's own |
+| `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
+| `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL questions and changes (from `api/graphql/agora/`) for logged-in people |
+| `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` | A Playbook line in a group's menu, above More Spaces |
 | `apps/web/.env.example` | `PROXY_HOST` is empty by default |
 | `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
-| `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", and the message when a group cannot be deleted |
-| `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts" and the message when a group cannot be deleted, in each language |
+| `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the words "Contacts" and "Playbook" and the playbook statuses, and the message when a group cannot be deleted |
+| `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The words "Contacts" and "Playbook", the playbook statuses and the message when a group cannot be deleted, in each language |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
@@ -40,7 +42,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/GroupSettings/GroupSettings.js` | Hands the result of deleting a group back to the Delete tab |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.js` | Says when a group could not be deleted, instead of doing nothing |
 | `apps/web/src/routes/GroupSettings/DeleteSettingsTab/DeleteSettingsTab.test.js` | Checks that message |
-| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted. While The Commons is off, its pages go to My Home. The Contacts page at `/contacts` |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` | Without an Intercom key, the support chat service is never contacted. While The Commons is off, its pages go to My Home. The Contacts page at `/contacts`. The playbook page of a group at `/groups/<group>/playbook` |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` | No Commons button while The Commons is off. A Contacts button, with the number of my follow-ups that are due |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.test.js` | Checks that the Commons button is gone and the Contacts button is there |
 | `apps/web/src/routes/AuthLayoutRouter/components/TopNav/TopNav.jsx` | No Commons tab while The Commons is off |
@@ -69,5 +71,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
 - `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
 - `apps/web/public/agora-7bp-logo.png`
+- `apps/backend/migrations/20261018120000_add_agora_playbook.js`, `apps/backend/api/models/AgoraPlaybookChapter.js`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/playbook.graphql`, `apps/backend/api/graphql/agora/playbook.js`, `apps/backend/test/unit/agora/playbook.test.js`
+- `apps/web/src/agora/playbook/PlaybookPage.jsx`, `apps/web/src/agora/playbook/PlaybookMenuLink.jsx`, `apps/web/src/agora/playbook/api.js`, `apps/web/src/agora/playbook/PlaybookPage.test.js`
 - `apps/backend/migrations/20261012010000_add_agora_contacts.js`, `apps/backend/migrations/20261012020000_agora_meetings_deferrable.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

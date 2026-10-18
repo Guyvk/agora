@@ -71,6 +71,7 @@ import { getMobileAppVersion, logoutFromMobileWebView } from 'util/webView'
 import { spaceRowBadgeCount, viewShowsUnreadDot, viewUnreadBadgeCount } from 'util/viewUnreadBadges'
 
 import classes from './ContextMenu.module.scss'
+import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -949,6 +950,8 @@ export default function ContextMenu (props) {
       {/* When the sticky alerts exist they carry the mt-auto (they must be a
           direct flex child for their sticky pinning to span the whole card) */}
       <div className={stickyAlertsSection ? undefined : 'mt-auto'}>
+        {/* Agora: the playbook page of a group */}
+        {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
         {moreSpacesSection}
         {editMenuButton}
       </div>
