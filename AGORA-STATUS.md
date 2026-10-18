@@ -2,7 +2,7 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 17 October 2026, about 22:00, by Claude Code on the Mac. The Mac now runs everything merged on GitHub (#1 to #7), plus the build fix in #8, merged the same evening.
+**Last updated:** 17 October 2026, about 23:30, by Claude Code on the Mac (chat "lets continue working on agora"). Hosting changed to Infomaniak Public Cloud, order under way. The Mac runs everything merged on GitHub (#1 to #8).
 
 ## What Agora is
 
@@ -66,9 +66,9 @@ Merged on 17 October, made in a Mac chat:
 - #6 Circle members add files to Google Drive (off unless `AGORA_DRIVE_UPLOADS=on`). An administrator links each circle's folder with `scripts/agora-drive-link.js`.
 - #7 Agora on its own server at Infomaniak (VPS Lite M, Switzerland) instead of Heroku: `agora/vps/`. Not yet run on a real server.
 
-Open: #10 `agora-event-invites`, from Guy's test on 17 October. People invited to an event were not told, member search failed on the Mac, and the demo people had email switched off. Waits for Guy: switch on email for the existing demo people (one line, given in the chat of 17 October), restart Agora from the branch, redo the event test, then merge.
+Merged on 18 October: #10 `agora-event-invites`, from Guy's test on 17 October. People invited to an event were not told, member search failed on the Mac, and the demo people had email switched off. Waits for Guy: switch on email for the existing demo people (one line, given in the chat of 17 October), restart Agora from the branch, redo the event test, then merge.
 
-#8 `agora-fix-web-build` (merged 17 October). After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors.
+Merged on 17 October: #8 `agora-fix-web-build`. After #2 and #3 the web app no longer built (imports written `agora/...` instead of `@/agora/...`), so `./agora/start.sh` failed. Fixed and tested on the Mac: build works, web tests 999 passing and the same 6 known failures, Agora backend tests 86 passing, the login page opens without errors.
 
 In the cloud, nothing was started in a browser in the cloud and ESLint does not start in this repo (its config does not fit ESLint 9).
 
@@ -93,7 +93,8 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 2. Before real contacts go into the Contacts page: an experienced developer reviews it, and 7BP agrees who answers when someone asks what is kept about them or asks to be removed.
 4. Connect speech to text with Infomaniak (chosen on 12 October; Scaleway in France is the backup). Guy puts the address and key into `apps/backend/.env` himself, plus a Claude key for the summaries. Then one short test recording.
 5. Try the meeting room with real voices: three or four people with headphones, ten minutes.
-6. Put Agora online on an Infomaniak VPS Lite M, at agora.7billionpresidents.org. The steps are in "Going online" in the README (#7). Costs about 10 euros a month and needs whoever holds the login of the domain, so Guy decides when.
+6. Put Agora online. **Under way since 17 October:** Guy ordered Infomaniak **Public Cloud** (billed monthly, no commitment, CHF 300 credit for 3 months; VPS Lite is only sold by the year). Order c-8313116 was still "processing" that night. When it is ready: Guy creates a project (his own password), Claude creates an Ubuntu 24.04 instance with 2 processors and 4 GB, key `~/.ssh/id_ed25519.pub`, ports 22, 80 and 443, points **agora.guyvankoolwijk.nl** (Hestia DNS) at it as a first address, and runs `agora/vps/setup-server.sh`. Later the address moves to agora.7billionpresidents.org, once we know who manages that domain (asked David on 17 October).
+   Waiting for David (emailed 17 October from Guy's Gmail): a Shared Drive "7BP Agora" with a folder per circle, a way for Agora to reach it, the mailbox agora@ with an app password for sending email, and who manages the domain.
 7. Connect Google Drive once Guy has the 7BP Google login. The steps are under "Google Drive" in the README. The Files pages are built.
 8. The weekly update written by the assistant. A steward approves it during the first month.
 9. A playbook page: every chapter with its owner and status.

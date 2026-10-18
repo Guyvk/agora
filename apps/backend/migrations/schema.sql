@@ -7376,3 +7376,50 @@ ALTER TABLE ONLY public.agora_drive_folders
 ALTER TABLE ONLY public.agora_drive_folders
     ADD CONSTRAINT agora_drive_folders_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
 
+--
+-- Agora: the playbook page of a group.
+-- Added by migrations/20261018120000_add_agora_playbook.js
+--
+
+CREATE TABLE public.agora_playbook_chapters (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    title character varying(200) NOT NULL,
+    status character varying(20) DEFAULT 'not_started'::character varying NOT NULL,
+    owner_id bigint,
+    summary text,
+    link character varying(1000),
+    created_by_id bigint,
+    updated_by_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_playbook_chapters_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_playbook_chapters_id_seq OWNED BY public.agora_playbook_chapters.id;
+
+ALTER TABLE ONLY public.agora_playbook_chapters ALTER COLUMN id SET DEFAULT nextval('public.agora_playbook_chapters_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_playbook_chapters
+    ADD CONSTRAINT agora_playbook_chapters_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_playbook_chapters_group_id_index ON public.agora_playbook_chapters USING btree (group_id);
+
+ALTER TABLE ONLY public.agora_playbook_chapters
+    ADD CONSTRAINT agora_playbook_chapters_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_playbook_chapters
+    ADD CONSTRAINT agora_playbook_chapters_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_playbook_chapters
+    ADD CONSTRAINT agora_playbook_chapters_owner_id_foreign FOREIGN KEY (owner_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_playbook_chapters
+    ADD CONSTRAINT agora_playbook_chapters_updated_by_id_foreign FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;

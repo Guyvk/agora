@@ -83,6 +83,7 @@ import MemberProfile from 'routes/MemberProfile'
 import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
+import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
 import ThreadList from 'routes/Messages/ThreadList'
 import MySpaceCollection from 'routes/MySpaceCollection'
 import MyTransactions from 'routes/MyTransactions'
@@ -1139,6 +1140,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='members/create/*' element={<Members context='groups' />} />
                             <Route path='members/:personId/*' element={<MemberProfile context='groups' />} />
                             <Route path='members/*' element={<Members context='groups' />} />
+                            <Route path='playbook' element={<PlaybookPage />} /> {/* Agora: the playbook page of a group */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />
                             <Route path='chat/*' element={<ChatRoom context='groups' />} />
