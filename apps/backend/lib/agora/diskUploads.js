@@ -60,16 +60,16 @@ export function contentUrl () {
  */
 export function filePath (key) {
   if (typeof key !== 'string' || !key || key.includes('\0') || key.includes('\\')) {
-    throw new Error('Agora uploads: invalid file path')
+    throw new Error('Validation error: Agora uploads: invalid file path')
   }
   const parts = key.split('/')
   if (parts.some(part => !part || part === '.' || part === '..' || part.startsWith('.'))) {
-    throw new Error('Agora uploads: invalid file path')
+    throw new Error('Validation error: Agora uploads: invalid file path')
   }
   const root = uploadsDir()
   const full = path.resolve(root, ...parts)
   if (!full.startsWith(root + path.sep)) {
-    throw new Error('Agora uploads: invalid file path')
+    throw new Error('Validation error: Agora uploads: invalid file path')
   }
   return full
 }

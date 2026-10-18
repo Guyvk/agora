@@ -51,13 +51,23 @@ describe('Uploader.storage.createS3StorageStream', () => {
   beforeEach(() => Object.entries(s3Settings).forEach(([k, v]) => { savedSettings[k] = process.env[k]; process.env[k] = v }))
   afterEach(() => Object.entries(savedSettings).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v }))
 
+  // Agora: put the real storage module back afterwards. Otherwise later tests
+  // (Group calendar) replace functions on this mocked copy and miss.
+  const storagePath = require.resolve('./storage')
+  let realStorage
+
   before(() => {
+    realStorage = require.cache[storagePath]
     mockRequire('aws-sdk', {S3: mockS3})
     storage = mockRequire.reRequire('./storage')
     mockRequire.reRequire('aws-sdk')
   })
 
-  after(() => mockRequire.stopAll())
+  after(() => {
+    mockRequire.stopAll()
+    if (realStorage) require.cache[storagePath] = realStorage // Agora
+    else delete require.cache[storagePath] // Agora
+  })
 
   it('allows listening for a "progress" event', () => {
     const stream = storage.createS3StorageStream('comment', 1, {})

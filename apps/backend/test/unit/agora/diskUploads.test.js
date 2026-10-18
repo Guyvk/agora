@@ -16,6 +16,7 @@ import path from 'path'
 import http from 'http'
 import { Readable } from 'stream'
 import mockRequire from 'mock-require'
+import sharp from 'sharp'
 import * as diskUploads from '../../../lib/agora/diskUploads'
 import * as storage from '../../../lib/uploader/storage'
 import { upload } from '../../../lib/uploader'
@@ -127,7 +128,8 @@ describe('Agora uploads on disk', () => {
 
     after(() => {
       mockRequire.stopAll()
-      require.cache[storagePath] = realStorage
+      if (realStorage) require.cache[storagePath] = realStorage
+      else delete require.cache[storagePath]
     })
 
     beforeEach(() => {
@@ -335,39 +337,76 @@ describe('Agora uploads on disk', () => {
 
   describe('UploadController', () => {
     const boundary = '125b0ae93a754d0ba988b98b397d587f'
-    const multipart = content => `--${boundary}\r
-Content-Disposition: form-data; name="type"\r
-\r
-userAvatar\r
---${boundary}\r
-Content-Disposition: form-data; name="id"\r
-\r
-42\r
---${boundary}\r
-Content-Disposition: form-data; name="file"; filename="hello.txt"\r
-\r
-${content}\r
---${boundary}--\r
-`
+    let png
 
-    function post (body) {
+    before(async () => {
+      png = await sharp({ create: { width: 300, height: 300, channels: 3, background: '#c03' } }).png().toBuffer()
+    })
+
+    /** A form upload as a browser sends it: the type and id first, then the file. */
+    function multipart ({ type, id, filename, content }) {
+      const field = (name, value) => `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`
+      return Buffer.concat([
+        Buffer.from(field('type', type) + field('id', id) +
+          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\n\r\n`),
+        Buffer.isBuffer(content) ? content : Buffer.from(content),
+        Buffer.from(`\r\n--${boundary}--\r\n`)
+      ])
+    }
+
+    function post (fields, userId = '42') {
       const req = factories.mock.request()
       const res = factories.mock.response()
       req.headers['content-type'] = `multipart/form-data; boundary=${boundary}`
-      req.body = body
-      req.session.userId = '42'
+      const body = multipart(fields)
+      // In one piece, so even 10 MB goes through in a moment
+      req.pipe = out => Readable.from([body]).pipe(out)
+      req.session.userId = userId
       return UploadController.create(req, res).then(() => res)
     }
 
-    it('stores a file sent straight from the browser', async () => {
-      const res = await post(multipart('hello world'))
+    it('stores a picture sent straight from the browser', async () => {
+      const res = await post({ type: 'userAvatar', id: '42', filename: 'me.png', content: png })
       expect(res.body.type).to.equal('userAvatar')
-      expect(res.body.url).to.equal('https://agora.example.org/noo/uploads/evo-uploads/user/42/userAvatar/42/hello.txt')
-      expect(fs.readFileSync(path.join(dir, 'evo-uploads/user/42/userAvatar/42/hello.txt'), 'utf8')).to.equal('hello world')
+      expect(res.body.url).to.equal('https://agora.example.org/noo/uploads/evo-uploads/user/42/userAvatar/42/me.png')
+      const stored = fs.readFileSync(path.join(dir, 'evo-uploads/user/42/userAvatar/42/me.png'))
+      expect((await sharp(stored).metadata()).width).to.equal(200)
+    })
+
+    it('refuses something that is not a picture as a profile picture or banner', async () => {
+      for (const type of ['userAvatar', 'userBanner']) {
+        const res = await post({ type, id: '42', filename: 'page.png', content: '<html><script>alert(1)</script></html>' })
+        expect(res.statusCode, type).to.equal(422)
+        expect(res.body.error, type).to.equal('Validation error: This is not a picture')
+      }
+      expect(filesIn(dir)).to.deep.equal([])
+    })
+
+    it('still takes any kind of file as an attachment', async () => {
+      const res = await post({ type: 'comment', id: 'new', filename: 'notes.txt', content: 'hello world' })
+      expect(res.body.type).to.equal('comment')
+      expect(filesIn(dir)).to.have.length(1)
+    })
+
+    it('refuses an id that would point into another folder', async () => {
+      // comment and welcomePage uploads have no permission check in Hylo, so the id is the only guard
+      for (const id of ['../../47/userAvatar/47', '..', 'a/b', '.hidden', 'x\\y', '47%2f..']) {
+        const res = await post({ type: 'comment', id, filename: 'me.png', content: png })
+        expect(res.statusCode, id).to.equal(422)
+        expect(res.body.error, id).to.equal('Validation error: Invalid id')
+      }
+      expect(filesIn(dir)).to.deep.equal([])
+    })
+
+    it('refuses a file name that would be hidden, as a validation error', async () => {
+      const res = await post({ type: 'comment', id: 'new', filename: '.htaccess', content: 'Options +Indexes' })
+      expect(res.statusCode).to.equal(422)
+      expect(res.body.error).to.include('invalid file path')
+      expect(filesIn(dir)).to.deep.equal([])
     })
 
     it('refuses a file over 10 MB and keeps nothing of it', async () => {
-      const res = await post(multipart('x'.repeat(10 * 1048576 + 10)))
+      const res = await post({ type: 'comment', id: 'new', filename: 'big.bin', content: Buffer.alloc(10 * 1048576 + 10, 120) })
       expect(res.statusCode).to.equal(422)
       expect(res.body.error).to.include('larger than 10 MB')
       // the cut-off file is removed in the background

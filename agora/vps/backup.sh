@@ -23,9 +23,12 @@ find "$dir" -name 'agora-*.dump' -mtime +14 -delete
 
 uploads=/var/lib/agora/uploads
 if [[ -d "$uploads" ]]; then
+  # Uploads that broke off halfway leave a hidden ".part" file. After two hours
+  # nobody is writing it any more.
+  find "$uploads" -type f -name '*.part' -mmin +120 -delete
   # The newest earlier night, whose unchanged files are shared instead of copied.
   previous="$(find "$dir" -maxdepth 1 -type d -name 'uploads-????-??-??' ! -name "uploads-$today" | sort | tail -1)"
-  rsync -a --delete ${previous:+--link-dest="$previous"} "$uploads/" "$dir/uploads-$today.part/"
+  rsync -a --delete --exclude='*.part' ${previous:+--link-dest="$previous"} "$uploads/" "$dir/uploads-$today.part/"
   rm -rf "$dir/uploads-$today"
   mv "$dir/uploads-$today.part" "$dir/uploads-$today"
   touch "$dir/uploads-$today"
