@@ -79,8 +79,10 @@ describe('Uploader', () => {
 
     return upload({
       userId: '10',
-      type: 'userBanner',
-      id: '10',
+      // Agora: a banner must be a picture, so these letters would be refused as
+      // one before the error comes; an attachment takes any file
+      type: 'comment',
+      id: 'new',
       stream
     })
     .then(() => expect.fail('should reject'))

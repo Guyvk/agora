@@ -1076,7 +1076,8 @@ module.exports = bookshelf.Model.extend(merge({
 
   eventCalendarUrl: function () {
     return this.get('calendar_token')
-      ? `${process.env.AWS_S3_CONTENT_URL}/${this.getEventCalendarPath()}`
+      // Agora: on Agora's own disk when S3 is not used
+      ? `${require('../../lib/agora/diskUploads').contentUrl()}/${this.getEventCalendarPath()}`
       : null
   }
 }, HasSettings), {
@@ -1288,8 +1289,6 @@ module.exports = bookshelf.Model.extend(merge({
   async createEventCalendarSubscription ({ groupId }) {
     const group = await Group.find(groupId)
     if (!group) return
-    // Agora: the calendar file is kept in S3, which Agora does not use (yet)
-    if (!process.env.AWS_S3_BUCKET) return
 
     if (!group.get('calendar_token')) {
       await group.save({ calendar_token: uuidv4() }, { patch: true })

@@ -826,7 +826,8 @@ describe('Group', function () {
       expect(storageModule.writeStringToS3).to.not.have.been.called
     })
 
-    it('writes nothing when no storage bucket is set (Agora)', async () => {
+    // Agora: without S3 the calendar file goes to the server's own disk, so it is still written
+    it('still writes the calendar file when no storage bucket is set (Agora)', async () => {
       const writes = []
       mockify(storageModule, 'writeStringToS3', async (content) => { writes.push(content) })
       delete process.env.AWS_S3_BUCKET
@@ -835,7 +836,7 @@ describe('Group', function () {
       } finally {
         process.env.AWS_S3_BUCKET = 'test-bucket'
       }
-      expect(writes).to.be.empty
+      expect(writes).to.have.length(1)
     })
   })
 

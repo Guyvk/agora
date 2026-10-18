@@ -1,6 +1,7 @@
 import Busboy from 'busboy'
 import { upload } from '../../lib/uploader'
 import { getMediaTypeFromMimetype } from '../models/media/util'
+import { deleteS3Objects } from '../../lib/uploader/storage' // Agora: see tooBig below
 
 module.exports = {
   create: function (req, res) {
@@ -32,6 +33,11 @@ module.exports = {
 const doUpload = (res, args, resolve) =>
   upload(args)
     .then(({ type, id, url, mimetype }) => {
+      // Agora: busboy cut off a file over the size limit. Remove what was stored and say so
+      if (args.tooBig) {
+        try { deleteS3Objects([url]) } catch (err) {}
+        return resolve(res.status(422).send({ error: 'Validation error: The file is larger than 10 MB' }))
+      }
       const uploadResponse = {
         type,
         id,
@@ -80,6 +86,7 @@ function setupBusboy (req, res, args, resolve) {
   busboy.on('file', (name, stream, filename) => {
     // we assume that all 'field' events have already been handled by now
     Object.assign(args, {stream, filename})
+    stream.on('limit', () => { args.tooBig = true }) // Agora: see doUpload
     gotFile = true
     doUpload(res, args, resolve)
   })
