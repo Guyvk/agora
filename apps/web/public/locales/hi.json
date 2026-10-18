@@ -485,6 +485,8 @@
   "Cookie Preferences": "कुकी प्राथमिकताएँ",
   "Agora only uses the cookies it needs to keep you logged in and to remember your choices. There is no tracking, no advertising and no support chat.": "Agora केवल वही कुकीज़ इस्तेमाल करता है जो आपको लॉग इन रखने और आपकी पसंद याद रखने के लिए ज़रूरी हैं। कोई ट्रैकिंग, कोई विज्ञापन और कोई सपोर्ट चैट नहीं है।",
   "Got it": "समझ गया",
+  "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} 10 MB से बड़ी है। Agora इससे बड़ी फ़ाइल नहीं लेता।",
+  "{{name}} could not be uploaded. Please try again.": "{{name}} अपलोड नहीं हो सकी। कृपया फिर से कोशिश करें।",
   "Cooperatives": "सहकारी संस्थाएँ",
   "Coordinator": "समन्वयक",
   "Copied!": "कॉपी किया गया!",

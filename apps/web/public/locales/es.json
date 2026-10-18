@@ -501,6 +501,8 @@
   "Cookie Preferences": "Preferencias de galletas",
   "Agora only uses the cookies it needs to keep you logged in and to remember your choices. There is no tracking, no advertising and no support chat.": "Agora solo usa las cookies que necesita para mantener tu sesión iniciada y recordar tus elecciones. No hay seguimiento, ni publicidad, ni chat de soporte.",
   "Got it": "Entendido",
+  "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} pesa más de 10 MB, el máximo que acepta Agora.",
+  "{{name}} could not be uploaded. Please try again.": "No se pudo subir {{name}}. Inténtalo de nuevo.",
   "Cooperatives": "Cooperativas",
   "Coordinator": "Coordinador",
   "Copied!": "¡Copiado!",

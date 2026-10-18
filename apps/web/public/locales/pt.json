@@ -485,6 +485,8 @@
   "Cookie Preferences": "Preferências de cookies",
   "Agora only uses the cookies it needs to keep you logged in and to remember your choices. There is no tracking, no advertising and no support chat.": "O Agora usa apenas os cookies de que precisa para manter a sua sessão iniciada e lembrar as suas escolhas. Não há rastreamento, publicidade nem chat de suporte.",
   "Got it": "Entendi",
+  "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} tem mais de 10 MB, o máximo que a Agora aceita.",
+  "{{name}} could not be uploaded. Please try again.": "Não foi possível enviar {{name}}. Tente novamente.",
   "Cooperatives": "Cooperativas",
   "Coordinator": "Coordenador",
   "Copied!": "Copiado!",

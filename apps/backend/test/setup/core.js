@@ -10,6 +10,9 @@ process.env.HYLO_TESTER_IDS = process.env.HYLO_TESTER_IDS || '1'
 // Agora: tests put jobs on the queue. Keep them apart from the queue of an Agora
 // running on the same computer, whose worker would otherwise run them on its own data.
 process.env.KUE_NAMESPACE = process.env.KUE_NAMESPACE || 'q-test'
+// Agora: uploads that tests make go to a temporary folder, never to the uploads of
+// an Agora on the same computer (lib/agora/diskUploads.js)
+process.env.AGORA_UPLOADS_DIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'agora-test-uploads-'))
 
 // just set up the test globals, not the test database
 

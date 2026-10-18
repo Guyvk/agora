@@ -9,6 +9,8 @@ import {
 import { ID_FOR_NEW } from 'components/AttachmentManager/AttachmentManager.store'
 import Icon from 'components/Icon'
 import uploadAttachment from 'store/actions/uploadAttachment'
+// Agora: without a Filestack key, files go straight to Agora's server
+import { usesDirectUpload, directFilePicker, uploadPickedFile } from '@/agora/directUpload'
 import { cn } from 'util/index'
 
 import classes from './UploadAttachmentButton.module.scss'
@@ -43,6 +45,8 @@ export default function UploadAttachmentButton ({
   // Filestack callbacks
 
   const onFileUploadFinished = async fileUploaded => {
+    // Agora: a file from the browser's own picker is sent as it is
+    if (fileUploaded.file) return uploadPickedFile({ fileUploaded, type, id, attachmentType, onInitialUpload, onDone: uploadAttachmentComplete, dispatch, t })
     const attachment = uploadedFileToAttachment({ ...fileUploaded, attachmentType })
     if (onInitialUpload) {
       // If set then we won't upload the file to the server, we'll call this instead
@@ -72,7 +76,8 @@ export default function UploadAttachmentButton ({
 
   const onClick = () => {
     setLoading(true)
-    filestackPicker({
+    const picker = usesDirectUpload() ? directFilePicker : filestackPicker // Agora
+    picker({
       attachmentType,
       maxFiles: allowMultiple ? 10 : 1,
       onFileSelected: () => {

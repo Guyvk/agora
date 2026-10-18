@@ -500,6 +500,8 @@
   "Cookie Preferences": "Cookie Preferences",
   "Agora only uses the cookies it needs to keep you logged in and to remember your choices. There is no tracking, no advertising and no support chat.": "Agora only uses the cookies it needs to keep you logged in and to remember your choices. There is no tracking, no advertising and no support chat.",
   "Got it": "Got it",
+  "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} is larger than 10 MB, the most Agora accepts.",
+  "{{name}} could not be uploaded. Please try again.": "{{name}} could not be uploaded. Please try again.",
   "Cooperatives": "Cooperatives",
   "Coordinator": "Coordinator",
   "Copied!": "Copied!",

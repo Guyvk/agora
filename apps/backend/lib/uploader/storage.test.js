@@ -45,6 +45,11 @@ describe('Uploader.storage.makePath', () => {
 
 describe('Uploader.storage.createS3StorageStream', () => {
   let storage, listener
+  // Agora: S3 is only used when it is set up; without it files go to disk
+  const s3Settings = { AWS_S3_BUCKET: 'a-bucket', AWS_ACCESS_KEY_ID: 'made-up-id', AWS_SECRET_ACCESS_KEY: 'made-up-secret', UPLOADER_PATH_PREFIX: 'evo-uploads' }
+  const savedSettings = {}
+  beforeEach(() => Object.entries(s3Settings).forEach(([k, v]) => { savedSettings[k] = process.env[k]; process.env[k] = v }))
+  afterEach(() => Object.entries(savedSettings).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v }))
 
   before(() => {
     mockRequire('aws-sdk', {S3: mockS3})
