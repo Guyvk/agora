@@ -101,7 +101,8 @@ async function ensureGroup (stewardId, data) {
 async function addPeople (group, userIds) {
   const now = new Date()
   await group.addMembers(userIds, {
-    settings: { showJoinForm: false, agreementsAcceptedAt: now, joinQuestionsAnsweredAt: now }
+    // Passing settings replaces Hylo's defaults, so the notification choices a normal join gets go in too
+    settings: { showJoinForm: false, agreementsAcceptedAt: now, joinQuestionsAnsweredAt: now, postNotifications: 'all', digestFrequency: 'daily', sendEmail: true, sendPushNotifications: true }
   })
 }
 
