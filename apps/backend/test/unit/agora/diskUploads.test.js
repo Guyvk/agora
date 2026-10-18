@@ -377,7 +377,7 @@ describe('Agora uploads on disk', () => {
       for (const type of ['userAvatar', 'userBanner']) {
         const res = await post({ type, id: '42', filename: 'page.png', content: '<html><script>alert(1)</script></html>' })
         expect(res.statusCode, type).to.equal(422)
-        expect(res.body.error, type).to.equal('Validation error: This is not a picture')
+        expect(res.body.error, type).to.equal('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP')
       }
       expect(filesIn(dir)).to.deep.equal([])
     })

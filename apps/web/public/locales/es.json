@@ -503,6 +503,7 @@
   "Got it": "Entendido",
   "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} pesa más de 10 MB, el máximo que acepta Agora.",
   "{{name}} could not be uploaded. Please try again.": "No se pudo subir {{name}}. Inténtalo de nuevo.",
+  "{{name}}: profile pictures and banners must be JPEG, PNG, GIF or WebP.": "{{name}}: las fotos de perfil y los banners deben ser JPEG, PNG, GIF o WebP.",
   "Cooperatives": "Cooperativas",
   "Coordinator": "Coordinador",
   "Copied!": "¡Copiado!",

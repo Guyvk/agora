@@ -17,6 +17,11 @@ import { getHost } from 'store/middleware/apiMiddleware'
 // The most the server accepts in one file (api/controllers/UploadController.js).
 export const MAX_UPLOAD_BYTES = 10 * 1048576
 
+// Profile pictures and banners: the picture formats the server recognises
+// (lib/uploader/index.js). HEIC and AVIF photos are not among them yet.
+const PICTURE_TYPES = ['userAvatar', 'userBanner', 'groupAvatar', 'groupBanner']
+const PICTURE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
 // Used when no translation function is given: fills in {{name}} and the like.
 const plainText = (text, values = {}) => text.replace(/{{(\w+)}}/g, (_, key) => values[key] ?? '')
 
@@ -111,17 +116,26 @@ export function directUploadAttachment (type, id, file, attachmentType) {
  */
 export async function uploadPickedFile ({ fileUploaded, type, id, attachmentType, onInitialUpload, onDone, dispatch, t = plainText }) {
   const { file, filename, mimetype } = fileUploaded
-  const failed = () => window.alert(t('{{name}} could not be uploaded. Please try again.', { name: file.name }))
+  const notAPicture = () => window.alert(t('{{name}}: profile pictures and banners must be JPEG, PNG, GIF or WebP.', { name: file.name }))
+  const failed = err => {
+    // The server says why in its answer, for example {"error":"Validation error: ..."}
+    if (/must be JPEG, PNG, GIF or WebP/.test(err?.message || '')) return notAPicture()
+    window.alert(t('{{name}} could not be uploaded. Please try again.', { name: file.name }))
+  }
+  if (PICTURE_TYPES.includes(type) && !PICTURE_MIMETYPES.includes(file.type)) {
+    notAPicture()
+    return onInitialUpload ? null : onDone({ error: true, payload: new Error('not a picture') })
+  }
   if (onInitialUpload) {
     try {
       const { url } = await sendFile('post', 'new', file)
       return onInitialUpload(uploadedFileToAttachment({ url, filename, mimetype, attachmentType }))
     } catch (err) {
-      failed()
+      failed(err)
       return null
     }
   }
   const result = await dispatch(directUploadAttachment(type, id, file, attachmentType))
-  if (!result || result.error) failed()
+  if (!result || result.error) failed(result?.payload)
   return onDone(result)
 }

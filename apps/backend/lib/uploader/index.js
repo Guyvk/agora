@@ -100,7 +100,7 @@ export function upload (args) {
           // Agora: profile pictures and banners must really be pictures, whatever their name says
           if (PICTURE_TYPES.includes(type) && !(mimetype && mimetype.startsWith('image/'))) {
             passthrough = null
-            return reject(new Error('Validation error: This is not a picture'))
+            return reject(new Error('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP'))
           }
 
           converter = createConverterStream(type, id, { fileType })

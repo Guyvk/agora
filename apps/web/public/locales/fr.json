@@ -486,6 +486,7 @@
   "Got it": "Compris",
   "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} dépasse 10 Mo, le maximum accepté par Agora.",
   "{{name}} could not be uploaded. Please try again.": "{{name}} n'a pas pu être envoyé. Veuillez réessayer.",
+  "{{name}}: profile pictures and banners must be JPEG, PNG, GIF or WebP.": "{{name}} : les photos de profil et les bannières doivent être en JPEG, PNG, GIF ou WebP.",
   "Cooperatives": "Coopératives",
   "Coordinator": "Coordinateur",
   "Copied!": "Copié !",

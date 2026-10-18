@@ -71,7 +71,7 @@ describe('UploadController', () => {
         // the stream pipeline.
         // Agora: a profile picture must be a picture, so this text file is refused
         // as one, after busboy has read the type, the id and the file
-        expect(res.body.error).to.equal('Validation error: This is not a picture')
+        expect(res.body.error).to.equal('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP')
       })
     })
   })

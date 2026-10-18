@@ -487,6 +487,7 @@
   "Got it": "समझ गया",
   "{{name}} is larger than 10 MB, the most Agora accepts.": "{{name}} 10 MB से बड़ी है। Agora इससे बड़ी फ़ाइल नहीं लेता।",
   "{{name}} could not be uploaded. Please try again.": "{{name}} अपलोड नहीं हो सकी। कृपया फिर से कोशिश करें।",
+  "{{name}}: profile pictures and banners must be JPEG, PNG, GIF or WebP.": "{{name}}: प्रोफ़ाइल चित्र और बैनर JPEG, PNG, GIF या WebP होने चाहिए।",
   "Cooperatives": "सहकारी संस्थाएँ",
   "Coordinator": "समन्वयक",
   "Copied!": "कॉपी किया गया!",

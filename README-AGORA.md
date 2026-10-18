@@ -176,13 +176,15 @@ The setting `AGORA_UPLOADS_DIR` in `apps/backend/.env` changes the folder. Agora
 Things to know:
 
 - **Anyone with the address of a file can open it**, also without logging in, and also when it was posted in a private circle. This is how Hylo works with Amazon S3 too. The addresses are long and hard to guess, but they are not secret: whoever gets a link can pass it on. Put nothing in an upload that must stay inside a circle; use the circle's Drive folder for that.
-- Web pages, SVG drawings and other files that a browser could run are offered as downloads, never shown as part of Agora. Profile pictures and banners must really be pictures.
+- Web pages, SVG drawings and other files that a browser could run are offered as downloads, never shown as part of Agora. Profile pictures and banners must really be pictures: JPEG, PNG, GIF or WebP.
+- **iPhone photos (HEIC) and AVIF pictures are not accepted as profile pictures or banners yet.** Convert them first, for example with *Export* in the Photos app or by taking a screenshot. They can still be added to posts as files.
 - A shortcut (a "symbolic link") inside the uploads folder is followed, so it could hand out a file from elsewhere on the server. Only someone who can log in to the server can make one; Agora itself never does.
 - **A server set up before uploads moved to disk** needs the folder made once, because `update.sh` does not make it. Log in to the server and run:
   ```
   sudo install -d -o agora -g agora -m 750 /var/lib/agora /var/lib/agora/uploads
   sudo apt-get install -y rsync
-  echo 'AGORA_UPLOADS_DIR=/var/lib/agora/uploads' | sudo -u agora tee -a /srv/agora/apps/backend/.env
+  sudo sed -i 's|^AGORA_UPLOADS_DIR=.*|AGORA_UPLOADS_DIR=/var/lib/agora/uploads|' /srv/agora/apps/backend/.env
+  sudo grep -q '^AGORA_UPLOADS_DIR=' /srv/agora/apps/backend/.env || echo 'AGORA_UPLOADS_DIR=/var/lib/agora/uploads' | sudo -u agora tee -a /srv/agora/apps/backend/.env
   sudo /srv/agora/agora/vps/update.sh --force
   ```
   The update step also runs `yarn install`, which the new building block (`send`) needs.

@@ -115,7 +115,7 @@ describe('directUpload', () => {
     global.fetch = jest.fn(async () => ({ status: 500, text: async () => 'no' }))
     try {
       await uploadPickedFile({
-        fileUploaded: { file: new File(['x'], 'a.png'), filename: 'a.png', mimetype: 'image/png' },
+        fileUploaded: { file: new File(['x'], 'a.png', { type: 'image/png' }), filename: 'a.png', mimetype: 'image/png' },
         type: 'userAvatar',
         id: '1',
         attachmentType: 'image',
@@ -128,5 +128,42 @@ describe('directUpload', () => {
     }
     expect(alert).toHaveBeenCalledWith('a.png could not be uploaded. Please try again.')
     expect(onDone).toHaveBeenCalledWith({ error: true, payload: expect.any(Error) })
+  })
+
+  it('says which picture formats work, before sending a HEIC photo as profile picture', async () => {
+    const onDone = jest.fn()
+    const dispatch = jest.fn()
+    await uploadPickedFile({
+      fileUploaded: { file: new File(['x'], 'IMG_1.heic', { type: 'image/heic' }), filename: 'IMG_1.heic', mimetype: 'image/heic' },
+      type: 'userAvatar',
+      id: '1',
+      attachmentType: 'image',
+      onDone,
+      dispatch
+    })
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(alert).toHaveBeenCalledWith('IMG_1.heic: profile pictures and banners must be JPEG, PNG, GIF or WebP.')
+    expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ error: true }))
+  })
+
+  it('says which picture formats work when the server refuses a picture', async () => {
+    const realFetch = global.fetch
+    global.fetch = jest.fn(async () => ({
+      status: 422,
+      text: async () => '{"error":"Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP"}'
+    }))
+    try {
+      await uploadPickedFile({
+        fileUploaded: { file: new File(['<html>'], 'fake.png', { type: 'image/png' }), filename: 'fake.png', mimetype: 'image/png' },
+        type: 'groupBanner',
+        id: 'new',
+        attachmentType: 'image',
+        onInitialUpload: jest.fn(),
+        dispatch: jest.fn()
+      })
+    } finally {
+      global.fetch = realFetch
+    }
+    expect(alert).toHaveBeenCalledWith('fake.png: profile pictures and banners must be JPEG, PNG, GIF or WebP.')
   })
 })
