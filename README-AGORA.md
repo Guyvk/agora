@@ -184,14 +184,17 @@ Emails that Agora has no text for yet, such as event invitations and digests, ar
 
 ## Going online
 
-Agora runs on one rented server in Switzerland: an Infomaniak **VPS Lite M** (2 processors, 4 GB memory, 80 GB disk, about 10 euros a month without VAT), with Ubuntu 24.04. One script sets everything up: the database, the job queue, Agora itself, https, the scheduled jobs (digests, reminders) and a nightly backup. The files are in `agora/vps/`.
+Agora runs on one rented server in Switzerland, with Ubuntu 24.04: an instance in Infomaniak's **Public Cloud** with 2 processors and 4 GB memory (about 9 to 12 euros a month, paid per hour at the end of each month, no commitment; new accounts get CHF 300 of credit for the first 3 months). Guy chose this on 17 October because the cheaper VPS Lite is only sold by the year. Any Ubuntu 24.04 server works the same way, a VPS Lite too. One script sets everything up: the database, the job queue, Agora itself, https, the scheduled jobs (digests, reminders) and a nightly backup. The files are in `agora/vps/`.
 
 **Once, before you start**
 
 1. Make an ssh key on your Mac, if you have none yet: open Terminal and type `ssh-keygen -t ed25519`, then press Enter three times. Your public key is in `~/.ssh/id_ed25519.pub`. That file is safe to share; the other one (without `.pub`) never leaves your Mac.
-2. In the Infomaniak Manager, order a **VPS Lite**, size **M**, with **Ubuntu 24.04**. When it asks for an ssh key, paste the contents of `id_ed25519.pub`.
-3. Note the server's IP address (Manager, your VPS, overview).
-4. In the Infomaniak Manager, open the VPS firewall and allow ports 22 (ssh), 80 (http) and 443 (https).
+2. In the Infomaniak Manager, order a **Public Cloud** and wait for the email that it is ready. Then create a **project** in it. You choose the project's password yourself and keep it to yourself.
+3. In the project's dashboard:
+   - **Key pairs:** import your key under the name `guy-mac`, by pasting the contents of `id_ed25519.pub`.
+   - **Security groups:** make a group `agora-web` that lets in TCP ports 22 (ssh), 80 (http) and 443 (https) from anywhere.
+   - **Instances, Launch:** name `agora`, image **Ubuntu 24.04**, a size with 2 processors and 4 GB memory (for example `a2-ram4-disk50-perf1`), the public network, key pair `guy-mac`, security group `agora-web`.
+4. Note the instance's public IP address. The login user on Infomaniak's Ubuntu images is `ubuntu`.
 5. Ask whoever manages the domain to add an **A record**: `agora` pointing at that IP address. Until then you can use a test address, for example `agora.guyvankoolwijk.nl`.
 
 **Setting up the server** (about 30 minutes, most of it waiting)
