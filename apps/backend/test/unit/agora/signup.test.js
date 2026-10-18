@@ -117,6 +117,32 @@ describe('Agora sign-up by invitation only', () => {
       expect(emailsTo('joiner@agora.test')).to.have.length(1)
     })
 
+    it('refuses an invitation email used for another address, and makes no account for it', async () => {
+      const invite = await invitation({ email: 'bea@agora.test' })
+      for (const other of ['m1@agora.test', 'm2@agora.test']) {
+        expect(await signUp(other, { invitationToken: invite.get('token') }))
+          .to.deep.equal({ success: false, error: 'invite-expired' })
+        expect(await findByEmail(other)).to.equal(null)
+        expect(emailsTo(other)).to.have.length(0)
+      }
+      // The invited person can still use it
+      expect(await signUp('bea@agora.test', { invitationToken: invite.get('token') })).to.deep.equal({ success: true })
+      expect(await findByEmail('bea@agora.test')).to.not.equal(null)
+    })
+
+    it('accepts the invited address written with capitals or spaces', async () => {
+      const invite = await invitation({ email: 'Carla.Case@Agora.test' })
+      expect(await signUp('  CARLA.case@agora.TEST ', { invitationToken: invite.get('token') })).to.deep.equal({ success: true })
+      expect(await findByEmail('carla.case@agora.test')).to.not.equal(null)
+    })
+
+    it('lets anyone with a join link sign up, with any address', async () => {
+      for (const email of ['link1@agora.test', 'link2@agora.test']) {
+        expect(await signUp(email, { accessCode: 'join-governance' })).to.deep.equal({ success: true })
+        expect(await findByEmail(email)).to.not.equal(null)
+      }
+    })
+
     it('refuses an invitation that was already used', async () => {
       const invite = await invitation({ email: 'used@agora.test' })
       await invite.save({ used_by_id: steward.id, used_at: new Date() }, { patch: true })
@@ -204,18 +230,29 @@ describe('Agora sign-up by invitation only', () => {
       expect(req.session.userId).to.equal(user.id)
     })
 
-    it('makes an account with an invitation kept from the start of the login', async () => {
-      const invite = await invitation({ email: 'google-invited@agora.test' })
-      const start = factories.mock.request()
-      start.params = { invitationToken: invite.get('token') }
-      AgoraSignup.rememberInvitation(start)
-      expect(start.session.agoraInvitation).to.deep.equal({ invitationToken: invite.get('token'), accessCode: undefined })
+    it('makes an account with an invitation email for the address it was sent to', async () => {
+      const invite = await invitation({ email: 'apple-invited@agora.test' })
+      const { req, res } = await appleLogin('apple-invited@agora.test', { invitationToken: invite.get('token') })
+      expect(res.ok).to.have.been.called()
+      const user = await findByEmail('apple-invited@agora.test')
+      expect(user).to.not.equal(null)
+      expect(req.session.userId).to.equal(user.id)
+    })
 
-      // The login comes back from the other site without parameters, with the same session
-      const back = factories.mock.request()
-      back.session = start.session
-      expect(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(back))).to.equal(true)
-      expect(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(factories.mock.request()))).to.equal(false)
+    it('makes no account with an invitation email sent to another address', async () => {
+      const invite = await invitation({ email: 'apple-someone-else@agora.test' })
+      const { res } = await appleLogin('apple-forwarded@agora.test', { invitationToken: invite.get('token') })
+      expect(res.statusCode).to.equal(422)
+      expect(res.body).to.equal('agora-invite-only')
+      expect(await findByEmail('apple-forwarded@agora.test')).to.equal(null)
+    })
+
+    it('never takes an invitation from the session (the web app sends none with a Google login)', async () => {
+      const invite = await invitation({ email: 'google-invited@agora.test' })
+      const req = factories.mock.request()
+      req.session.agoraInvitation = { invitationToken: invite.get('token') }
+      expect(AgoraSignup.hasInvitation(AgoraSignup.invitationFromRequest(req))).to.equal(false)
+      expect(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(req), 'google-invited@agora.test')).to.equal(false)
     })
 
     it('logs in someone who already has an account', async () => {

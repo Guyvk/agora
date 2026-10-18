@@ -34,12 +34,13 @@ export const sendEmailVerification = async (_, { email: providedEmail, invitatio
 
     let user = await findUserByEmail(email)
 
-    // Agora: on an invitation-only Agora a new account needs a valid invitation or join link.
-    // Without one no account is made and no email is sent, but the answer is the same as for
-    // an address that has an account, so it does not tell who has one. See lib/agora/signup.js.
+    // Agora: on an invitation-only Agora a new account needs a valid invitation or join link;
+    // an invitation email only works for the address it was sent to. Without one no account
+    // is made and no email is sent, but the answer is the same as for an address that has an
+    // account, so it does not tell who has one. See lib/agora/signup.js.
     if (AgoraSignup.isInviteOnly()) {
       const held = { invitationToken, accessCode }
-      const valid = AgoraSignup.hasInvitation(held) && await AgoraSignup.isValidInvitation(held)
+      const valid = AgoraSignup.hasInvitation(held) && await AgoraSignup.isValidInvitation(held, email)
       if (AgoraSignup.hasInvitation(held) && !valid) return { success: false, error: AgoraSignup.INVITATION_INVALID_ERROR }
       if (!user && !valid) return { success: true }
     }

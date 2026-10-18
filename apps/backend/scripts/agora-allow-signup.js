@@ -14,45 +14,35 @@
  * Only someone with access to the server can do this. Nothing on the website
  * can. Once there is a circle, invite people from the circle instead.
  *
- * It also adds the four things a steward may do (invite people, remove them,
- * manage content, change settings) when the database lacks them. Hylo adds
- * them in a migration, but a new Agora starts from schema.sql, which has the
- * tables and not their rows. Without them, not even the person who made a
- * circle could invite anyone to it.
+ * It also checks that stewards of circles may invite people, as
+ * scripts/agora-steward-roles.js does: a new database made from schema.sql
+ * lacks the rows for that.
  */
 require('@babel/register')
 const skiff = require('../lib/skiff')
 const validator = require('validator')
-
-const STEWARD_RESPONSIBILITIES = [
-  ['Administration', 'Allows for editing group settings, exporting data, and deleting the group.'],
-  ['Add Members', 'The ability to invite and add new people to the group, and to accept or reject join requests.'],
-  ['Remove Members', 'The ability to remove a member from the group.'],
-  ['Manage Content', 'Adjust group topics, custom views and manage content that contradicts the agreements of the group.']
-]
-
-async function ensureStewardResponsibilities () {
-  const knex = bookshelf.knex
-  for (const [title, description] of STEWARD_RESPONSIBILITIES) {
-    const existing = await knex('responsibilities').where({ title, type: 'system' }).whereNull('group_id').first()
-    if (!existing) {
-      await knex('responsibilities').insert({ title, description, type: 'system', created_at: new Date(), updated_at: new Date() })
-      console.log(`Added the steward responsibility "${title}", which this database lacked.`)
-    }
-  }
-}
 
 async function run (args) {
   const email = String(args[0] || '').trim().toLowerCase()
   if (!email) throw new Error('Say whose email address: node scripts/agora-allow-signup.js <email address>')
   if (!validator.isEmail(email)) throw new Error(`"${email}" is not an email address.`)
 
-  await ensureStewardResponsibilities()
+  const { ensureStewardResponsibilities, repairCircleRoles } = require('../lib/agora/stewardRoles')
+  for (const title of await ensureStewardResponsibilities(bookshelf.knex)) {
+    console.log(`Added the steward responsibility "${title}", which this database lacked.`)
+  }
+  await repairCircleRoles()
 
   let user = await User.query(q => q.whereRaw('lower(email) = ?', email)).fetch()
   if (user && user.get('active') && user.get('name')) {
     console.log(`\n${email} already has an account. They can log in, or choose "Forgot password" on the login page.\n`)
     return
+  }
+  // Not active but with a way to log in (a password or Google, Apple and the like): the
+  // account was finished once and then switched off or deleted. An unfinished one has none.
+  const finished = user && await bookshelf.knex('linked_account').where({ user_id: user.id }).first('id')
+  if (finished) {
+    throw new Error(`${email} has an account that was deactivated or deleted. This script does not switch it back on.`)
   }
   // The same unfinished account that signing up with an email address makes
   if (!user) user = await User.create({ email, active: false })

@@ -65,6 +65,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `agora/google-drive-login.mjs`
 - `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
+- `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
 - `apps/backend/migrations/20261017120000_add_agora_drive_folders.js`
 - `apps/backend/test/unit/agora/driveUpload.test.js`

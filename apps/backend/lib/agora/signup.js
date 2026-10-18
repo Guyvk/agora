@@ -2,9 +2,13 @@
  * Agora: sign-up by invitation only.
  *
  * On an invitation-only Agora, a new account can only be made by someone who
- * holds a valid invitation to a circle: the link in an invitation email (an
- * unused, unexpired invitation token) or a circle's join link (its access
- * code). People who already have an account log in as before.
+ * holds a valid invitation to a circle:
+ *   - the link in an invitation email (an invitation token that is not used
+ *     or withdrawn). It only makes an account for the address the invitation
+ *     was sent to, so a forwarded link cannot make accounts for others.
+ *   - a circle's join link (its access code). Anyone who has it may make an
+ *     account, with any address, until a steward makes a new link.
+ * People who already have an account log in as before.
  *
  * The setting is AGORA_INVITE_ONLY in apps/backend/.env:
  *   on   new accounts need an invitation
@@ -32,11 +36,31 @@ const INVITATION_INVALID_ERROR = 'invite-expired'
 const ON = ['on', 'true', '1', 'yes']
 const OFF = ['off', 'false', '0', 'no']
 
+function settingValue () {
+  return String(process.env.AGORA_INVITE_ONLY || '').trim().toLowerCase()
+}
+
 function isInviteOnly () {
-  const value = String(process.env.AGORA_INVITE_ONLY || '').trim().toLowerCase()
+  const value = settingValue()
   if (ON.includes(value)) return true
   if (OFF.includes(value)) return false
   return process.env.NODE_ENV === 'production'
+}
+
+/** A setting that is neither on nor off is a typing mistake: say so when Agora starts. */
+function warnAboutSetting () {
+  const value = settingValue()
+  if (value && !ON.includes(value) && !OFF.includes(value)) {
+    console.warn(`Agora: AGORA_INVITE_ONLY="${process.env.AGORA_INVITE_ONLY}" is not "on" or "off". ` +
+      `Using the default: sign-up by invitation only is ${isInviteOnly() ? 'ON' : 'OFF'}.`)
+  }
+}
+warnAboutSetting()
+
+/** An email address as Agora compares them: trimmed and in small letters. */
+function sameAddress (a, b) {
+  const norm = value => (typeof value === 'string' ? value.trim().toLowerCase() : '')
+  return Boolean(norm(a)) && norm(a) === norm(b)
 }
 
 /** A token or code as sent by a browser: a short plain string, or nothing. */
@@ -63,17 +87,18 @@ async function isActiveGroup (groupId) {
 }
 
 /**
- * True when the invitation can be used now: an email invitation that is not
- * used or withdrawn, or the join link of a circle that still exists, in both
- * cases for a circle that has not been deleted. Uses Hylo's own check, the
- * same one the invitation page uses.
+ * True when the invitation can be used now, by the person with this email
+ * address: an email invitation that is not used or withdrawn and was sent to
+ * this address, or the join link of a circle, in both cases for a circle that
+ * has not been deleted. Uses Hylo's own check, the same one the invitation
+ * page uses.
  */
-async function isValidInvitation (held) {
+async function isValidInvitation (held, email) {
   const InvitationService = require('../../api/services/InvitationService')
   const { invitationToken, accessCode } = invitation(held)
   if (invitationToken) {
     const result = await InvitationService.check(invitationToken, null)
-    if (result?.valid && await isActiveGroup(result.groupId)) return true
+    if (result?.valid && sameAddress(email, result.email) && await isActiveGroup(result.groupId)) return true
   }
   if (accessCode) {
     const result = await InvitationService.check(null, accessCode)
@@ -82,37 +107,22 @@ async function isValidInvitation (held) {
   return false
 }
 
-/** True when a new account may be made for someone holding this invitation (or none). */
-async function mayCreateAccount (held) {
+/** True when a new account may be made for this address, holding this invitation (or none). */
+async function mayCreateAccount (held, email) {
   if (!isInviteOnly()) return true
-  return isValidInvitation(held)
+  return isValidInvitation(held, email)
 }
 
 /**
- * The invitation that came with a request: from its parameters (query or
- * body), or else the one remembered when a Google, Facebook or LinkedIn login
- * started (see rememberInvitation).
+ * The invitation that came with a request, from its parameters (query or
+ * body). Agora's web app never sends one with a Google, Facebook or LinkedIn
+ * login (it does not show those buttons), so a first login with one of those
+ * is always refused while sign-up is by invitation only. An app that logs in
+ * with Apple or a phone token may send invitationToken or accessCode.
  */
 function invitationFromRequest (req) {
   const param = name => (typeof req?.param === 'function' ? req.param(name) : undefined) ?? req?.body?.[name]
-  const fromParams = invitation({ invitationToken: param('invitationToken'), accessCode: param('accessCode') })
-  if (hasInvitation(fromParams)) return fromParams
-  return invitation(req?.session?.agoraInvitation)
-}
-
-/**
- * A login with Google, Facebook or LinkedIn leaves Agora and comes back from
- * the other site. The invitation that came with its start is kept in the
- * session meanwhile.
- */
-function rememberInvitation (req) {
-  if (!req?.session) return
-  const held = invitationFromRequest(req)
-  if (hasInvitation(held)) req.session.agoraInvitation = held
-}
-
-function forgetInvitation (req) {
-  if (req?.session) delete req.session.agoraInvitation
+  return invitation({ invitationToken: param('invitationToken'), accessCode: param('accessCode') })
 }
 
 module.exports = {
@@ -123,6 +133,5 @@ module.exports = {
   isValidInvitation,
   mayCreateAccount,
   invitationFromRequest,
-  rememberInvitation,
-  forgetInvitation
+  sameAddress
 }

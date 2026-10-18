@@ -161,10 +161,10 @@ These are people who never signed up to Agora, so their details are personal dat
 
 Agora is by invitation. Only someone who holds an invitation to a circle can make an account:
 
-- the link in an invitation email that a steward of a circle sent (it works once, and not after the steward withdraws it), or
-- a circle's join link (it works until a steward makes a new one, or the circle is deleted).
+- the link in an invitation email that a steward of a circle sent. It only makes an account for the email address it was sent to, so a forwarded link does not let anyone else in. It stops working once the person has joined the circle with it, or when the steward withdraws it. Or:
+- a circle's join link. Anyone who has it can make an account, with any email address, as many times as they like, until a steward makes a new link or the circle is deleted. Share it only with people you would invite anyway.
 
-Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. The same goes for a first login with Google or Apple (Agora does not show those buttons, but the server would accept them). People who already have an account are not affected and log in as before.
+Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. A first login with Google, Facebook or LinkedIn is always refused while sign-up is by invitation (Agora does not show those buttons). People who already have an account are not affected and log in as before.
 
 The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left empty, it is on for a server and off on your own computer, so demo sign-ups keep working there. `off` brings back Hylo's way: anyone who finds the address can sign up.
 
@@ -177,6 +177,14 @@ sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora
 ```
 
 It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below.
+
+**When a steward cannot invite.** If a steward is told "You don't have permission to create an invitation", the database lacks the list of what stewards may do. A new database made from Hylo's `schema.sql` has the tables but not that list. The setup and update scripts add it, and also repair circles that were made without it. To do it by hand, in `/srv/agora/apps/backend`:
+
+```
+sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-steward-roles.js
+```
+
+It only adds what is missing, so it is safe to run again.
 
 ## Email
 
@@ -224,7 +232,7 @@ The user name may be `ubuntu` or `root`; the Manager shows which. At the end it 
   ```
   sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-allow-signup.js you@example.org
   ```
-  (First `cd /srv/agora/apps/backend`.) It prints a link. Open it in your browser within 4 hours, choose your name and password, and make the first circle. Run the command before anyone makes a circle: the first time, it also adds what a steward of a circle may do (invite, remove people, manage content, change settings), which a new database lacks. From then on, invite people from the circle (its settings, *Invite*), or send them its join link.
+  (First `cd /srv/agora/apps/backend`.) It prints a link. Open it in your browser within 4 hours, choose your name and password, and make the first circle. From then on, invite people from the circle (its settings, *Invite*), or send them its join link.
 - **Email:** when the 7BP mailbox exists, add these lines to `/srv/agora/apps/backend/.env` (with `sudo -u agora nano /srv/agora/apps/backend/.env`), then `sudo systemctl restart agora-api agora-worker`:
   ```
   AGORA_EMAIL_TRANSPORT=smtp

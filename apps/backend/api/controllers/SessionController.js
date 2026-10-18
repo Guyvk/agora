@@ -100,10 +100,9 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
 
       // Agora: on an invitation-only Agora a first login with Google, Apple and the like
       // only makes an account for someone with a valid invitation. See lib/agora/signup.js.
-      if (!(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(req)))) {
+      if (!(await AgoraSignup.mayCreateAccount(AgoraSignup.invitationFromRequest(req), profile.email))) {
         throw new Error(AgoraSignup.INVITE_ONLY_ERROR)
       }
-      AgoraSignup.forgetInvitation(req)
 
       const attrs = {
         email: profile.email,
@@ -211,7 +210,6 @@ const finishOAuth = function (strategy, req, res, next) {
 const setSessionFromParams = fn => (req, res) => {
   req.session.returnDomain = req.param('returnDomain')
   req.session.authContext = req.param('authContext')
-  AgoraSignup.rememberInvitation(req) // Agora: keeps the invitation until the login comes back
   return fn(req, res)
 }
 
