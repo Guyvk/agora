@@ -61,6 +61,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora sign-up: the sign-up page asks whether new accounts need an invitation, before anyone is logged in
+  AgoraSignupController: {
+    policy: true
+  },
+
   ExportController: {
     '*': 'sessionAuth'
   },

@@ -5,6 +5,7 @@ import { Validators } from '@hylo/shared'
 import { decodeHyloJWT } from '../../../lib/HyloJWT'
 import { RATE_LIMITED_ERROR, authenticateWithRateLimit, isRateLimited, recordAttempt } from '../../../lib/rateLimit'
 import sentry from '../../../lib/sentry'
+import AgoraSignup from '../../../lib/agora/signup' // Agora: sign-up by invitation only
 
 // Sign-up Related
 
@@ -22,7 +23,7 @@ const normalizeEmail = (email) => {
  */
 const findUserByEmail = (email) => User.query(q => q.whereRaw('lower(email) = ?', email)).fetch()
 
-export const sendEmailVerification = async (_, { email: providedEmail }, context) => {
+export const sendEmailVerification = async (_, { email: providedEmail, invitationToken, accessCode }, context) => {
   try {
     const email = normalizeEmail(providedEmail)
     if (!email) return { success: false, error: 'Invalid email address' }
@@ -32,6 +33,16 @@ export const sendEmailVerification = async (_, { email: providedEmail }, context
     await recordAttempt('sendEmailVerification', identifiers)
 
     let user = await findUserByEmail(email)
+
+    // Agora: on an invitation-only Agora a new account needs a valid invitation or join link.
+    // Without one no account is made and no email is sent, but the answer is the same as for
+    // an address that has an account, so it does not tell who has one. See lib/agora/signup.js.
+    if (AgoraSignup.isInviteOnly()) {
+      const held = { invitationToken, accessCode }
+      const valid = AgoraSignup.hasInvitation(held) && await AgoraSignup.isValidInvitation(held)
+      if (AgoraSignup.hasInvitation(held) && !valid) return { success: false, error: AgoraSignup.INVITATION_INVALID_ERROR }
+      if (!user && !valid) return { success: true }
+    }
 
     if (!user) {
       user = await User.create({ email, active: false })

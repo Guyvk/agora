@@ -48,6 +48,8 @@ export function formatError (error, action, t) {
       'invalid-link': t('Link expired, please start over'),
       // Matches RATE_LIMITED_ERROR in the backend
       'Too many attempts. Please wait a few minutes and try again.': t('Too many attempts. Please wait a few minutes and try again.'),
+      // Agora: a new account needs an invitation (apps/backend/lib/agora/signup.js)
+      'agora-invite-only': t('Agora is by invitation. Ask a 7BP steward for an invitation, then open the link in it.'),
       'invite-expired': t('Sorry, your invitation to this group is expired, has already been used, or is invalid. Please contact a group Host for another one.'),
       // From oidc-provider
       'invalid_request': t('Request expired, please start over'),

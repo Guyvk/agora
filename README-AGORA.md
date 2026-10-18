@@ -16,6 +16,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
+| Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -156,6 +157,27 @@ The Contacts button in the bar on the left opens the Contacts page (`/contacts`)
 
 These are people who never signed up to Agora, so their details are personal data under the GDPR. 7BP needs a reason to keep them, has to delete anyone who asks, and has to answer when someone asks what is kept about them. Before real contacts go in, an experienced developer looks at this part, and 7BP agrees who answers such questions. Until then, only the made-up demo contacts are in it.
 
+## Who can sign up
+
+Agora is by invitation. Only someone who holds an invitation to a circle can make an account:
+
+- the link in an invitation email that a steward of a circle sent (it works once, and not after the steward withdraws it), or
+- a circle's join link (it works until a steward makes a new one, or the circle is deleted).
+
+Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. The same goes for a first login with Google or Apple (Agora does not show those buttons, but the server would accept them). People who already have an account are not affected and log in as before.
+
+The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left empty, it is on for a server and off on your own computer, so demo sign-ups keep working there. `off` brings back Hylo's way: anyone who finds the address can sign up.
+
+**Making a circle.** Anyone with an account can still make a new circle, as in Hylo. Whether only stewards should be able to is an open question.
+
+**Letting one person in without a circle.** On the server, in `/srv/agora/apps/backend`:
+
+```
+sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-allow-signup.js someone@example.org
+```
+
+It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below.
+
 ## Email
 
 On your own computer no email is sent. Every email is printed in the Terminal instead, so you can copy sign-up codes and links from there.
@@ -198,7 +220,11 @@ The user name may be `ubuntu` or `root`; the Manager shows which. At the end it 
 
 **After the setup**
 
-- Sign up yourself first. Until a mailbox is connected, emails are written to the log instead of sent, so read your sign-up code with `sudo journalctl -u agora-worker -n 50`.
+- **The first account.** Agora is by invitation, and on an empty server there is no circle yet, so nobody can invite. Let yourself in with one command over ssh, in `/srv/agora/apps/backend`:
+  ```
+  sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-allow-signup.js you@example.org
+  ```
+  (First `cd /srv/agora/apps/backend`.) It prints a link. Open it in your browser within 4 hours, choose your name and password, and make the first circle. Run the command before anyone makes a circle: the first time, it also adds what a steward of a circle may do (invite, remove people, manage content, change settings), which a new database lacks. From then on, invite people from the circle (its settings, *Invite*), or send them its join link.
 - **Email:** when the 7BP mailbox exists, add these lines to `/srv/agora/apps/backend/.env` (with `sudo -u agora nano /srv/agora/apps/backend/.env`), then `sudo systemctl restart agora-api agora-worker`:
   ```
   AGORA_EMAIL_TRANSPORT=smtp
@@ -216,7 +242,7 @@ The user name may be `ubuntu` or `root`; the Manager shows which. At the end it 
 
 - The nightly backups (`/var/backups/agora`, 14 days) sit on the same server. A second copy elsewhere, for example Infomaniak's Swiss Backup, is not set up yet.
 - Profile pictures and other uploads inside Hylo still expect Amazon S3. Until Swiss Backup or Google Drive takes that over, those uploads do not work.
-- Anyone who finds the address can sign up and make a circle. Before inviting people, decide whether sign-ups should need an invitation.
+- Anyone with an account can make a new circle. Decide whether only stewards should be able to.
 - The script was written for Ubuntu 24.04 and checked line by line, but it has not run on a real VPS yet. The first run is the test.
 
 ## Changing Agora

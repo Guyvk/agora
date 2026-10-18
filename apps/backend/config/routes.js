@@ -112,6 +112,9 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/notes':      'AgoraContactsController.addNote',
   'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
 
+  // Agora sign-up: whether new accounts need an invitation
+  'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }
