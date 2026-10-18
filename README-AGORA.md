@@ -16,7 +16,8 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
-| Demo data | A made-up 7BP with circles, people, playbook proposals and meetings | `apps/backend/scripts/agora-demo.js` |
+| Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
+| Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
 Everything Agora changed in Hylo's own files is listed in [AGORA-CHANGES.md](AGORA-CHANGES.md).
@@ -155,6 +156,15 @@ The Contacts button in the bar on the left opens the Contacts page (`/contacts`)
 - Every Agora member, meaning everyone in at least one circle, can read, add, change and delete contacts. Every change is logged with who made it and which fields changed, never what they said. Deleting a contact removes the person and their notes for good.
 
 These are people who never signed up to Agora, so their details are personal data under the GDPR. 7BP needs a reason to keep them, has to delete anyone who asks, and has to answer when someone asks what is kept about them. Before real contacts go in, an experienced developer looks at this part, and 7BP agrees who answers such questions. Until then, only the made-up demo contacts are in it.
+
+## Playbook
+
+Each group has a playbook page at `/groups/<group>/playbook`, for example `/groups/7bp/playbook`. It lists the chapters of the group's playbook (such as onboarding, governance, communications, fundraising, events and tech) in their order. For each chapter it shows the owner (a member of the group), the status (not started, draft, in review or agreed), when it was last changed and by whom, a short text, and a link, for example to a Google Doc or a post.
+
+- Members of the group read it. People outside the group see nothing.
+- Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
+- The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
+- The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
 
 ## Email
 

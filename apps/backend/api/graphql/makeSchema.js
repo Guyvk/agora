@@ -196,6 +196,7 @@ import peopleTyping from './mutations/peopleTyping'
 import InvitationService from '../services/InvitationService'
 import makeModels from './makeModels'
 import makeSubscriptions from './makeSubscriptions'
+import { agoraPlaybookTypeDefs, makeAgoraPlaybookQueries, makeAgoraPlaybookMutations } from './agora/playbook' // Agora: the playbook page
 
 const schemaText = readFileSync(join(__dirname, 'schema.graphql')).toString()
 let modelToTypeMap
@@ -298,8 +299,8 @@ async function buildGraphqlSchema (req) {
     mixpanel.people.set(userId)
 
     allResolvers = {
-      Query: makeAuthenticatedQueries({ fetchOne, fetchMany }),
-      Mutation: makeMutations({ fetchOne }),
+      Query: { ...makeAuthenticatedQueries({ fetchOne, fetchMany }), ...makeAgoraPlaybookQueries() }, // Agora: the playbook page
+      Mutation: { ...makeMutations({ fetchOne }), ...makeAgoraPlaybookMutations() }, // Agora: the playbook page
       Subscription: makeSubscriptions(),
 
       ...makeUnionAndInterfaceResolvers(models)
@@ -323,7 +324,7 @@ async function buildGraphqlSchema (req) {
   }
 
   const schema = createSchema({
-    typeDefs: [schemaText],
+    typeDefs: [schemaText, agoraPlaybookTypeDefs], // Agora: the playbook page
     resolvers: Object.assign(allResolvers, resolvers)
   })
   schema[SCHEMA_LOADERS] = loaders
