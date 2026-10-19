@@ -7426,6 +7426,117 @@ ALTER TABLE ONLY public.agora_playbook_chapters
     ADD CONSTRAINT agora_playbook_chapters_updated_by_id_foreign FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
 
 --
+-- Agora: Help and the Help desk.
+-- Added by migrations/20261019120000_add_agora_help_requests.js
+--
+
+CREATE TABLE public.agora_help_requests (
+    id bigint NOT NULL,
+    user_id bigint,
+    status character varying(20) DEFAULT 'new'::character varying NOT NULL,
+    type character varying(20) DEFAULT 'fault'::character varying NOT NULL,
+    urgency character varying(20) DEFAULT 'normal'::character varying NOT NULL,
+    mode character varying(10) DEFAULT 'form'::character varying NOT NULL,
+    title character varying(200) NOT NULL,
+    summary text,
+    what_happened text,
+    what_expected text,
+    conversation jsonb,
+    page_url character varying(1000),
+    user_agent character varying(500),
+    screen character varying(50),
+    app_version character varying(64),
+    internal_note text,
+    builder_task text,
+    builder_task_link character varying(1000),
+    unread_by_user boolean DEFAULT false NOT NULL,
+    unread_by_desk boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_help_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_help_requests_id_seq OWNED BY public.agora_help_requests.id;
+
+ALTER TABLE ONLY public.agora_help_requests ALTER COLUMN id SET DEFAULT nextval('public.agora_help_requests_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_help_requests
+    ADD CONSTRAINT agora_help_requests_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_help_requests_user_id_index ON public.agora_help_requests USING btree (user_id);
+
+ALTER TABLE ONLY public.agora_help_requests
+    ADD CONSTRAINT agora_help_requests_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_help_replies (
+    id bigint NOT NULL,
+    request_id bigint NOT NULL,
+    author_id bigint,
+    from_desk boolean DEFAULT false NOT NULL,
+    body text NOT NULL,
+    created_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_help_replies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_help_replies_id_seq OWNED BY public.agora_help_replies.id;
+
+ALTER TABLE ONLY public.agora_help_replies ALTER COLUMN id SET DEFAULT nextval('public.agora_help_replies_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_help_replies
+    ADD CONSTRAINT agora_help_replies_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_help_replies_request_id_index ON public.agora_help_replies USING btree (request_id);
+
+ALTER TABLE ONLY public.agora_help_replies
+    ADD CONSTRAINT agora_help_replies_request_id_foreign FOREIGN KEY (request_id) REFERENCES public.agora_help_requests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_help_replies
+    ADD CONSTRAINT agora_help_replies_author_id_foreign FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_help_chats (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    messages jsonb,
+    request_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_help_chats_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_help_chats_id_seq OWNED BY public.agora_help_chats.id;
+
+ALTER TABLE ONLY public.agora_help_chats ALTER COLUMN id SET DEFAULT nextval('public.agora_help_chats_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_help_chats
+    ADD CONSTRAINT agora_help_chats_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_help_chats_user_id_index ON public.agora_help_chats USING btree (user_id);
+
+ALTER TABLE ONLY public.agora_help_chats
+    ADD CONSTRAINT agora_help_chats_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_help_chats
+    ADD CONSTRAINT agora_help_chats_request_id_foreign FOREIGN KEY (request_id) REFERENCES public.agora_help_requests(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
 -- Agora: guests in a meeting (people without an Agora account).
 -- Added by migrations/20261019120000_add_agora_meeting_guests.js
 -- (that migration also made meeting_segments.user_id optional and added guest_id above)

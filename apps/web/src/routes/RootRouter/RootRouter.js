@@ -26,6 +26,7 @@ import {
   sendMessageToWebView
 } from 'util/webView'
 import { isSandboxMode } from 'sandbox/isSandbox'
+import LegalPage from '@/agora/legal/LegalPage' // Agora: our own Terms of use and Privacy notice
 
 if (!isTest && config.mixpanel.token && !isSandboxMode()) {
   mixpanel.init(config.mixpanel.token, { debug: !isProduction })
@@ -231,6 +232,9 @@ export default function RootRouter () {
       <Routes>
         {/* If authenticated we still need to do oauth stuff when requested */}
         <Route path='/oauth/*' element={<OAuthLayoutRouter />} />
+        {/* Agora: the Terms of use and the Privacy notice, also for people who are logged in */}
+        <Route path='/terms' element={<LegalPage page='terms' />} />
+        <Route path='/privacy' element={<LegalPage page='privacy' />} />
         <Route path='*' element={<AuthLayoutRouter />} />
       </Routes>
     )
@@ -253,6 +257,10 @@ export default function RootRouter () {
           />
 
           <Route path='/oauth/*' element={<OAuthLayoutRouter />} />
+
+          {/* Agora: the Terms of use and the Privacy notice, readable without logging in */}
+          <Route path='/terms' element={<LegalPage page='terms' />} />
+          <Route path='/privacy' element={<LegalPage page='privacy' />} />
 
           <Route path='/post/:postId/*' element={<PublicPostDetail />} />
 

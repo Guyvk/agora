@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom'
 import { bgImageStyle } from 'util/index'
 import getMe from 'store/selectors/getMe'
 import { createGroupModalUrl } from '@hylo/navigation'
+import { BookOpen } from 'lucide-react' // Agora: the guide
+import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
 
 const WelcomeExplore = () => {
   const currentUser = useSelector(getMe)
@@ -26,6 +28,19 @@ const WelcomeExplore = () => {
             {t('We\'re glad you\'re here, {{firstName}}. To get started, explore public groups and posts, or create your own group!', { firstName: (currentUser.name || '').split(' ')[0] })}
           </p>
         </div>
+
+        {/* Agora: the guide comes first */}
+        <Link to={GUIDE_URL} data-testid='welcome-agora-guide'>
+          <div className='flex items-center bg-background shadow-lg hover:shadow-xl rounded-lg p-4 mb-4 transition-all duration-300 hover:-translate-y-1 group'>
+            <div className='min-w-[80px] min-h-[80px] mr-4 rounded-lg transition-all duration-300 shadow-lg bg-accent/15 flex items-center justify-center'>
+              <BookOpen className='w-9 h-9 text-accent' aria-hidden='true' />
+            </div>
+            <div>
+              <h4 className='text-base font-bold text-foreground mb-1'>{t('Read the Agora guide')}</h4>
+              <p className='text-sm text-muted-foreground leading-tight'>{t('What you can do in Agora, in a few short parts')}</p>
+            </div>
+          </div>
+        </Link>
 
         <Link to='/public/map?hideDrawer=true'>
           <div className='flex items-center bg-background shadow-lg hover:shadow-xl rounded-lg p-4 mb-4 transition-all duration-300 hover:-translate-y-1 group'>

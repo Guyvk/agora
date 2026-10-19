@@ -1,6 +1,6 @@
 import { cn } from 'util/index'
 import { get } from 'lodash/fp'
-import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */ } from 'lucide-react'
+import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, Gauge /* Agora: admin area */ } from 'lucide-react'
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTour, { driveTour, isTourTestMode } from 'tours/useTour'
@@ -8,7 +8,7 @@ import { GLOBAL_CHROME_TOUR_ID, globalChromeTourSteps } from 'tours/globalChrome
 import { tourCatalog, isTourAvailable } from 'tours/catalog'
 import { useIntercom } from 'react-use-intercom'
 import { useSelector, useDispatch } from 'react-redux'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom' // Agora: Link for the guide
 import { replace } from 'redux-first-history'
 import {
   DndContext,
@@ -67,6 +67,8 @@ import logout from 'store/actions/logout'
 import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHomeLandingUrl } from '@hylo/navigation'
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
+import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
+import { ADMIN_URL, useAgoraAdmin } from '@/agora/admin/api' // Agora: the admin area
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
 import {
   LOCALE_DE,
@@ -303,6 +305,8 @@ function SettingsMenu ({ currentUser, triggerClassName, contentSide = 'right', c
     return () => mq.removeEventListener('change', handler)
   }, [])
 
+  const agoraAdmin = useAgoraAdmin() // Agora: the Admin link, for Agora admins and Help desk admins
+
   const handleLogout = async () => {
     await logoutFromMobileWebView(dispatch, logout(), replace('/login', null))
   }
@@ -417,6 +421,18 @@ function SettingsMenu ({ currentUser, triggerClassName, contentSide = 'right', c
           <BellIcon className='mr-2 h-4 w-4' />
           <span>{t('Notifications')}</span>
         </DropdownMenuItem>
+        {/* Agora: the guide */}
+        <DropdownMenuItem onClick={() => navigate(GUIDE_URL)}>
+          <BookOpen className='mr-2 h-4 w-4' />
+          <span>{t('Agora guide')}</span>
+        </DropdownMenuItem>
+        {/* Agora: the admin area, for Agora admins and Help desk admins only */}
+        {(agoraAdmin.isAdmin || agoraAdmin.helpDesk) && (
+          <DropdownMenuItem data-testid='global-nav-agora-admin' onClick={() => navigate(ADMIN_URL)}>
+            <Gauge className='mr-2 h-4 w-4' />
+            <span>{t('Admin')}</span>
+          </DropdownMenuItem>
+        )}
         <SettingsSubMenu compact={compactLayout} icon={<Palette className='mr-2 h-4 w-4' />} label={t('Appearance')}>
           <SettingsSubMenu compact={compactLayout} label={t('Color Mode')}>
             <DropdownMenuRadioGroup value={colorScheme} onValueChange={value => handleSettingChange({ colorScheme: value })}>
@@ -1273,14 +1289,16 @@ export default function GlobalNav (props) {
                 <MessagesSquare className='mr-2 h-4 w-4' />
                 <span>{t('Feedback & Support')}</span>
               </DropdownMenuItem>
+              {/* Agora: our own guide instead of Hylo's user guide */}
               <DropdownMenuItem asChild>
-                <a href='https://hylozoic.gitbook.io/hylo/guides/hylo-user-guide' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
+                <Link to={GUIDE_URL} className='text-foreground hover:text-foreground' data-testid='agora-guide-link'>
                   <BookOpen className='mr-2 h-4 w-4' />
-                  <span>{t('User Guide')}</span>
-                </a>
+                  <span>{t('Agora guide')}</span>
+                </Link>
               </DropdownMenuItem>
+              {/* Agora: our own Terms of use and Privacy notice */}
               <DropdownMenuItem asChild>
-                <a href='http://hylo.com/terms/' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
+                <a href='/terms' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
                   <Shield className='mr-2 h-4 w-4' />
                   <span>{t('Terms & Privacy')}</span>
                 </a>

@@ -270,4 +270,5 @@ export const VIEW_POSTS = 'posts'
 export const VIEW_DRAFTS = 'drafts'
 export const VIEW_SAVED_POSTS = 'saved-posts'
 
-export const agreementsURL = 'https://www.hylo.com/agreements/#hylo-platform-agreements'
+// Agora: our own Terms of use, at the part about how we treat each other
+export const agreementsURL = '/terms#conduct'
