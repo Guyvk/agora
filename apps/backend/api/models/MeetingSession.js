@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import createPost from './post/createPost'
 import { guestLabel } from '../../lib/agora/meetingGuests'
+import { reasonToEnd, listMessages, whoTookPart } from '../../lib/agora/meetingChat'
 
 /**
  * Agora: one meeting held on an event.
@@ -11,7 +12,6 @@ import { guestLabel } from '../../lib/agora/meetingGuests'
  * the minutes and posts them in the same group as the event.
  */
 
-const STALE_AFTER_MINUTES = 45
 const WAIT_FOR_TRANSCRIPTION_MINUTES = 10
 
 module.exports = bookshelf.Model.extend({
@@ -100,20 +100,38 @@ module.exports = bookshelf.Model.extend({
   },
 
   /**
-   * Cron job: a meeting nobody ended by hand is ended once it has been quiet
-   * for a while, so the minutes still get written.
+   * Open meetings that should end by themselves now: nobody has been in
+   * them for 10 minutes (every room page says "still here" every few
+   * seconds), or it is 2 hours past the event's end time.
+   * See lib/agora/meetingChat.js.
+   * @returns {Promise<Array<{session, reason}>>} reason is 'empty' or 'late'
    */
-  closeStale: async function () {
-    const cutoff = new Date(Date.now() - STALE_AFTER_MINUTES * 60000)
-    const stale = await MeetingSession.query(q => {
+  findAbandoned: async function (now = new Date()) {
+    const open = await MeetingSession.query(q => {
       q.where({ status: MeetingSession.Status.OPEN })
-      q.where('last_activity_at', '<', cutoff)
-    }).fetchAll()
+      q.orderBy('id', 'asc')
+    }).fetchAll({ withRelated: ['post'] })
 
-    for (const session of stale.models) {
+    const found = []
+    for (const session of open.models) {
+      const reason = await reasonToEnd(session, session.relations.post, now)
+      if (reason) found.push({ session, reason })
+    }
+    return found
+  },
+
+  /**
+   * Cron job (every 10 minutes): a meeting nobody ended by hand ends by
+   * itself, exactly as if someone pressed End meeting, so the minutes still
+   * get written and posted.
+   * @returns {Promise<number>} how many meetings were ended
+   */
+  closeStale: async function (now = new Date()) {
+    const abandoned = await MeetingSession.findAbandoned(now)
+    for (const { session } of abandoned) {
       await MeetingSession.end({ sessionId: session.id })
     }
-    return stale.length
+    return abandoned.length
   },
 
   /**
@@ -194,8 +212,10 @@ module.exports = bookshelf.Model.extend({
       .update({ audio: null })
 
     const lines = await MeetingSession.lines(sessionId)
+    // The chat next to the call goes into the minutes too
+    const chat = await listMessages(sessionId, { limit: null })
 
-    if (lines.length === 0) {
+    if (lines.length === 0 && chat.length === 0) {
       await session.save({ status: MeetingSession.Status.CLOSED }, { patch: true })
       return
     }
@@ -204,18 +224,9 @@ module.exports = bookshelf.Model.extend({
     const groups = event.relations.groups.models
     const startedAt = session.get('started_at')
 
-    const participantRows = await bookshelf.knex('meeting_participants')
-      .join('users', 'users.id', 'meeting_participants.user_id')
-      .where('meeting_participants.session_id', sessionId)
-      .orderBy('meeting_participants.joined_at', 'asc')
-      .select('users.name')
-    const attendees = participantRows.map(r => r.name)
-    // Guests: people without an Agora account who joined through the event's guest link
-    const guestRows = await bookshelf.knex('meeting_guests')
-      .where({ session_id: sessionId })
-      .orderBy('joined_at', 'asc')
-      .select('name')
-    const guests = [...new Set(guestRows.map(r => guestLabel(r.name)))]
+    // Members first; guests are people without an Agora account who joined
+    // through the event's guest link, each name once and ending in "(guest)"
+    const { members: attendees, guests } = await whoTookPart(sessionId)
 
     const title = event.get('name') || 'Meeting'
     const date = new Date(startedAt).toISOString().slice(0, 10)
@@ -224,14 +235,14 @@ module.exports = bookshelf.Model.extend({
     let error = null
     if (MeetingMinutes.isConfigured()) {
       try {
-        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, startedAt })
+        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, chat, startedAt })
       } catch (err) {
         error = err
         sails.log.error(`MeetingSession.finalize: could not write minutes for session ${sessionId}: ${err.message}`)
       }
     }
 
-    const description = MeetingMinutes.renderHtml({ minutes, attendees, guests, lines, startedAt, error })
+    const description = MeetingMinutes.renderHtml({ minutes, attendees, guests, lines, chat, startedAt, error })
 
     const assistant = await MeetingSession.assistantUser()
     const now = new Date()

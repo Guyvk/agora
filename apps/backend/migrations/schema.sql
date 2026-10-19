@@ -7616,3 +7616,51 @@ ALTER TABLE ONLY public.meeting_guests
 
 ALTER TABLE ONLY public.meeting_segments
     ADD CONSTRAINT meeting_segments_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: the chat next to the call, and who is still in a meeting.
+-- Added by migrations/20261020120000_add_agora_meeting_chat.js
+--
+
+ALTER TABLE ONLY public.meeting_participants ADD COLUMN last_seen_at timestamp with time zone;
+
+ALTER TABLE ONLY public.meeting_participants ADD COLUMN left_at timestamp with time zone;
+
+ALTER TABLE ONLY public.meeting_guests ADD COLUMN last_seen_at timestamp with time zone;
+
+CREATE TABLE public.meeting_chat_messages (
+    id bigint NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint,
+    guest_id bigint,
+    text text NOT NULL,
+    created_at timestamp with time zone NOT NULL
+);
+
+CREATE SEQUENCE public.meeting_chat_messages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_chat_messages_id_seq OWNED BY public.meeting_chat_messages.id;
+
+ALTER TABLE ONLY public.meeting_chat_messages ALTER COLUMN id SET DEFAULT nextval('public.meeting_chat_messages_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_member_or_guest CHECK (((user_id IS NULL) <> (guest_id IS NULL)));
+
+CREATE INDEX meeting_chat_messages_session_id_id_index ON public.meeting_chat_messages USING btree (session_id, id);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;

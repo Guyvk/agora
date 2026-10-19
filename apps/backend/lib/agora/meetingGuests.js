@@ -171,7 +171,8 @@ async function addGuest ({ sessionId, linkId, name, notesConsent }) {
     name,
     key_hash: hashSecret(key),
     notes_consent: !!notesConsent,
-    joined_at: new Date()
+    joined_at: new Date(),
+    last_seen_at: new Date()
   }).returning('*')
   return { guest: row, key }
 }
@@ -233,7 +234,9 @@ const LIMITS = {
   joinPerLink: 60, // all guests of one meeting together
   segment: 60, // a piece of speech is at least 3 seconds long, so about 20 a minute is normal
   status: 40, // the guest's page asks every 4 seconds
-  leave: 10
+  leave: 10,
+  chat: 30, // per guest; lib/agora/meetingChat.js also allows at most 20 messages a minute per person
+  summary: 20 // the end screen
 }
 // Wrong or old links, per address, before that address is refused for a while.
 const FAILED_LIMIT = 20

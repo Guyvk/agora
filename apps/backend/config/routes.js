@@ -91,6 +91,11 @@ module.exports.routes = {
   'POST   /noo/meeting/:postId/segment':                  'MeetingController.segment',
   'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
   'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
+  // Agora: "still here" with the chat, a chat message, leaving the call, the end screen
+  'POST   /noo/meeting/:postId/live':                     'MeetingController.live',
+  'POST   /noo/meeting/:postId/chat':                     'MeetingController.chat',
+  'POST   /noo/meeting/:postId/leave':                    'MeetingController.leave',
+  'GET    /noo/meeting/:postId/summary':                  'MeetingController.summary',
   // Agora: guest links. Making and closing one is for members (MeetingController);
   // the guest's own room and calls need no login (MeetingGuestController)
   'GET    /noo/meeting/:postId/guest-link':               'MeetingController.guestLink',
@@ -100,6 +105,8 @@ module.exports.routes = {
   'POST   /noo/meeting/:postId/guest/:token/join':        'MeetingGuestController.join',
   'POST   /noo/meeting/:postId/guest/:token/segment':     'MeetingGuestController.segment',
   'GET    /noo/meeting/:postId/guest/:token/status':      'MeetingGuestController.status',
+  'POST   /noo/meeting/:postId/guest/:token/chat':        'MeetingGuestController.chat',
+  'GET    /noo/meeting/:postId/guest/:token/summary':     'MeetingGuestController.summary',
   'POST   /noo/meeting/:postId/guest/:token/end':         'MeetingGuestController.end',
 
   // Agora files: a circle's Google Drive folder. Members may add files and folders
