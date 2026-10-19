@@ -381,7 +381,7 @@ describe('Agora meeting guests', () => {
       const res = await guestCall('end', { guest: link.yusuf })
       expect(res.body.status).to.equal('left')
       const session = await MeetingSession.findOpenForPost(event.id)
-      expect(session).to.exist
+      expect(session).not.to.equal(null)
       expect(session.get('status')).to.equal('open')
       const asMember = await run(MeetingController, 'end', { params: { postId: String(event.id), token: link.secret } })
       expect(asMember.statusCode).to.equal(403)
