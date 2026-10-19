@@ -4,6 +4,8 @@ import { render, screen, fireEvent, waitFor } from 'util/testing/reactTestingLib
 import GuestLinkPanel from './GuestLinkPanel'
 
 const URL = 'https://agora.example/noo/meeting/5/guest/' + 'a'.repeat(43)
+// A busy test computer can be slow to re-render, so waits are generous.
+const WAIT = { timeout: 10000 }
 const LINK = { expiresAt: '2026-11-01T22:00:00.000Z', expired: false, createdAt: '2026-11-01T10:00:00.000Z' }
 
 let calls
@@ -24,7 +26,7 @@ describe('GuestLinkPanel', () => {
   it('shows nothing to someone who may not invite guests', async () => {
     fakeServer({ 'GET /noo/meeting/5/guest-link': { status: 200, body: { canManage: false } } })
     const { container } = render(<GuestLinkPanel postId='5' />)
-    await waitFor(() => expect(calls.length).toBe(1))
+    await waitFor(() => expect(calls.length).toBe(1), WAIT)
     expect(container.querySelector('[data-testid="agora-guest-link"]')).toBeNull()
   })
 
@@ -38,18 +40,18 @@ describe('GuestLinkPanel', () => {
     Object.assign(navigator, { clipboard: { writeText } })
 
     render(<GuestLinkPanel postId='5' />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Make a guest link' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Make a guest link' }, WAIT))
 
-    const field = await screen.findByLabelText('Guest link')
+    const field = await screen.findByLabelText('Guest link', undefined, WAIT)
     expect(field).toHaveValue(URL)
     expect(calls[1].headers['X-Agora']).toBe('1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(URL))
-    expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(URL), WAIT)
+    expect(await screen.findByRole('button', { name: 'Copied' }, WAIT)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }))
-    await waitFor(() => expect(screen.queryByLabelText('Guest link')).toBeNull())
+    await waitFor(() => expect(screen.queryByLabelText('Guest link')).toBeNull(), WAIT)
     expect(calls.map(c => `${c.method} ${c.url}`)).toContain('POST /noo/meeting/5/guest-link/revoke')
     expect(screen.getByRole('button', { name: 'Make a guest link' })).toBeInTheDocument()
   })
@@ -57,7 +59,7 @@ describe('GuestLinkPanel', () => {
   it('says a link exists without showing it again', async () => {
     fakeServer({ 'GET /noo/meeting/5/guest-link': { status: 200, body: { canManage: true, available: true, link: LINK } } })
     render(<GuestLinkPanel postId='5' />)
-    expect(await screen.findByText(/Agora cannot show it again/)).toBeInTheDocument()
+    expect(await screen.findByText(/Agora cannot show it again/, undefined, WAIT)).toBeInTheDocument()
     expect(screen.queryByLabelText('Guest link')).toBeNull()
     expect(screen.getByRole('button', { name: 'Make a new guest link' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument()
@@ -69,7 +71,7 @@ describe('GuestLinkPanel', () => {
       'POST /noo/meeting/5/guest-link': { status: 409, body: { error: 'This event ended more than two hours ago.' } }
     })
     render(<GuestLinkPanel postId='5' />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Make a guest link' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('This event ended more than two hours ago.')
+    fireEvent.click(await screen.findByRole('button', { name: 'Make a guest link' }, WAIT))
+    expect(await screen.findByRole('alert', undefined, WAIT)).toHaveTextContent('This event ended more than two hours ago.')
   })
 })

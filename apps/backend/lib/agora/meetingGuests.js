@@ -230,6 +230,7 @@ const rateLimiter = createRateLimiter()
 const LIMITS = {
   page: 30,
   join: 10,
+  joinPerLink: 60, // all guests of one meeting together
   segment: 60, // a piece of speech is at least 3 seconds long, so about 20 a minute is normal
   status: 40, // the guest's page asks every 4 seconds
   leave: 10

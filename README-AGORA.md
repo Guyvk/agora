@@ -120,7 +120,7 @@ Members can invite people who have no Agora account into a meeting, so the call 
 - The link's secret is 32 random bytes. It is checked against the stored hash in constant time. Wrong, old, revoked and expired links are refused.
 - Each guest who joins gets a second secret of their own, so one guest cannot speak under another guest's name.
 - Guests can only do five things: open the page, join, send their own speech (only if they agreed), ask whether the meeting is still going, and leave. Leaving never ends the meeting for others. The member calls (notes, ending the meeting, making links) still need a login.
-- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute, and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
+- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
 - The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
 - The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
 

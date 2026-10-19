@@ -157,7 +157,7 @@ module.exports = {
     if (!withinLimits(req, res, 'join')) return
     const found = await loadLink(req, res)
     if (!found) return
-    if (!withinLimits(req, res, 'join', `link-${found.link.id}`)) return
+    if (!withinLimits(req, res, 'joinPerLink', `link-${found.link.id}`)) return
 
     const name = cleanName(req.param('name'))
     if (!name) {
