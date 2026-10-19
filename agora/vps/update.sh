@@ -25,8 +25,12 @@ if [[ "$before" == "$after" && "${1:-}" != "--force" ]]; then
 fi
 echo "  $before -> $after"
 
+# rclone and /etc/agora for the off-server backup copy. Installs only what is missing.
+bash "$APP_DIR/agora/vps/offsite-backup.sh" prepare || echo "  The off-server copy could not be prepared (see above). The update goes on."
+
 echo "Backing up the database"
-as_agora bash "$APP_DIR/agora/vps/backup.sh"
+# Only on this server: the nightly backup sends its copy away, this one need not wait for that.
+as_agora AGORA_OFFSITE=off bash "$APP_DIR/agora/vps/backup.sh"
 
 echo "Installing and building (10 to 30 minutes)"
 as_agora bash -c "cd '$APP_DIR' && export ELECTRON_SKIP_BINARY_DOWNLOAD=1 PUPPETEER_SKIP_DOWNLOAD=1 && (yarn install || yarn install) && yarn build-packages"

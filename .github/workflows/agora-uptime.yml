@@ -1,0 +1,101 @@
+# Agora: is the site up? A check from outside the server, every 30 minutes.
+#
+# GitHub's own computers open Agora's login page and ask Agora's server one
+# small question (/noo/graphql, "who am I", which answers even when nobody is
+# logged in). If either fails three times in a row, a few minutes apart, this
+# opens an issue "Agora is down" assigned to the owner of the repository, so
+# GitHub sends an email. When Agora answers again, it comments and closes it.
+#
+# This repository is public, so everything here and in the logs is public:
+# only the address and the answer codes are shown, no keys are used.
+# Another address: set the repository variable AGORA_URL (Settings, Secrets
+# and variables, Actions, Variables), for example https://agora.7billionpresidents.org
+# See "Off-server backups and a warning when Agora is down" in README-AGORA.md.
+name: Agora uptime check
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: agora-uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Only in Guy's repository, not in copies of it.
+    if: github.repository == 'Guyvk/agora'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AGORA_URL: ${{ vars.AGORA_URL || 'https://agora.guyvankoolwijk.nl' }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Check the login page and the server
+        id: check
+        run: |
+          set -uo pipefail
+          problem=""
+          for attempt in 1 2 3; do
+            problem=""
+            page="$(curl -sS -L --max-time 30 -o page.html -w '%{http_code}' "$AGORA_URL/login" 2>curl-page.txt || true)"
+            if [[ "$page" != 200 ]]; then
+              problem="the login page answered ${page:-nothing} $(head -c 200 curl-page.txt)"
+            elif ! grep -q '<title>Agora' page.html; then
+              problem="the login page answered 200 but is not Agora's page"
+            fi
+            api="$(curl -sS --max-time 30 -o api.json -w '%{http_code}' -H 'Content-Type: application/json' \
+              --data '{"query":"{ me { id } }"}' "$AGORA_URL/noo/graphql" 2>curl-api.txt || true)"
+            if [[ "$api" != 200 ]]; then
+              problem="${problem:+$problem; }the server (/noo/graphql) answered ${api:-nothing} $(head -c 200 curl-api.txt)"
+            elif ! grep -q '"data"' api.json; then
+              problem="${problem:+$problem; }the server (/noo/graphql) answered 200 without data"
+            fi
+            [[ -z "$problem" ]] && break
+            echo "Attempt $attempt: $problem"
+            [[ "$attempt" == 3 ]] || sleep 120
+          done
+          if [[ -z "$problem" ]]; then
+            echo "Agora is up: login page 200, server 200."
+            echo "up=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "Agora is down: $problem"
+            echo "up=no" >> "$GITHUB_OUTPUT"
+            { echo 'problem<<AGORA_EOF'; echo "$problem"; echo 'AGORA_EOF'; } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or close the issue "Agora is down"
+        env:
+          UP: ${{ steps.check.outputs.up }}
+          PROBLEM: ${{ steps.check.outputs.problem }}
+        run: |
+          set -euo pipefail
+          title="Agora is down"
+          open="$(gh issue list --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)"
+          now="$(TZ=Europe/Amsterdam date '+%d %B %Y %H:%M') (Amsterdam time)"
+          if [[ "$UP" == no && -z "$open" ]]; then
+            printf '%s\n' \
+              "@$OWNER Agora at $AGORA_URL did not answer properly at $now, three times in a row." \
+              "" \
+              "What failed: $PROBLEM" \
+              "" \
+              "What to do: see \"When Agora is down\" in README-AGORA.md. This issue closes by itself when Agora answers again." \
+              "" \
+              "Check: $RUN_URL" > body.md
+            gh issue create --title "$title" --assignee "$OWNER" --body-file body.md
+          elif [[ "$UP" == yes && -n "$open" ]]; then
+            gh issue comment "$open" --body "Agora answers again at $now. Closing. Check: $RUN_URL"
+            gh issue close "$open"
+          elif [[ "$UP" == no ]]; then
+            echo "Still down; issue #$open is already open, no new email."
+          else
+            echo "Up, nothing to do."
+          fi

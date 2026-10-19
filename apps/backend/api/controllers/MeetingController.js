@@ -96,6 +96,14 @@ async function statusPayload (post, session, userId) {
     .count('id as count')
     .first()
 
+  // Agora: pieces of speech the speech to text service refused or failed on,
+  // so the room can say so instead of staying silently empty.
+  const troubled = await bookshelf.knex('meeting_segments')
+    .where({ session_id: session.id })
+    .where(q => q.whereNotNull('error').orWhere('status', MeetingSegment.Status.FAILED))
+    .count('id as count')
+    .first()
+
   const people = await bookshelf.knex('meeting_participants')
     .join('users', 'users.id', 'meeting_participants.user_id')
     .where('meeting_participants.session_id', session.id)
@@ -107,6 +115,7 @@ async function statusPayload (post, session, userId) {
     sessionId: String(session.id),
     startedAt: session.get('started_at'),
     pending: Number(pending.count),
+    failing: Number(troubled.count),
     minutesUrl,
     people: people.map(p => ({ id: String(p.id), name: p.name, notes: p.notes_consent, me: String(p.id) === String(userId) }))
   }
@@ -198,12 +207,17 @@ module.exports = {
       return res.status(503).send({ error: 'Speech to text is not connected, so nothing is recorded.' })
     }
 
-    const spokenAt = new Date(Number(req.query.spokenAt))
     const durationMs = Math.round(Number(req.query.durationMs))
-    const earliest = new Date(session.get('started_at')).getTime() - 60000
-    if (isNaN(spokenAt) || spokenAt.getTime() < earliest || spokenAt.getTime() > Date.now() + 60000 ||
-      !(durationMs > 0) || durationMs > MAX_SEGMENT_MS) {
+    if (!(durationMs > 0) || durationMs > MAX_SEGMENT_MS) {
       return res.status(400).send({ error: 'The timing of this piece of speech is not valid.' })
+    }
+    // The time comes from the speaker's own computer, whose clock can be off.
+    // Rather than lose the speech, a time that cannot be right is replaced by
+    // the moment it arrived here.
+    let spokenAt = new Date(Number(req.query.spokenAt))
+    const earliest = new Date(session.get('started_at')).getTime() - 60000
+    if (isNaN(spokenAt) || spokenAt.getTime() < earliest || spokenAt.getTime() > Date.now() + 60000) {
+      spokenAt = new Date(Date.now() - durationMs)
     }
 
     const count = await bookshelf.knex('meeting_segments')

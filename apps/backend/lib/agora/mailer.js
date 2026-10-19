@@ -313,7 +313,19 @@ const TEMPLATES = {
       button: { label: groupName ? `Go to ${groupName}` : `Open ${APP_NAME}`, url: data.group_url },
       footer: settingsFooter(data)
     })
-  }
+  },
+
+  // The Help desk answered a request someone sent from the Help window (lib/agora/help.js)
+  agora_help_reply: data => compose({
+    subject: `An answer to your request: ${data.title}`,
+    lines: [
+      `The ${APP_NAME} team answered your request "${data.title}":`,
+      data.reply,
+      'You can read it and answer in Help, at the bottom right of every page, under "My requests".'
+    ],
+    button: data.url ? { label: 'Open my request', url: data.url } : null,
+    footer: `You get this email because you sent a request from the Help window of ${APP_NAME}.`
+  })
 }
 
 /** What a reply to an event invitation means, in Hylo's words and in ours. */

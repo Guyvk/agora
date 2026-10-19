@@ -74,6 +74,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/NonAuthLayoutRouter.js`, `apps/web/src/routes/OAuth/OAuthLayoutRouter.js`, `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/TopNav/TopNav.jsx` | The Terms and Privacy links go to Agora's own `/terms` and `/privacy` instead of hylo.com (NonAuthLayoutRouter also has the 7BP mark, see above) |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Agreements/Agreements.js`, `apps/web/src/store/constants.js` | The agreement links of the sign-up page and of reporting content go to Agora's Terms of use instead of hylo.com |
 | `apps/web/public/locales/en.json (terms and privacy)` | The texts of the Terms of use and the Privacy notice (drafts), "Terms of use" and "Privacy notice" as link names, and the sign-up agreement says Agora where it said Hylo |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (help) | The addresses of Help and the Help desk, for anyone logged in; each one checks who may see which request |
+| `apps/backend/migrations/schema.sql` (help) | The three tables of Help and the Help desk |
+| `apps/backend/package.json`, `yarn.lock` (help) | Anthropic's official library for Claude (`@anthropic-ai/sdk`), for the chat in the Help window |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (help) | The Help button at the bottom right of every page, and the Help desk at `/help-desk` |
+| `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -82,6 +87,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `README-AGORA.md`, `AGORA-CHANGES.md`
 - `agora/setup-mac.sh`, `agora/setup-cloud.sh`, `AGORA-CLOUD.md`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
 - `agora/vps/setup-server.sh`, `agora/vps/server-env.mjs`, `agora/vps/update.sh`, `agora/vps/backup.sh` (the server at Infomaniak)
+- `agora/vps/offsite-backup.sh`, `agora/vps/offsite-backup.conf.example` (an encrypted copy of the backups in object storage), `.github/workflows/agora-uptime.yml` (a warning when Agora is down)
 - `agora/google-drive-login.mjs`
 - `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
@@ -106,4 +112,6 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/migrations/20261012010000_add_agora_contacts.js`, `apps/backend/migrations/20261012020000_agora_meetings_deferrable.js`
 - `apps/backend/lib/agora/diskUploads.js`, `apps/backend/test/unit/agora/diskUploads.test.js`, `apps/web/src/agora/directUpload.js`, `apps/web/src/agora/directUpload.test.js` (uploads on Agora's own disk)
 - `apps/web/src/agora/legal/LegalPage.jsx`, `apps/web/src/agora/legal/legalTexts.js`, `apps/web/src/agora/legal/LegalPage.test.js` (the Terms of use and the Privacy notice)
+- `apps/backend/migrations/20261019120000_add_agora_help_requests.js`, `apps/backend/lib/agora/help.js`, `apps/backend/lib/agora/helpClaude.js`, `apps/backend/lib/agora/helpGuide.md`, `apps/backend/api/controllers/AgoraHelpController.js`, `apps/backend/test/unit/agora/help.test.js` (Help and the Help desk; the reply email text is in `lib/agora/mailer.js`)
+- `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`
