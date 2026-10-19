@@ -15,7 +15,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
-| Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
+| Contacts | One shared list of the people and organisations 7BP works with, team members as well as people outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
@@ -153,7 +153,7 @@ If Agora ever says Google refused its login, for example after the account's pas
 
 ## Contacts
 
-The Contacts button in the bar on the left opens the Contacts page (`/contacts`), part of Agora like Messages: one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
+The Contacts button in the bar on the left opens the Contacts page (`/contacts`), part of Agora like Messages: one shared list of the people and organisations 7BP works with: team members (their profiles from the activist week are to be added later), and people outside Agora such as partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
 
 - For each contact: name, organisation, kind, email, phone, website, status, the circle that mainly deals with them, where their details came from, and whether they agreed to be contacted.
 - Notes keep what was said or done, with who wrote them and when.
