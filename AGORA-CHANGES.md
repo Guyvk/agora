@@ -85,6 +85,16 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/backend/api/models/post/createPost.js` (ask) | A new post is queued for the Ask index of its circles |
+| `apps/backend/api/models/Post.js` (ask) | After an edit, a new comment or a vote, the post is queued for the Ask index again; a removed post leaves it |
+| `apps/backend/api/models/comment/updateComment.js`, `apps/backend/api/models/comment/deleteComment.js` | A changed or removed comment is queued for the Ask index |
+| `apps/backend/cron.js` (ask) | The Ask index catches up every 10 minutes, and the anonymised themes of private messages are made once a day |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (ask) | The addresses of a circle's Ask tab, for anyone logged in; each one checks membership of the circle |
+| `apps/backend/migrations/schema.sql` (ask) | The five tables of Ask: the knowledge index, questions, usage, bookkeeping and private themes |
+| `apps/backend/.env.example` (ask) | The settings of Ask |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (ask) | The Ask tab of a circle at `/groups/<circle>/ask` |
+| `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` (ask) | An Ask line in a circle's menu, next to Playbook, when Ask is on |
+| `apps/web/public/locales/en.json` (ask) | The texts of the Ask tab, and a part about Ask in the Privacy notice, in English only for now; other languages show the English |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -123,4 +133,6 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/admins.js` (who is an Agora admin or Help desk admin), `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/lib/agora/allowSignup.js` (the code of `scripts/agora-allow-signup.js`, also used by the admin area), `apps/backend/api/controllers/AgoraAdminController.js`, `apps/backend/test/unit/agora/adminDashboard.test.js` (the admin area; `lib/agora/help.js` asks `admins.js` who runs the Help desk, and `agora/vps/offsite-backup.sh` leaves a mark after each copy that worked)
 - `apps/web/src/agora/admin/AdminPage.jsx`, `apps/web/src/agora/admin/api.js`, `apps/web/src/agora/admin/AdminPage.test.js` (the admin area page; the Help desk page `HelpDeskPage.jsx` is now its Help desk tab)
 - `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
+- `apps/backend/migrations/20261020120000_add_agora_ask.js`, `apps/backend/lib/agora/ask.js`, `apps/backend/lib/agora/askIndex.js`, `apps/backend/lib/agora/askPermissions.js` (the permissions rule), `apps/backend/lib/agora/privateThemes.js` (the private messages policy), `apps/backend/lib/agora/infomaniakAI.js`, `apps/backend/api/services/AgoraAsk.js`, `apps/backend/api/controllers/AgoraAskController.js`, `apps/backend/scripts/agora-ask-reindex.js`, `apps/backend/test/unit/agora/ask.test.js`, `apps/backend/test/unit/agora/privateThemes.test.js` (Ask; `agora/vps/setup-server.sh` and `update.sh` install pgvector, and the Privacy notice has a part about Ask in `apps/web/src/agora/legal/legalTexts.js`)
+- `apps/web/src/agora/ask/AskPage.jsx`, `apps/web/src/agora/ask/AskMenuLink.jsx`, `apps/web/src/agora/ask/api.js`, `apps/web/src/agora/ask/AskPage.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

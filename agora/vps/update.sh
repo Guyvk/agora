@@ -36,6 +36,16 @@ echo "Installing and building (10 to 30 minutes)"
 as_agora bash -c "cd '$APP_DIR' && export ELECTRON_SKIP_BINARY_DOWNLOAD=1 PUPPETEER_SKIP_DOWNLOAD=1 && (yarn install || yarn install) && yarn build-packages"
 as_agora bash -c "cd '$APP_DIR/apps/web' && NODE_OPTIONS=--max-old-space-size=3072 node scripts/build.js >/dev/null && touch dist/.agora-built"
 
+echo "Search by meaning for Ask (pgvector), once"
+PG_MAJOR="$(sudo -u postgres psql -tAc 'show server_version_num' | cut -c1-2)"
+if ! dpkg -s "postgresql-$PG_MAJOR-pgvector" >/dev/null 2>&1; then
+  (apt-get install -y -qq "postgresql-$PG_MAJOR-pgvector" >/dev/null 2>&1 \
+    || (apt-get update -qq && apt-get install -y -qq "postgresql-$PG_MAJOR-pgvector" >/dev/null 2>&1)) \
+    || echo "  pgvector could not be installed. Ask still works, by keywords only."
+fi
+sudo -u postgres psql -q -d agora -c 'create extension if not exists vector with schema public' >/dev/null 2>&1 \
+  || echo "  pgvector is not switched on. Ask still works, by keywords only."
+
 echo "Updating the database"
 as_agora bash -c "cd '$APP_DIR/apps/backend' && yarn migrate >/dev/null"
 # Only adds what is missing: what stewards may do, also for circles made before

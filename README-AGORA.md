@@ -21,6 +21,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
 | Terms of use and Privacy notice | Agora's own pages at `/terms` and `/privacy`, readable without logging in. The login, sign-up and help links point there instead of hylo.com. Both are drafts until 7BP approves them | `apps/web/src/agora/legal/`, texts in `apps/web/public/locales/en.json` |
 | Help and the Help desk | A Help button at the bottom right of every page, where people report faults, wishes and questions. The Help desk is where the team works through them, answers, and turns them into builder tasks | `apps/web/src/agora/help/`, `apps/backend/lib/agora/help.js`, `apps/backend/api/controllers/AgoraHelpController.js` |
+| Ask | A tab in every circle where members ask questions about what goes on in it. Infomaniak's AI in Switzerland answers only from the circle's own content, with numbered sources. Private messages are only used as anonymised themes | `apps/web/src/agora/ask/`, `apps/backend/lib/agora/ask.js`, `askIndex.js`, `askPermissions.js`, `privateThemes.js`, `infomaniakAI.js` |
 | Admin area | A page at `/admin` for the people who run Agora: the main numbers, the Help desk, every invitation and what became of it, all accounts with "Let someone in" and switching accounts off and on, the system and its backups, and the latest events | `apps/web/src/agora/admin/`, `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/api/controllers/AgoraAdminController.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
@@ -247,6 +248,87 @@ Settings in `apps/backend/.env` (who runs the Help desk: see "Admin area"):
 | `AGORA_VERSION` | The version stored with each request. Without it, the git commit Agora runs from |
 
 After updating to a version with Help, run `cd apps/backend && yarn migrate` once, which adds the three tables (`agora_help_requests`, `agora_help_replies`, `agora_help_chats`), and `yarn install` for Anthropic's library.
+
+## Ask
+
+Every circle has an **Ask** tab, in the circle's menu next to Playbook, at `/groups/<circle>/ask`. Any member types a question about what goes on in the circle, for example "What did we decide last week?", "Summarise Tuesday's meeting", "Which proposals are open?" or "Who works on chapter 3?". The answer comes from Infomaniak's AI (open models, in Switzerland), written only from the circle's own content, in the language of the question, with numbered sources: chips under the answer that open the post, meeting or file it comes from. When the circle has nothing about it, the answer says so plainly. Not Claude: Ask uses Infomaniak.
+
+On the page:
+
+- a question box, and five suggested questions to start with;
+- the answer with its source chips, and **Share this answer in the circle**, which posts the question and the answer with its sources as a discussion in the circle, under your name;
+- **Your earlier questions**: only you can see them;
+- one line saying that your question and the circle's content go to Infomaniak's AI in Switzerland.
+
+### Who can ask what (the permissions rule)
+
+The rule is in one place, `apps/backend/lib/agora/askPermissions.js`, so it can be changed there. Decided on 19 October 2026:
+
+- Ask answers you only from what you can already see: the posts, comments, chat, proposals and votes, events, playbook, file texts and meeting transcripts and minutes of a circle you are an active member of.
+- The Ask tab of a circle only uses that circle. A member of circle A never gets anything from circle B through A's tab. Someone who is not a member cannot open a circle's Ask tab. Logged out: nothing.
+- Your questions and answers are yours. Nobody else sees them, unless you share an answer.
+
+### Private messages
+
+Guy's rule: "Info from private chats can be used to inform ideas and work. Never to share full or even one message unredacted from individuals." The whole policy is in `apps/backend/lib/agora/privateThemes.js`. In plain words:
+
+- **Never used:** the text of a private message. It never goes into the index and never into the question sent to the AI, for nobody, also not for the people who wrote it (they read their own messages in Messages).
+- **Used:** general **themes**. Once a day the worker reads the private messages of the last 90 days, takes out names of members, email addresses, phone numbers, web addresses and @mentions, calls people "Person 1", "Person 2", and asks Infomaniak's AI for themes: short general sentences such as "Several members find the travel cost reimbursement process unclear", without names, quotes, dates or details that point to one person.
+- A theme is kept only when it comes from at least two different people, or is clearly about the work and not personal.
+- Every theme is checked twice: a fixed check takes out names, addresses, numbers and quotes, and drops it when it still copies more than six words in a row from any message; then the AI is asked whether it could identify a person or reveal a message. If yes, or if that check fails, the theme is dropped.
+- Themes are stored without any link to the messages or people they came from (table `agora_private_themes`), and only in the circles that the people in those conversations share. Answers cite them as "From private conversations (anonymised)", without a link.
+- Every answer is checked before it is shown: a sentence that copies more than six words in a row from a private message the asker did not write is taken out.
+- `AGORA_ASK_PRIVATE_THEMES=off` stops all of this and removes the themes.
+
+### How it works
+
+1. **The index.** Each circle's content is cut into short pieces in the table `agora_knowledge_chunks`, with a keyword index (PostgreSQL full-text search) and an embedding from Infomaniak (a list of numbers that stands for the meaning, so "money" also finds "budget"). Meeting transcripts come from the meeting tables, or from the minutes post once it is there. The texts of files and recordings come from the table `agora_file_texts` once the library work has made it; until then they are skipped.
+2. **Keeping it fresh.** The worker indexes a post again a few seconds after it, or one of its comments, is made, changed or removed, and after a vote. Every 10 minutes a catch-up picks up anything those jobs missed, and gives new pieces their embedding. Pieces whose text did not change keep their embedding, so edits cost almost nothing.
+3. **Answering.** Ask searches by keywords and by meaning (with pgvector), puts pieces from the right time first for "last week", "yesterday", "on Tuesday" and the like, lets Infomaniak's reranker pick the ten best, and sends those to the chat model with today's date and the rule to answer only from them and cite them.
+4. **Without pgvector** (the PostgreSQL extension for searching by meaning), Ask searches by keywords only. It still works, it just misses pieces that use other words.
+
+### Infomaniak: models, addresses and cost
+
+Ask uses Infomaniak's AI Services API, version 2, with the same token and product as speech to text:
+
+| What | Address | Model (default) | Price (CHF per million tokens, without VAT) |
+| --- | --- | --- | --- |
+| Writing the answer | `https://api.infomaniak.com/2/ai/<product id>/openai/v1/chat/completions` | `mistralai/Mistral-Small-4-119B-2603` | 0.20 in, 0.75 out |
+| Embeddings | `https://api.infomaniak.com/2/ai/<product id>/openai/v1/embeddings` | `bge_multilingual_gemma2` | 0.065 |
+| Reranking | `https://api.infomaniak.com/2/ai/<product id>/cohere/v2/rerank` | `BAAI/bge-reranker-v2-m3` | 0.01 |
+
+Prices from https://www.infomaniak.com/en/hosting/ai-services/prices (19 October 2026); the addresses from Infomaniak's API documentation at https://developer.infomaniak.com (AI Tools, Usage, V2). All three answer straight away. Mistral Small 4 is multilingual, has a long context and is among the cheapest; thinking is switched off for it (`reasoning_effort: none`), which makes answers faster and cheaper. BGE Multilingual Gemma2 is multilingual and the cheapest paid embedding model.
+
+**Cost per question:** about 5,000 tokens go in (ten pieces of about 400 tokens and the instructions) and about 300 come out: 5,000 x 0.20 + 300 x 0.75 per million is about CHF 0.0012. The embedding of the question and the reranking of 30 pieces add about CHF 0.0001. So about **CHF 0.0013, about 0.14 euro cent, per question**: 1,000 questions cost about 1.45 euros. Embedding the whole index once costs about CHF 0.065 per million tokens: a circle with 2,000 posts and comments is roughly 500,000 tokens, about 3 cents. The daily private themes cost about as much as a few questions.
+
+Agora estimates the cost of every call from the token counts Infomaniak sends back and these prices (at `AGORA_AI_EUR_PER_CHF`, default 1.07 euro per franc), and logs it in `agora_ask_usage`. When the month's total reaches `AGORA_ASK_MONTHLY_CAP`, Ask pauses until the next month and says so. The real bill comes from Infomaniak.
+
+### Settings
+
+In `apps/backend/.env`:
+
+| Setting | What it does |
+| --- | --- |
+| `AGORA_ASK_ENABLED` | `on` shows the Ask tab. Default off |
+| `AGORA_AI_KEY`, `AGORA_AI_PRODUCT_ID` | The Infomaniak token and product. Empty: `AGORA_TRANSCRIPTION_KEY`, and the number in `AGORA_TRANSCRIPTION_URL` |
+| `AGORA_AI_URL_BASE`, `AGORA_AI_RERANK_URL` | Other addresses, for example another OpenAI-compatible service. Empty: Infomaniak's |
+| `AGORA_ASK_MODEL`, `AGORA_ASK_EMBED_MODEL`, `AGORA_ASK_RERANK_MODEL` | The models (defaults above). `AGORA_ASK_RERANK_MODEL=off`: no reranking. After changing the embedding model, run the reindex script |
+| `AGORA_ASK_MONTHLY_CAP` | Euros per month for all of Ask. Default 20 |
+| `AGORA_ASK_PER_HOUR`, `AGORA_ASK_PER_DAY` | Questions per person. Default 20 and 60 |
+| `AGORA_ASK_PRIVATE_THEMES` | `off`: no themes from private messages. Default on |
+| `AGORA_ASK_THEMES_DAYS` | How many days of private messages the themes are made from. Default 90 |
+| `AGORA_AI_EUR_PER_CHF` | Exchange rate for the estimate. Default 1.07 |
+| `AGORA_ASK_PRICE_INPUT_CHF`, `AGORA_ASK_PRICE_OUTPUT_CHF` | Prices for a model that is not in Agora's list |
+| `AGORA_ASK_VECTOR` | `off` never uses pgvector |
+
+### After updating to a version with Ask
+
+1. `sudo /srv/agora/agora/vps/update.sh` installs pgvector (`postgresql-16-pgvector`), switches it on in the database and adds the five tables. On a Mac, Postgres.app already has pgvector; run `cd apps/backend && yarn migrate`.
+2. In `apps/backend/.env`, add `AGORA_ASK_ENABLED=on`. With speech to text already set up, nothing else is needed. Restart: `sudo systemctl restart agora-api agora-worker`.
+3. Build the index once: `cd /srv/agora/apps/backend && sudo -u agora node scripts/agora-ask-reindex.js --themes`. Without this, the first catch-up of the worker does it within 10 minutes.
+4. Open a circle and choose Ask in its menu.
+
+The reindex script also takes one circle (`node scripts/agora-ask-reindex.js <circle>`) and `--no-embed` for keywords only.
 
 ## Admin area
 

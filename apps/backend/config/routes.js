@@ -128,6 +128,12 @@ module.exports.routes = {
   'POST   /noo/agora/help/api/desk/:requestId/reply':     'AgoraHelpController.deskReply',
   'POST   /noo/agora/help/api/desk/:requestId/build':     'AgoraHelpController.deskBuild',
 
+  // Agora Ask: a circle's Ask tab. Each action checks that the person is a member of the circle
+  'GET    /noo/agora/ask/api/:groupSlug/status':          'AgoraAskController.status',
+  'GET    /noo/agora/ask/api/:groupSlug/history':         'AgoraAskController.history',
+  'POST   /noo/agora/ask/api/:groupSlug/ask':             'AgoraAskController.ask',
+  'POST   /noo/agora/ask/api/answers/:questionId/share':  'AgoraAskController.share',
+
   // Agora admin dashboard (/admin in the web app): for Agora admins only, each action checks
   'GET    /noo/agora/admin/api/me':                       'AgoraAdminController.me',
   'GET    /noo/agora/admin/api/overview':                 'AgoraAdminController.overview',

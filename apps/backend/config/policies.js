@@ -67,6 +67,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora Ask: for anyone logged in, and each action checks membership of the circle.
+  AgoraAskController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora admin dashboard: for anyone logged in, and each action checks for an Agora admin.
   AgoraAdminController: {
     '*': 'sessionAuth'
