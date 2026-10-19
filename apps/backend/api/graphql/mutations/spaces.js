@@ -602,6 +602,10 @@ export async function joinSpace (userId, spaceId, accessCode, invitationToken) {
     let inviteCheck = null
     if (accessCode || invitationToken) {
       inviteCheck = await InvitationService.check(invitationToken, accessCode)
+      // Agora: an email invitation sent to another address does not let this person in (lib/agora/signup.js)
+      if (inviteCheck?.email && !require('../../../lib/agora/signup').invitationFitsUser(inviteCheck.email, user.get('email'))) {
+        inviteCheck = null
+      }
     }
     hasValidInvitation = !!(inviteCheck?.valid && inviteCheck.groupSlug === space.get('slug'))
 
@@ -633,7 +637,9 @@ export async function joinSpace (userId, spaceId, accessCode, invitationToken) {
 
   if (invitationToken) {
     const invitation = await Invitation.find(invitationToken)
-    if (invitation && String(invitation.get('group_id')) === String(spaceId)) {
+    // Agora: and only by the address it was sent to
+    if (invitation && String(invitation.get('group_id')) === String(spaceId) &&
+      require('../../../lib/agora/signup').invitationFitsUser(invitation.get('email'), user.get('email'))) {
       await invitation.use(userId)
     }
   }

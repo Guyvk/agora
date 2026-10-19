@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import Button from 'components/ui/button'
 import { Navigate, useLocation } from 'react-router-dom'
@@ -15,7 +15,7 @@ import { cn, validateEmail } from 'util/index'
 import getReturnToPath from 'store/selectors/getReturnToPath'
 import Loading from 'components/Loading'
 import { showGoogleLogin } from '@/agora/config'
-import { invitationFromPath, useInviteOnly } from '@/agora/signup'
+import { invitationFromPath, useInvitationEmail, useInviteOnly } from '@/agora/signup'
 import AgoraInviteOnlyNotice from '@/agora/AgoraInviteOnlyNotice'
 export default function Signup (props) {
   const dispatch = useDispatch()
@@ -27,6 +27,11 @@ export default function Signup (props) {
   // Agora: sign-up by invitation only. An invitation or join link keeps itself in returnToPath
   const invitation = invitationFromPath(useSelector(getReturnToPath))
   const inviteOnly = useInviteOnly()
+  // Agora: an invitation email is for one address. Fill it in and do not let it be changed (the server refuses another)
+  const invitationEmail = useInvitationEmail(invitation)
+  useEffect(() => {
+    if (invitationEmail) setEmail(invitationEmail)
+  }, [invitationEmail])
 
   const sendEmailVerification = async email => {
     const { payload } = await dispatch(sendEmailVerificationAction(email, invitation)) // Agora: with the invitation
@@ -63,6 +68,7 @@ export default function Signup (props) {
   }
 
   const handleEmailChange = (e) => {
+    if (invitationEmail) return // Agora: the invited address stays
     setEmail(e.target.value)
     setError()
   }
@@ -118,7 +124,12 @@ export default function Signup (props) {
           inputClassName='p-4 text-foreground bg-card w-full rounded-md autofill:text-foreground autofill:bg-transparent selected:text-foreground'
           type='text'
           value={email || ''}
+          readOnly={!!invitationEmail}
+          noClearButton={!!invitationEmail}
         />
+        {invitationEmail && (
+          <p className='text-sm text-foreground/70 mt-0 mb-2 text-center'>{t('Your invitation was sent to this address.')}</p>
+        )}
 
         <Button
           variant='highVisibility'

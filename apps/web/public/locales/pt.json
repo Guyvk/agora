@@ -924,7 +924,7 @@
   "Hi {{firstName}}, click here to create a resource": "Olá {{firstName}}, clique aqui para criar um recurso",
   "Hi {{firstName}}, click here to create an event": "Olá {{firstName}}, clique aqui para criar um evento",
   "Hi {{firstName}}, click here to create an offer": "Olá {{firstName}}, clique aqui para criar uma oferta",
-  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Olá!\n\nEstou convidando você a se juntar a {{name}} no Hylo.\n\n{{name}} está usando o Hylo para nossa comunidade online: este é nosso espaço dedicado à comunicação e à colaboração.",
+  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Olá!\n\nEstou convidando você a se juntar a {{name}} no Agora, a casa online da 7 Billion Presidents.",
   "Hidden": "Oculto",
   "Hidden from menu": "Oculto do menu",
   "Hide": "Ocultar",
@@ -3170,5 +3170,11 @@
   "Selected space": "Espaço selecionado",
   "Incorrect email or password.": "E-mail ou senha incorretos.",
   "If you signed up with Google, log in with Google instead.": "Se você se cadastrou com o Google, entre com o Google.",
-  "Too many attempts. Please wait a few minutes and try again.": "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+  "Too many attempts. Please wait a few minutes and try again.": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+  "This invitation is for {{email}}.": "Este convite é para {{email}}.",
+  "You are logged in as {{name}} ({{email}}).": "Você está conectado como {{name}} ({{email}}).",
+  "Log out to accept it as {{email}}.": "Saia para aceitá-lo como {{email}}.",
+  "Log out and continue": "Sair e continuar",
+  "Stay logged in as {{name}}": "Continuar conectado como {{name}}",
+  "Your invitation was sent to this address.": "Seu convite foi enviado para este endereço."
 }
