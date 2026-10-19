@@ -103,7 +103,8 @@ if [[ ! -x "$NODE_DIR/bin/node" ]] || [[ "$("$NODE_DIR/bin/node" -v)" != "$NODE_
   mv "$tmp/${file%.tar.xz}" "$NODE_DIR"
   rm -rf "$tmp"
 fi
-"$NODE_DIR/bin/corepack" enable
+# corepack starts with "#!/usr/bin/env node", so node must be on the PATH.
+PATH="$NODE_DIR/bin:$PATH" "$NODE_DIR/bin/corepack" enable
 echo "  Node $("$NODE_DIR/bin/node" -v)"
 
 step "5/10  Agora's own user and code"
