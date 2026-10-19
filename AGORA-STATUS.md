@@ -2,7 +2,7 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 17 October 2026, about 23:30, by Claude Code on the Mac (chat "lets continue working on agora"). Hosting changed to Infomaniak Public Cloud, order under way. The Mac runs everything merged on GitHub (#1 to #8).
+**Last updated:** 19 October 2026, by Claude Code on the Mac. Agora is online at https://agora.guyvankoolwijk.nl on Infomaniak Public Cloud, empty, waiting for the first account. GitHub `agora` has #1 to #14 merged.
 
 ## What Agora is
 
@@ -93,7 +93,8 @@ Real voices and real microphones. The kMeet call inside the room with real mutin
 2. Before real contacts go into the Contacts page: an experienced developer reviews it, and 7BP agrees who answers when someone asks what is kept about them or asks to be removed.
 4. Connect speech to text with Infomaniak (chosen on 12 October; Scaleway in France is the backup). Guy puts the address and key into `apps/backend/.env` himself, plus a Claude key for the summaries. Then one short test recording.
 5. Try the meeting room with real voices: three or four people with headphones, ten minutes.
-6. Put Agora online. **Under way since 17 October:** Guy ordered Infomaniak **Public Cloud** (billed monthly, no commitment, CHF 300 credit for 3 months; VPS Lite is only sold by the year). Order c-8313116 was still "processing" that night. When it is ready: Guy creates a project (his own password), Claude creates an Ubuntu 24.04 instance with 2 processors and 4 GB, key `~/.ssh/id_ed25519.pub`, ports 22, 80 and 443, points **agora.guyvankoolwijk.nl** (Hestia DNS) at it as a first address, and runs `agora/vps/setup-server.sh`. Later the address moves to agora.7billionpresidents.org, once we know who manages that domain (asked David on 17 October).
+6. Put Agora online. **Done on 19 October:** Agora runs at https://agora.guyvankoolwijk.nl on one instance in Infomaniak Public Cloud (Ubuntu 24.04, 2 processors, 4 GB, only ports 22, 80 and 443 open, ssh with Guy's key only). Server details are with Guy and in Claude's local notes, not in this public file. Setup ran with the fix from #14; services, scheduled jobs and the nightly backup are on. The database is empty: no circles, no people, no demo data. Email is only written to the log.
+   **Next:** Guy makes the first account (the `agora-allow-signup.js` command under "After the setup" in README-AGORA.md), then the first circle. Later: the agora@ mailbox for real email (Infomaniak blocks outgoing port 25, so use 587), and the move to agora.7billionpresidents.org once we know who manages that domain.
    Waiting for David (emailed 17 October from Guy's Gmail): a Shared Drive "7BP Agora" with a folder per circle, a way for Agora to reach it, the mailbox agora@ with an app password for sending email, and who manages the domain.
 7. Connect Google Drive once Guy has the 7BP Google login. The steps are under "Google Drive" in the README. The Files pages are built.
 8. The weekly update written by the assistant. A steward approves it during the first month.
