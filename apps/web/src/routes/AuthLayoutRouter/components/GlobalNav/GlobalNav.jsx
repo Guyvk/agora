@@ -1279,8 +1279,9 @@ export default function GlobalNav (props) {
                   <span>{t('User Guide')}</span>
                 </a>
               </DropdownMenuItem>
+              {/* Agora: our own Terms of use and Privacy notice */}
               <DropdownMenuItem asChild>
-                <a href='http://hylo.com/terms/' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
+                <a href='/terms' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
                   <Shield className='mr-2 h-4 w-4' />
                   <span>{t('Terms & Privacy')}</span>
                 </a>
