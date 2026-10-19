@@ -10,7 +10,7 @@ import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
 import { Link } from 'react-router-dom'
-import { BellIcon, BookOpen, BookUser, CalendarDays, FolderOpen, LifeBuoy, MessageSquare, Sparkles, UserRound, Users } from 'lucide-react'
+import { BellIcon, BookOpen, BookUser, CalendarDays, FolderOpen, LifeBuoy, MessageSquare, ScrollText, Sparkles, UserRound, Users } from 'lucide-react'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
 import useAgoraSeen, { GUIDE_READ } from './useAgoraSeen'
 import useMyCircle from './useMyCircle'
@@ -63,7 +63,8 @@ export default function GuidePage () {
     { id: 'contacts', icon: BookUser, title: t('Contacts') },
     { id: 'notifications', icon: BellIcon, title: t('Notifications and email') },
     { id: 'profile', icon: UserRound, title: t('Your profile') },
-    { id: 'help', icon: LifeBuoy, title: t('Getting help') }
+    { id: 'help', icon: LifeBuoy, title: t('Getting help') },
+    { id: 'rules', icon: ScrollText, title: t('Rules and privacy') }
   ]
   const title = id => sections.find(s => s.id === id).title
   const icon = id => sections.find(s => s.id === id).icon
@@ -110,8 +111,9 @@ export default function GuidePage () {
 
       <Section id='events' icon={icon('events')} title={title('events')}>
         <p>{t('An event is a post with a date and time. When you make one, you can invite people. They get a notification and answer Going, Interested or Not going. The Events view of a circle lists what is coming up.')}</p>
-        <p>{t('Every event has its own meeting room. Open the event and click "Meet in Agora, with minutes". The room asks if your voice may be part of the notes, then opens the call. Headphones help.')}</p>
-        <ComingSoon>{t('Minutes that write themselves. The room will turn what is said into text and post a summary with decisions and actions in the circle. This waits for the speech to text service to be connected. Until then, someone takes notes.')}</ComingSoon>
+        <p>{t('Every event has its own meeting room in Agora, and the call takes place there. Open the event and click "Meet in Agora, with minutes". Headphones help.')}</p>
+        <p>{t('When you come in, the room asks if your voice may be part of the notes. Say no, or pause at any time, and your voice stays out of them. After the meeting, Agora posts the transcript and a short summary with decisions and actions in the circle. Nobody has to take notes.')}</p>
+        <ComingSoon>{t('A guest link, so people from outside Agora can join a meeting.')}</ComingSoon>
       </Section>
 
       <Section id='files' icon={icon('files')} title={title('files')}>
@@ -146,8 +148,17 @@ export default function GuidePage () {
       </Section>
 
       <Section id='help' icon={icon('help')} title={title('help')}>
-        <p>{t('Stuck, or found something that does not work? Use Help, bottom right. You can also ask in your circle, or send a message to a steward.')}</p>
+        <p>{t('Stuck, found something that does not work, or have a wish? Click Help at the bottom right of any page and tell it in your own words. Your request goes to the Help desk team, and their answers come back in the Help window, under My requests.')}</p>
+        <p>{t('You can also ask in your circle, or send a message to a steward.')}</p>
         <p>{t('You can open this guide again at any time from the question mark or the gear in the bar on the left.')}</p>
+      </Section>
+
+      <Section id='rules' icon={icon('rules')} title={title('rules')}>
+        <p>{t('The Terms of use say how we use Agora together. The Privacy notice says what Agora keeps about you, why, and what you can ask for. Both are drafts until 7BP approves them.')}</p>
+        <div className='flex flex-wrap gap-4'>
+          <GoTo to='/terms'>{t('Terms of Service')}</GoTo>
+          <GoTo to='/privacy'>{t('Privacy Policy')}</GoTo>
+        </div>
       </Section>
     </div>
   )

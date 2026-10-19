@@ -34,9 +34,10 @@ export default function Agreements () {
   }
 
   const renderAgreementText = (key) => {
-    const codeOfConductLink = `<a href="https://www.hylo.com/agreements/#code-of-conduct" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('codeOfConductText')}</a>`
-    const termsOfUseLink = `<a href="https://www.hylo.com/terms/" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('termsOfUseText')}</a>`
-    const fullAgreementsLink = `<a href="https://www.hylo.com/agreements/#hylo-platform-agreements" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('agreementTitle')}</a>`
+    // Agora: the links go to Agora's own Terms of use instead of Hylo's agreements
+    const codeOfConductLink = `<a href="/terms#conduct" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('codeOfConductText')}</a>`
+    const termsOfUseLink = `<a href="/terms" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('termsOfUseText')}</a>`
+    const fullAgreementsLink = `<a href="/terms" target="_blank" rel="noopener noreferrer" class="text-focus hover:text-selected hover:underline font-medium">${t('agreementTitle')}</a>`
 
     const text = t(key, {
       codeOfConductLink,
@@ -87,7 +88,8 @@ export default function Agreements () {
                 <span>{renderAgreementText('agreementChunk7')}</span>
               </p>
               <p>
-                <a href='https://www.hylo.com/agreements/#hylo-platform-agreements' target='_blank' rel='noopener noreferrer' className='text-focus hover:text-selected hover:underline font-medium'>
+                {/* Agora: our own Terms of use */}
+                <a href='/terms' target='_blank' rel='noopener noreferrer' className='text-focus hover:text-selected hover:underline font-medium'>
                   {t('viewDetailedAgreements')}
                 </a>
               </p>

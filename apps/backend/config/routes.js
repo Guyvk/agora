@@ -115,6 +115,19 @@ module.exports.routes = {
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
 
+  // Agora help: the Help window for everyone logged in, the Help desk for its admins
+  'GET    /noo/agora/help/api/status':                    'AgoraHelpController.status',
+  'GET    /noo/agora/help/api/mine':                      'AgoraHelpController.mine',
+  'POST   /noo/agora/help/api/create':                    'AgoraHelpController.create',
+  'POST   /noo/agora/help/api/chat':                      'AgoraHelpController.chat',
+  'GET    /noo/agora/help/api/mine/:requestId':           'AgoraHelpController.showMine',
+  'POST   /noo/agora/help/api/mine/:requestId/reply':     'AgoraHelpController.replyMine',
+  'GET    /noo/agora/help/api/desk':                      'AgoraHelpController.deskList',
+  'GET    /noo/agora/help/api/desk/:requestId':           'AgoraHelpController.deskShow',
+  'POST   /noo/agora/help/api/desk/:requestId/update':    'AgoraHelpController.deskUpdate',
+  'POST   /noo/agora/help/api/desk/:requestId/reply':     'AgoraHelpController.deskReply',
+  'POST   /noo/agora/help/api/desk/:requestId/build':     'AgoraHelpController.deskBuild',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }

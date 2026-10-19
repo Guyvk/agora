@@ -86,6 +86,8 @@ import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Co
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
+import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
+import HelpDeskPage from '@/agora/help/HelpDeskPage' // Agora: the Help desk
 import ThreadList from 'routes/Messages/ThreadList'
 import MySpaceCollection from 'routes/MySpaceCollection'
 import MyTransactions from 'routes/MyTransactions'
@@ -946,6 +948,7 @@ export default function AuthLayoutRouter (props) {
   return (
     <IntercomProvider appId={isTest || isSandboxMode() ? '' : config.intercom.appId} shouldInitialize={!!config.intercom.appId /* Agora: without an Intercom key, never contact Intercom */} autoBoot={!isSandboxMode()} autoBootProps={intercomProps}>
       <SiteBanners />
+      {!isSandboxMode() && <HelpWindow />} {/* Agora: the Help button at the bottom right of every page */}
       {/* Pull-to-refresh indicator - shows during and after gesture */}
       {(isPulling || isRefreshing) && (
         <div className='fixed top-4 left-1/2 -translate-x-1/2 z-50'>
@@ -1206,6 +1209,9 @@ export default function AuthLayoutRouter (props) {
                 <Route path='contacts/:contactId' element={<ContactsPage />} />
                 <Route path='contacts' element={<ContactsPage />} />
                 <Route path='guide' element={<GuidePage />} /> {/* Agora: the guide */}
+                {/* Agora: the Help desk, for its admins */}
+                <Route path='help-desk/:requestId' element={<HelpDeskPage />} />
+                <Route path='help-desk' element={<HelpDeskPage />} />
                 <Route path='post/:postId/*' element={<PostDetail />} />
                 {/* Keep old settings paths for mobile */}
                 <Route path='settings/*' element={<UserSettings />} />

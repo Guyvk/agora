@@ -306,6 +306,11 @@ function createRecorder({ onPiece, onLevel }) {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Safari starts the sound engine paused when it is not created right on a click.
+    // A paused engine hears nothing, so nothing would ever be recorded.
+    const wake = () => { if (audioContext && audioContext.state === 'suspended') audioContext.resume().catch(() => {}); };
+    wake();
+    ['click', 'touchend', 'keydown'].forEach(name => document.addEventListener(name, wake, { passive: true }));
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     audioContext.createMediaStreamSource(stream).connect(analyser);
@@ -520,6 +525,11 @@ async function poll() {
     if (data.startedAt) state.startedAt = data.startedAt;
     addLines(data.lines);
     showPeople(data.people);
+    if (data.failing > 0 && data.status === 'open' && !state.failingShown) {
+      state.failingShown = true;
+      $('roomError').textContent = 'Speech to text is having trouble: some of what was said has not been turned into text. Carry on, and tell the person who runs Agora.';
+      $('roomError').hidden = false;
+    }
     if (data.status && data.status !== 'open' && data.status !== 'none') meetingEnded(data);
   } catch (e) { /* a missed poll is fine, the next one catches up */ }
 }

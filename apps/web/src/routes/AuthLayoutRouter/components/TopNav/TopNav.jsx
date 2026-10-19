@@ -464,7 +464,8 @@ export default function TopNav ({ currentUser }) {
           <PopoverContent side='bottom' align='end'>
             <ul className='flex flex-col gap-2 m-0 p-0'>
               <li className='w-full'><Link className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' to={GUIDE_URL}>{t('Agora guide')}</Link></li> {/* Agora: our own guide instead of Hylo's user guide */}
-              <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='http://hylo.com/terms/' target='_blank' rel='noreferrer'>{t('Terms & Privacy')}</a></li>
+              {/* Agora: our own Terms of use and Privacy notice */}
+              <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='/terms' target='_blank' rel='noreferrer'>{t('Terms & Privacy')}</a></li>
               <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='https://opencollective.com/hylo' target='_blank' rel='noreferrer'>{t('Contribute to Hylo')}</a></li>
             </ul>
           </PopoverContent>

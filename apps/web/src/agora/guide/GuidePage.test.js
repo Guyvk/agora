@@ -29,7 +29,8 @@ describe('GuidePage', () => {
       'Contacts',
       'Notifications and email',
       'Your profile',
-      'Getting help'
+      'Getting help',
+      'Rules and privacy'
     ])
     // A list of the sections at the top, linking to each one
     const nav = screen.getByRole('navigation', { name: 'On this page' })
@@ -40,7 +41,7 @@ describe('GuidePage', () => {
     render(<GuidePage />, { wrapper: providers() })
     const soon = screen.getAllByTestId('guide-coming-soon').map(n => n.textContent)
     expect(soon).toHaveLength(3)
-    expect(soon[0]).toMatch(/Minutes that write themselves/)
+    expect(soon[0]).toMatch(/guest link/)
     expect(soon[1]).toMatch(/Google Drive/)
     expect(soon[2]).toMatch(/Emails from Agora/)
   })
@@ -52,7 +53,11 @@ describe('GuidePage', () => {
     expect(screen.getByRole('link', { name: 'Open Contacts' })).toHaveAttribute('href', '/contacts')
     expect(screen.getByRole('link', { name: 'Choose my notifications' })).toHaveAttribute('href', '/my/notifications')
     expect(screen.getByRole('link', { name: 'Fill in my profile' })).toHaveAttribute('href', '/my/edit-profile')
-    expect(screen.getByText(/Help, bottom right/)).toBeInTheDocument()
+    expect(screen.getByText(/Click Help at the bottom right of any page/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
+    // Meeting notes are live, so they are explained, not promised
+    expect(screen.getByText(/posts the transcript and a short summary/)).toBeInTheDocument()
   })
 
   it('points to the list of circles for someone without one', () => {
