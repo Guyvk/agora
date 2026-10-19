@@ -10,10 +10,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | --- | --- |
 | `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
-| `apps/backend/api/models/post/createPost.js` | A new event without a video call link gets its meeting room as its link. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
+| `apps/backend/api/models/post/createPost.js` | A new event always gets its meeting room as its video call link, whatever was sent, and a link to another video call platform is refused as its location. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice |
 | `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
-| `apps/backend/api/models/post/updatePost.js` | An event whose video call link is cleared gets its meeting room back |
+| `apps/backend/api/models/post/updatePost.js` | An event keeps its meeting room as its video call link, whatever a change sends, and invitees are never told about a link that was ignored. A link to another video call platform is refused as its location |
 | `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages (with adding files and folders) and the Contacts page |
 | `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
@@ -21,7 +21,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
-| `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept) |
+| `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |
 | `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` | A Playbook line in a group's menu, above More Spaces |
@@ -29,7 +29,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
 | `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", the texts of the playbook page, and the message when a group cannot be deleted |
 | `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts", the texts of the playbook page and the message when a group cannot be deleted, in each language |
-| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and do not repeat it as a bare video call link |
+| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and never a video call link to another platform |
+| `apps/web/src/components/PostCard/PostTitle/PostTitle.test.js` | Checks that a link to another platform is not shown |
+| `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message |
+| `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform |
+| `apps/web/public/locales/*.json (meeting room only)` | The texts of the video call link field are gone, and one new text says a video call link cannot be the location, in every language (Hindi in English for now) |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
 | `apps/web/src/routes/AuthLayoutRouter/components/Drawer/Drawer.js` | No Public section (it only led to The Commons) while The Commons is off |
@@ -62,7 +66,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/UploadAttachmentButton/UploadAttachmentButton.js` | Without a Filestack key, the browser's own file picker opens and the file goes straight to Agora's server |
 | `apps/web/public/locales/*.json (uploads)` | Three new texts, a file that is too big, an upload that failed and the picture formats that work, in every language |
 | `apps/backend/api/graphql/mutations/user.js` | Signing up with an email address needs a valid invitation or join link when sign-up is by invitation only |
-| `apps/backend/api/graphql/schema.graphql` | Signing up can carry the invitation (`invitationToken` or `accessCode`) |
+| `apps/backend/api/graphql/schema.graphql` | Signing up can carry the invitation (`invitationToken` or `accessCode`). The note on `meetingLink` says it is always the event's meeting room |
 | `apps/backend/api/controllers/SessionController.js` | A first login with Google, Apple and the like makes an account only with a valid invitation when sign-up is by invitation only |
 | `apps/backend/config/routes.js`, `apps/backend/config/policies.js` | The address where the sign-up page asks whether sign-up is by invitation only (also listed above) |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` | Says "Agora is by invitation" to someone without an invitation, sends the invitation along, no Google button |
@@ -110,6 +114,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/AgoraLogo.js`, `AgoraCookieNotice.js`, `AgoraCookieNotice.test.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
 - `apps/backend/scripts/agora-demo.js`
+- `apps/backend/scripts/agora-meeting-links.js` (gives older events their meeting room as their video call link)
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
 - `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
 - `apps/web/public/agora-7bp-logo.png`

@@ -430,8 +430,9 @@ async function startCall() {
     }
   }
 
-  // No call inside the page: the call opens in its own window and this page keeps listening.
-  const link = BOOT.meetDomain ? 'https://' + BOOT.meetDomain + '/' + state.roomName : BOOT.meetingLink;
+  // No call inside the page: the same room on the same call server opens in its own window and
+  // this page keeps listening. Never another platform: calls in Agora always use this room.
+  const link = BOOT.meetDomain ? 'https://' + BOOT.meetDomain + '/' + state.roomName : '';
   const box = document.createElement('div');
   box.className = 'companion';
   const heading = document.createElement('h2');
@@ -444,12 +445,12 @@ async function startCall() {
     a.className = 'button';
     a.target = '_blank';
     a.rel = 'noopener';
-    a.href = /^https?:\/\//.test(link) ? link : 'https://' + link;
+    a.href = link;
     a.textContent = 'Open the call';
     box.append(a);
   } else {
     heading.textContent = 'Agora is listening';
-    text.textContent = 'This event has no video link. If you are in the same room, or on a call elsewhere, keep this page open and it writes the notes from your microphone.';
+    text.textContent = 'Agora has no call server set up yet, so there is no video call. If you are together in one room, keep this page open and it writes the notes from your microphone.';
   }
   stage.append(box);
   state.callLive = true;

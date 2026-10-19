@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import { isMeetingRoomUrl } from '../../lib/agora/meetingLink'
 
 /**
  * Agora meetings.
@@ -12,7 +11,8 @@ import { isMeetingRoomUrl } from '../../lib/agora/meetingLink'
  *
  * Settings (see .env.example):
  *   AGORA_MEET_DOMAIN   the Jitsi server that hosts the call, e.g. kmeet.infomaniak.com.
- *                       Leave empty to use the event's own video link in a second window.
+ *                       Calls always run here: the room never opens another
+ *                       platform's link. Empty means no call, only the notes.
  */
 
 const MAX_SEGMENT_BYTES = 4 * 1024 * 1024
@@ -142,8 +142,6 @@ module.exports = {
       title: post.get('name') || 'Meeting',
       groupName: group ? group.get('name') : '',
       eventUrl: Frontend.Route.post(post, group),
-      // The event's own video call link, unless that link is this room itself
-      meetingLink: isMeetingRoomUrl(post.get('meeting_link')) ? '' : (post.get('meeting_link') || ''),
       api: `/noo/meeting/${post.id}`,
       meetDomain: domain,
       me: { id: String(user.id), name: user.get('name') },

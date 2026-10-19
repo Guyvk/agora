@@ -5,7 +5,7 @@ import updateChildren from './updateChildren'
 import { assertGroupsAcceptPostType } from './validatePostData'
 import { groupRoom, pushToSockets } from '../../services/Websockets'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
-import { fillMeetingLink } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
+import { fillMeetingLink, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
 import {
   POST_TYPE_TO_TYPED_VIEW,
   postCountsTowardChatUnread
@@ -14,11 +14,12 @@ import {
 export default async function createPost (userId, params) {
   await assertCanCreateSilentPost(userId, params)
   await assertGroupsAcceptPostType(params.group_ids, params.type)
+  refuseOutsideCallLocation(params.type, params.location) // Agora: calls only in the meeting room
   const { hosted: hostedImageUrls, remote: remoteImageUrls } = partitionImageUrls(params.imageUrls)
   return setupPostAttrs(userId, merge(Post.newPostAttrs(), params), true)
     .then(attrs => bookshelf.transaction(transacting =>
       Post.create(attrs, { transacting })
-        // Agora: an event without a video call link gets its meeting room
+        // Agora: an event's video call link is always its meeting room, whatever was sent
         .tap(post => fillMeetingLink(post, { transacting }))
         .tap(post => afterCreatingPost(post, merge(
           pick(params, 'localId', 'group_ids', 'imageUrl', 'videoUrl', 'docs', 'topicNames', 'memberIds', 'eventInviteeIds', 'fileUrls', 'fundingRoundId', 'announcement', 'location', 'location_id', 'proposalOptions', 'trackId', 'viewId', 'markAsReadTopicName', 'skip_link_preview', 'silent'),
