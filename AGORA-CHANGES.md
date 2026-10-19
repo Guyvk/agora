@@ -93,6 +93,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/post/updatePost.js` (meetings and events) | A change keeps or switches the kind, and only stewards of the main 7BP circle may switch "for all of 7BP" |
 | `apps/backend/api/models/Post.js` (meetings and events) | A post for all of 7BP is visible to every logged-in member (`isVisibleToUser`), and emails know whether a post is a Meeting or an Event |
 | `apps/backend/api/graphql/filters.js` | Posts for all of 7BP are readable by every logged-in member |
+| `apps/backend/api/graphql/filters.test.js` | Its expected post query includes the clause for posts for all of 7BP |
 | `apps/backend/api/graphql/makeModels.js` | A post tells its kind (`agoraKind`) and whether it is for all of 7BP (`agoraForAll`) |
 | `apps/backend/api/graphql/schema.graphql` (meetings and events) | The fields `agoraKind` and `agoraForAll` on posts, and `agoraKind`, `agoraForAll`, `agoraInviteEveryone` when making or changing one |
 | `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (calendar) | The addresses of the calendar page's server part (login needed) and of the calendar feed (no login, its secret is the key) |
