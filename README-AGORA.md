@@ -203,6 +203,12 @@ Agora is by invitation. Only someone who holds an invitation to a circle can mak
 - the link in an invitation email that a steward of a circle sent. It only makes an account for the email address it was sent to, so a forwarded link does not let anyone else in. It stops working once the person has joined the circle with it, or when the steward withdraws it. Or:
 - a circle's join link. Anyone who has it can make an account, with any email address, as many times as they like, until a steward makes a new link or the circle is deleted. Share it only with people you would invite anyway.
 
+**Opening an invitation email.** The link in an invitation email belongs to the address it was sent to:
+
+- Not logged in: the sign-up page fills in that address and does not let it be changed. The person clicks "Create account" and goes on with the code, as always.
+- Logged in with that address: the invitation is accepted, as in Hylo.
+- Logged in with another account (for example the steward who sent it, trying it out): the invitation is not used. A page says "This invitation is for guyvankool@gmail.com. You are logged in as Guy van Koolwijk (info@guyvankoolwijk.nl). Log out to accept it as guyvankool@gmail.com." The button "Log out and continue" logs out and opens the invitation link again. The server refuses such a use too, so it cannot be skipped. A circle's join link has no address and works for everyone.
+
 Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. A first login with Google, Facebook or LinkedIn is always refused while sign-up is by invitation (Agora does not show those buttons). People who already have an account are not affected and log in as before.
 
 The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left empty, it is on for a server and off on your own computer, so demo sign-ups keep working there. `off` brings back Hylo's way: anyone who finds the address can sign up.
@@ -346,7 +352,16 @@ On your own computer no email is sent. Every email is printed in the Terminal in
 
 To send real email, set `AGORA_EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` and `EMAIL_SENDER` in `apps/backend/.env`. Sending through Brevo has been written but not yet tried against a real account.
 
-Emails that Agora has no text for yet, such as event invitations and digests, are not sent. A line in the log says so. Notification emails stay off while `EMAIL_NOTIFICATIONS_ENABLED=false`.
+To send through any mail server (for example Infomaniak's), set `AGORA_EMAIL_TRANSPORT=smtp` and the `AGORA_SMTP_...` settings; see `apps/backend/lib/agora/mailer.js`.
+
+Emails that Agora has no text for yet are not sent. A line in the log says so. Notification emails stay off while `EMAIL_NOTIFICATIONS_ENABLED=false`.
+
+**What every email looks like.** Agora writes its emails itself, in `lib/agora/mailer.js`, and checks these things for all of them:
+
+- They say Agora, never Hylo, also in the sender name ("Guy van Koolwijk (via Agora)", or just "Agora").
+- Text from Hylo's database that is HTML, like the text of an invitation or a post, is turned into plain paragraphs and then made safe, so no HTML and no `&lt;p&gt;` codes show up.
+- Links are short and clean. Hylo adds click counting to its links (`?ctt=post_email&cti=1&ctcn=Governance`); Agora takes that out. The link to change your email settings is simply `https://<Agora's address>/my/notifications`: whoever is not logged in logs in first and lands there. Hylo's own link held a login token of about 600 characters, your name and your user id. Agora sets no `List-Unsubscribe` header (Hylo does not either).
+- The links in the email to set a new password and to confirm your address for sign-up still carry a long code. They log you in, so the code has to be in them. Making those short needs a change to how logging in works.
 
 ## Uploads
 

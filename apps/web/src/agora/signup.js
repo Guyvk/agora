@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useDispatch } from 'react-redux'
+import checkInvitation from 'store/actions/checkInvitation'
 
 /**
  * Agora: sign-up by invitation only. The server decides and checks the
@@ -52,4 +54,55 @@ export function useInviteOnly () {
   }, [])
 
   return inviteOnly
+}
+
+/** An email address as Agora compares them: trimmed and in small letters. */
+function normalAddress (value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+/**
+ * True when someone who is logged in opens an email invitation that was sent
+ * to another address. Agora does not use such an invitation: it belongs to
+ * the address it was sent to (the server checks this too). A join link has no
+ * address and fits everyone.
+ */
+export function isInvitationForOtherAccount ({ invitationToken, invitationEmail, myEmail }) {
+  if (!invitationToken || !normalAddress(invitationEmail) || !normalAddress(myEmail)) return false
+  return normalAddress(invitationEmail) !== normalAddress(myEmail)
+}
+
+/** The answer of the checkInvitation query, however the store hands it back. */
+export function checkResultOf (result) {
+  return result?.payload?.data?.checkInvitation ?? result?.payload?.getData?.() ?? null
+}
+
+/**
+ * The address an email invitation was sent to, so the sign-up page can fill
+ * it in. null for a join link, an unknown invitation, or until the server has
+ * answered.
+ */
+export function useInvitationEmail (invitation) {
+  const dispatch = useDispatch()
+  const invitationToken = invitation?.invitationToken
+  const [email, setEmail] = useState(null)
+
+  useEffect(() => {
+    if (!invitationToken) return
+    let stopped = false
+    Promise.resolve(dispatch(checkInvitation({ invitationToken })))
+      .then(result => {
+        const check = checkResultOf(result)
+        if (!stopped && check?.valid && check.email) setEmail(check.email)
+      })
+      .catch(() => {})
+    return () => { stopped = true }
+  }, [invitationToken])
+
+  return email
+}
+
+/** The invitation link from an invitation email, to come back to after logging out. */
+export function invitationLink (invitationToken, invitationEmail) {
+  return `/h/use-invitation?token=${encodeURIComponent(invitationToken)}&email=${encodeURIComponent(invitationEmail)}`
 }

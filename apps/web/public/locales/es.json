@@ -967,7 +967,7 @@
   "Hi {{firstName}}, click here to create a resource": "Hola, {{firstName}}, haz clic aquí para crear un recurso",
   "Hi {{firstName}}, click here to create an event": "Hola, {{firstName}}, haz clic aquí para crear un evento",
   "Hi {{firstName}}, click here to create an offer": "Hola, {{firstName}}, haz clic aquí para crear una oferta",
-  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "¡Hola!\n\nTe invito a unirte a {{name}} en Hylo.\n\n{{name}} está usando Hylo para nuestra comunidad en línea: este es nuestro espacio dedicado a la comunicación y la colaboración.",
+  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "¡Hola!\n\nTe invito a unirte a {{name}} en Agora, el hogar en línea de 7 Billion Presidents.",
   "Hidden": "Oculto",
   "Hidden from menu": "Oculto del menú",
   "Hide": "Esconder",
@@ -3194,5 +3194,11 @@
   "Selected space": "Espacio seleccionado",
   "Incorrect email or password.": "Correo electrónico o contraseña incorrectos.",
   "If you signed up with Google, log in with Google instead.": "Si te registraste con Google, inicia sesión con Google.",
-  "Too many attempts. Please wait a few minutes and try again.": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo."
+  "Too many attempts. Please wait a few minutes and try again.": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+  "This invitation is for {{email}}.": "Esta invitación es para {{email}}.",
+  "You are logged in as {{name}} ({{email}}).": "Has iniciado sesión como {{name}} ({{email}}).",
+  "Log out to accept it as {{email}}.": "Cierra la sesión para aceptarla como {{email}}.",
+  "Log out and continue": "Cerrar sesión y continuar",
+  "Stay logged in as {{name}}": "Seguir con la sesión de {{name}}",
+  "Your invitation was sent to this address.": "Tu invitación se envió a esta dirección."
 }

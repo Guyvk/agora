@@ -42,7 +42,8 @@ export async function createInvitation (userId, groupId, data) {
         message: localeStrings.createInvitationMessage(group.get('name')),
         assignAdministrator: data.assignAdministrator || false,
         groupRoleId: data.groupRoleId ? parseInt(data.groupRoleId, 10) : null,
-        subject: localeStrings.createInvitationSubject(group.get('name'))
+        // Agora: the subject names who invites ("Guy invites you to Governance in Agora")
+        subject: localeStrings.createInvitationSubject(group.get('name'), user.get('name'))
       })
     })
     .then(invitations => ({ invitations }))

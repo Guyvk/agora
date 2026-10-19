@@ -942,7 +942,7 @@
   "Hi {{firstName}}, click here to create a resource": "Hallo {{firstName}}, klicke hier, um eine Ressource zu erstellen.",
   "Hi {{firstName}}, click here to create an event": "Hallo {{firstName}}, klicke hier, um eine Veranstaltung zu erstellen.",
   "Hi {{firstName}}, click here to create an offer": "Hallo {{firstName}}, klicke hier, um ein Angebot zu erstellen.",
-  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Hallo!\n\nIch lade dich ein, {{name}} auf Hylo beizutreten.\n\n{{name}} nutzt Hylo für unsere Online-Community: Dies ist unser dedizierter Bereich für Kommunikation und Zusammenarbeit.",
+  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Hallo!\n\nIch lade dich ein, {{name}} in Agora beizutreten, dem eigenen Online-Zuhause von 7 Billion Presidents.",
   "Hidden": "Versteckt",
   "Hidden from menu": "Aus dem Menü ausgeblendet",
   "Hide": "Ausblenden",
@@ -3187,5 +3187,11 @@
   "Selected space": "Ausgewählter Space",
   "Incorrect email or password.": "E-Mail-Adresse oder Passwort ist falsch.",
   "If you signed up with Google, log in with Google instead.": "Wenn du dich mit Google registriert hast, melde dich stattdessen mit Google an.",
-  "Too many attempts. Please wait a few minutes and try again.": "Zu viele Versuche. Bitte warte einige Minuten und versuche es dann erneut."
+  "Too many attempts. Please wait a few minutes and try again.": "Zu viele Versuche. Bitte warte einige Minuten und versuche es dann erneut.",
+  "This invitation is for {{email}}.": "Diese Einladung ist für {{email}}.",
+  "You are logged in as {{name}} ({{email}}).": "Du bist als {{name}} ({{email}}) angemeldet.",
+  "Log out to accept it as {{email}}.": "Melde dich ab, um sie als {{email}} anzunehmen.",
+  "Log out and continue": "Abmelden und weiter",
+  "Stay logged in as {{name}}": "Als {{name}} angemeldet bleiben",
+  "Your invitation was sent to this address.": "Deine Einladung wurde an diese Adresse geschickt."
 }

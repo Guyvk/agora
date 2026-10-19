@@ -1,11 +1,12 @@
 exports.de = {
-  apiInviteMessageContent: (name) => `${name} lädt Sie ein, unserer Community auf Hylo beizutreten.`,
-  apiInviteMessageSubject: (name) => `Komm zu mir in ${name} auf Hylo!`,
-  clientInviteSubjectDefault: (name) => `Du wurdest eingeladen, ${name} auf Hylo beizutreten`,
-  clientInviteMessageDefault: ({ userName, groupName }) => `Hallo ${userName}, <br><br> wir freuen uns, dich in unserer Community willkommen zu heißen. Klicke unten, um ${groupName} auf Hylo beizutreten.`,
+  // Agora: invitation texts say Agora instead of Hylo
+  apiInviteMessageContent: (name) => `${name} lädt Sie ein, unserer Community auf Agora beizutreten.`,
+  apiInviteMessageSubject: (name) => `Komm zu mir in ${name} auf Agora!`,
+  clientInviteSubjectDefault: (name) => `Du wurdest eingeladen, ${name} auf Agora beizutreten`,
+  clientInviteMessageDefault: ({ userName, groupName }) => `Hallo ${userName}, <br><br> wir freuen uns, dich in unserer Community willkommen zu heißen. Klicke unten, um ${groupName} auf Agora beizutreten.`,
   CreatorEmail: () => 'E-Mail der Person, die die Gruppe erstellt hat',
-  createInvitationSubject: (name) => `Komm zu mir in ${name} auf Hylo!`,
-  createInvitationMessage: (name) => `Hallo!\n\nIch lade dich ein, ${name} auf Hylo beizutreten.\n\n${name} nutzt Hylo für unsere Online-Community: Dies ist unser dedizierter Bereich für Kommunikation und Zusammenarbeit.`,
+  createInvitationSubject: (name, inviterName) => inviterName ? `${inviterName} lädt dich zu ${name} in Agora ein` : `Einladung zu ${name} in Agora`,
+  createInvitationMessage: (name) => `Hallo!\n\nIch lade dich ein, ${name} in Agora beizutreten, dem eigenen Online-Zuhause von 7 Billion Presidents.`,
   CreatorName: () => 'Name der Person, die die Gruppe erstellt hat',
   CreatorURL: () => 'URL der Person, die die Gruppe erstellt hat',
   Group: () => 'Gruppe',
