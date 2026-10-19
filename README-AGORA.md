@@ -10,7 +10,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 
 | Addition | What it does | Where the code lives |
 | --- | --- | --- |
-| Meetings that write their own minutes | Every event has a meeting room, and video calls always go through it (no Zoom or other links). While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `scripts/agora-meeting-links.js` |
+| Meetings that write their own minutes | Every event has a meeting room, and video calls always go through it (no Zoom or other links). While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group. People without an account can join through a guest link | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/controllers/MeetingGuestController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `scripts/agora-meeting-links.js` |
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
@@ -102,6 +102,31 @@ Things to know:
 - **Phones.** The room is laid out for phones, but recording next to a call has not been tested on phone browsers yet.
 - **kMeet.** Showing kMeet inside another page works today, but Infomaniak does not document it as a supported use. If it stops working, set another Jitsi server.
 - **Consent.** People choose on entering whether their voice is in the notes, and can pause at any time. Agree as a group that meetings are transcribed before using this for real.
+
+## Guests in a meeting
+
+Members can invite people who have no Agora account into a meeting, so the call still happens in Agora.
+
+**Making a link.** Open the event. The person who made the event and the stewards of its circle (anyone with Administration or Manage Content there) see a box "Guests from outside Agora" under the event. **Make a guest link** shows the link with a **Copy** button. Send it to the guests by email or chat. Other members do not see the box.
+
+- Agora keeps only a fingerprint (a sha256 hash) of the link, never the link itself. So the link is shown only once, right after it is made. If it is lost, make a new one: the old one stops working at once, and guests who came in through it are sent out within seconds.
+- The link works until two hours after the event ends (an event without an end time counts as one hour long). Change the event's time before making the link, or make a new link after changing it.
+- **Revoke** closes the link. Guests in the call are sent out within seconds.
+- There is one link per event. It only works while members are in the meeting: a guest who comes early waits, and the page tries again by itself.
+- Guest links need the call inside Agora (`AGORA_MEET_DOMAIN`). Without it the box says so.
+
+**What the guest sees.** The link opens a page that asks for their name (at most 60 letters, digits and spaces) and explains, in plain words, that the meeting is held in Agora by 7 Billion Presidents, that if they agree their speech is turned into text by Infomaniak (Switzerland), that the minutes are written by Claude (Anthropic, United States) and posted inside the circle with their name followed by "(guest)". They choose **Join, and agree to be in the notes** or **Join without being in the notes**. Without the notes their microphone is never recorded by Agora. Then they get the same kMeet call as members, with "(guest)" after their name. They see the call and a Leave button. They never see the notes, the transcript, the minutes, the event page or anything else in Agora.
+
+**What members see.** Guests appear in the "Here:" line and in the notes as "Name (guest)". The minutes post lists them on a separate line, "Guests (joined through the guest link, not members of Agora)".
+
+**Safety checks** (in `lib/agora/meetingGuests.js` and `api/controllers/MeetingGuestController.js`, tested in `test/unit/agora/meetingGuests.test.js`):
+
+- The link's secret is 32 random bytes. It is checked against the stored hash in constant time. Wrong, old, revoked and expired links are refused.
+- Each guest who joins gets a second secret of their own, so one guest cannot speak under another guest's name.
+- Guests can only do five things: open the page, join, send their own speech (only if they agreed), ask whether the meeting is still going, and leave. Leaving never ends the meeting for others. The member calls (notes, ending the meeting, making links) still need a login.
+- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
+- The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
+- The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
 
 ## Google Drive
 
