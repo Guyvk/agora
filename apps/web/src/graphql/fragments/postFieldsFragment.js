@@ -144,6 +144,8 @@ const postFieldsFragment = (withComments, withCompletion = false, withAllComplet
   localId
   location
   meetingLink
+  agoraKind
+  agoraForAll
   locationObject {
     id
     addressNumber

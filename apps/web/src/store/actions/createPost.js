@@ -26,6 +26,9 @@ export default function createPost (postParams) {
     location,
     locationId,
     meetingLink,
+    agoraKind, // Agora: meeting or event
+    agoraForAll, // Agora: for all of 7BP
+    agoraInviteEveryone, // Agora: calendar invitations for everyone
     memberIds = [],
     isAnonymousVote,
     isPublic,
@@ -76,6 +79,9 @@ export default function createPost (postParams) {
         location,
         locationId,
         meetingLink,
+        agoraKind,
+        agoraForAll,
+        agoraInviteEveryone,
         memberIds,
         projectManagementLink,
         proposalOptions,

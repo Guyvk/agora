@@ -53,7 +53,7 @@ function EventBody (props) {
                   tooltipId={`event-time-${id}`}
                 />
                 {isPastEvent && (
-                  <span className={cn('text-sm text-foreground/50 ml-2 px-2 inline-block p-1 rounded-md bg-foreground/10 text-xs')}>{t('Event ended')}</span>
+                  <span className={cn('text-sm text-foreground/50 ml-2 px-2 inline-block p-1 rounded-md bg-foreground/10 text-xs')}>{/* Agora: Meeting or Event */}{event.agoraKind === 'event' ? t('Event ended') : t('Meeting ended')}</span>
                 )}
               </div>
               <PostTitle {...event} constrained={constrained} onClick={onClick} />

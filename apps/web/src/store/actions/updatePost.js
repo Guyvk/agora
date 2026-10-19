@@ -25,6 +25,9 @@ export default function updatePost (post, query = updatePostMutation) {
     location,
     locationId,
     meetingLink,
+    agoraKind, // Agora: meeting or event
+    agoraForAll, // Agora: for all of 7BP
+    agoraInviteEveryone, // Agora: calendar invitations for everyone
     memberIds,
     projectManagementLink,
     proposalOptions,
@@ -64,6 +67,9 @@ export default function updatePost (post, query = updatePostMutation) {
         location,
         locationId,
         meetingLink,
+        agoraKind,
+        agoraForAll,
+        agoraInviteEveryone,
         memberIds,
         projectManagementLink,
         proposalOptions,

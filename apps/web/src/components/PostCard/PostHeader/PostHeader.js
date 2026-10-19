@@ -35,6 +35,7 @@ import { displayNameForView } from '@hylo/presenters/GroupViewPresenter'
 import { useEffectiveGroupSlug, useGroupRouteOpts } from 'contexts/SpaceGroupContext'
 import pinPostAction from 'store/actions/pinPost'
 import { cn } from 'util/index'
+import AgoraKindLabel from '@/agora/calendar/AgoraKindLabel' // Agora: Meeting or Event
 import {
   unfulfillPost as unfulfillPostAction,
   fulfillPost as fulfillPostAction,
@@ -435,7 +436,7 @@ function PostHeader (props) {
                 // The old py1 was a dead class — the pill never actually had vertical padding.
                 <div className='flex items-center gap-1 border-2 border-foreground/20 rounded-md text-xs capitalize px-1.5 h-7 text-foreground/70'>
                   <Icon name={getPostTypeIcon(type)} className='text-sm' dataTestId={'post-type-' + type.charAt(0).toUpperCase() + type.slice(1)} />
-                  {t(type)}
+                  {type === 'event' ? <AgoraKindLabel post={post} /> : t(type)} {/* Agora: Meeting or Event */}
                 </div>)}
 
               {announcement && (

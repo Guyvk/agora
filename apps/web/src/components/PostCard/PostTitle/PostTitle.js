@@ -58,8 +58,8 @@ export default function PostTitle ({
           </div>
         )}
         {/* Agora: calls only in the meeting room (its line is below), so no link to another platform is shown */}
-        {/* Agora: every event has a meeting room that writes its own minutes */}
-        {type === 'event' && post.id && (
+        {/* Agora: every Meeting has a meeting room that writes its own minutes; an Event has none */}
+        {type === 'event' && post.agoraKind !== 'event' && post.id && (
           <div className={cn('text-xs text-foreground/50 flex min-w-0 items-start gap-1', { [classes.constrained]: constrained })}>
             <NotebookPen className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-AgoraMeeting' />
             <a

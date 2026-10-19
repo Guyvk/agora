@@ -89,6 +89,28 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/backend/api/models/post/createPost.js` (meetings and events) | A new event post is a Meeting or an Event, and "for all of 7BP" is checked (`lib/agora/eventKinds.js`). When asked, everyone gets a calendar invitation |
+| `apps/backend/api/models/post/updatePost.js` (meetings and events) | A change keeps or switches the kind, and only stewards of the main 7BP circle may switch "for all of 7BP" |
+| `apps/backend/api/models/Post.js` (meetings and events) | A post for all of 7BP is visible to every logged-in member (`isVisibleToUser`), and emails know whether a post is a Meeting or an Event |
+| `apps/backend/api/graphql/filters.js` | Posts for all of 7BP are readable by every logged-in member |
+| `apps/backend/api/graphql/makeModels.js` | A post tells its kind (`agoraKind`) and whether it is for all of 7BP (`agoraForAll`) |
+| `apps/backend/api/graphql/schema.graphql` (meetings and events) | The fields `agoraKind` and `agoraForAll` on posts, and `agoraKind`, `agoraForAll`, `agoraInviteEveryone` when making or changing one |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (calendar) | The addresses of the calendar page's server part (login needed) and of the calendar feed (no login, its secret is the key) |
+| `apps/backend/config/http.js` | The request log hides the secret of a calendar link |
+| `apps/backend/migrations/schema.sql` (meetings and events) | The two new columns of posts and the table of calendar links |
+| `apps/backend/.env.example` (meetings and events) | `AGORA_MAIN_GROUP_SLUG`, the main 7BP circle |
+| `apps/backend/package.json` (calendar) | Told the style checker about the `AgoraCalendar` service |
+| `apps/web/src/components/CreateMenu/CreateMenu.jsx` | Two choices instead of "Event": Meeting and Event |
+| `apps/web/src/components/PostEditor/PostEditor.js` (meetings and events) | Choosing Meeting or Event, "for all of 7BP" for stewards of the main circle, no public switch for a Meeting |
+| `apps/web/src/components/PostCard/PostHeader/PostHeader.js` | The card says "Meeting" or "Event" (and "All of 7BP") instead of "Event" |
+| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` (meetings and events) | Only a Meeting shows its meeting room |
+| `apps/web/src/components/PostCard/EventBody/EventBody.js` | "Meeting ended" or "Event ended" |
+| `apps/web/src/routes/PostDetail/PostDetail.js` (meetings and events) | The page title says Meeting or Event; "Join online" only for a Meeting |
+| `apps/web/src/components/Calendar/calendar.tsx`, `calendar.module.scss` | Meetings have their own look (dashed) in every calendar view |
+| `apps/web/src/graphql/fragments/postFieldsFragment.js`, `postCardFieldsFragment.js`, `apps/web/src/graphql/mutations/createPostMutation.js`, `updatePostMutation.js`, `apps/web/src/store/actions/createPost.js`, `updatePost.js`, `apps/web/src/store/models/Post.js` | Carry the kind and "for all of 7BP" to and from the server |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (calendar) | The calendar page at `/calendar` |
+| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (calendar) | A Calendar button in the left bar |
+| `apps/web/public/locales/*.json (meetings and events)` | Lists that hold both say "Meetings and events", the kind texts, the calendar page texts, in every language. The guide texts and the privacy notice about meetings changed in English only, like before |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -128,4 +150,6 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/admins.js` (who is an Agora admin or Help desk admin), `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/lib/agora/allowSignup.js` (the code of `scripts/agora-allow-signup.js`, also used by the admin area), `apps/backend/api/controllers/AgoraAdminController.js`, `apps/backend/test/unit/agora/adminDashboard.test.js` (the admin area; `lib/agora/help.js` asks `admins.js` who runs the Help desk, and `agora/vps/offsite-backup.sh` leaves a mark after each copy that worked)
 - `apps/web/src/agora/admin/AdminPage.jsx`, `apps/web/src/agora/admin/api.js`, `apps/web/src/agora/admin/AdminPage.test.js` (the admin area page; the Help desk page `HelpDeskPage.jsx` is now its Help desk tab)
 - `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
+- `apps/backend/migrations/20261019180000_add_agora_meetings_and_events.js`, `apps/backend/lib/agora/eventKinds.js`, `apps/backend/lib/agora/calendar.js`, `apps/backend/api/controllers/AgoraCalendarController.js`, `apps/backend/api/services/AgoraCalendar.js`, `apps/backend/test/unit/agora/meetingsAndEvents.test.js` (Meetings and Events, the calendar and its feed; the invitation email text is in `lib/agora/mailer.js`)
+- `apps/web/src/agora/calendar/api.js`, `CalendarPage.jsx`, `AgoraEventKindFields.jsx`, `AgoraKindLabel.jsx`, `CalendarPage.test.js`, `AgoraEventKindFields.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

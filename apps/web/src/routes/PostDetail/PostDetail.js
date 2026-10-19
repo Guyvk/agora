@@ -165,7 +165,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
     if (!isIsolatedPostView) return
     const postType = post?.type || 'post'
     setHeaderDetails({
-      title: post ? t(postType) + ': ' + (post.title || '') : t('Post loading...'),
+      title: post ? (postType === 'event' ? t(post.agoraKind === 'event' ? 'Event' : 'Meeting') : t(postType)) + ': ' + (post.title || '') : t('Post loading...'), // Agora: Meeting or Event
       icon: getPostTypeIcon(postType),
       info: '',
       search: false,
@@ -525,10 +525,10 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
 
   const meetingUrl = useMemo(() => {
     const link = post?.meetingLink?.trim()
-    // Agora: only the event's own meeting room, never an older link to another platform
-    if (!link || !/\/noo\/meeting\/\d+\/room\/?$/.test(link)) return null
+    // Agora: only a Meeting's own meeting room, never an older link to another platform. An Event has none
+    if (!link || post?.agoraKind === 'event' || !/\/noo\/meeting\/\d+\/room\/?$/.test(link)) return null
     return link.startsWith('http') ? link : `https://${link}`
-  }, [post?.meetingLink])
+  }, [post?.meetingLink, post?.agoraKind])
 
   const { acceptContributions, totalContributions } = post || {}
 
@@ -638,7 +638,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
             <div className='border-2 border-foreground/20 rounded-lg p-2 sm:p-3 flex flex-row gap-2 w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] mx-2 sm:mx-4 mb-2 justify-between border-dashed items-center'>
               <div className='flex items-center gap-2 text-sm'>
                 <Video className='w-4 h-4 shrink-0 text-foreground/50' />
-                {t('Join this event online')}
+                {t('Join this meeting online')}
               </div>
               <a
                 className='inline-block border-2 border-selected/20 rounded-lg p-2 px-4 hover:border-selected/100 transition-all text-selected text-sm whitespace-nowrap'
