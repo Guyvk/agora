@@ -356,7 +356,6 @@ function PostEditorInner ({
   const editorRef = useRef()
   const toFieldRef = useRef()
   const endTimeRef = useRef()
-  const meetingLinkInputRef = useRef()
 
   // Track the topic that was injected from the current route so we can
   // replace it when the route changes without touching user-added topics
@@ -1032,11 +1031,6 @@ function PostEditorInner ({
     setCurrentPost(prev => ({ ...prev, projectManagementLink }))
   }, [setCurrentPost])
 
-  const handleMeetingLinkChange = useCallback((evt) => {
-    const meetingLink = evt.target.value
-    setCurrentPost(prev => ({ ...prev, meetingLink }))
-  }, [setCurrentPost])
-
   const handleLocationChange = useCallback((locationObject) => {
     setCurrentPost(prev => ({
       ...prev,
@@ -1055,10 +1049,8 @@ function PostEditorInner ({
 
   const handleAddLinkPreview = useEventCallback((url, force) => {
     debouncedFetchLinkPreview(url, force, currentPost.linkPreview)
-    if (currentPost.type === 'event' && isMeetingUrl(url)) {
-      setCurrentPost(prev => (prev.meetingLink ? prev : { ...prev, meetingLink: url }))
-    }
-  }, [currentPost.linkPreview, currentPost.type, debouncedFetchLinkPreview, setCurrentPost])
+    // Agora: a pasted Zoom or Meet link no longer becomes the event's video call link
+  }, [currentPost.linkPreview, debouncedFetchLinkPreview])
 
   const handleAddTopic = useEventCallback((topic) => {
     setCurrentPost(prev => {
@@ -1116,7 +1108,7 @@ function PostEditorInner ({
    */
   const attachmentCount = imageAttachments.length + fileAttachments.length
   const isValid = useMemo(() => {
-    const { type, title, groups, startTime, endTime, donationsLink, projectManagementLink, meetingLink, proposalOptions } = currentPost
+    const { type, title, groups, startTime, endTime, donationsLink, projectManagementLink, location, proposalOptions } = currentPost
 
     const errorMessages = []
 
@@ -1125,8 +1117,9 @@ function PostEditorInner ({
         if (!endTime || !startTime || startTime >= endTime) {
           errorMessages.push(t('Valid start and end time required'))
         }
-        if (meetingLink?.length > 0 && !sanitizeURL(meetingLink)) {
-          errorMessages.push(t('Video call link must be a valid URL'))
+        // Agora: calls only in the event's meeting room, so no other platform's link as the location
+        if (isMeetingUrl(location)) {
+          errorMessages.push(t('Video calls use the event\'s own Agora meeting room. Please take the video call link out of the location.'))
         }
         break
       case 'project':
@@ -1159,7 +1152,7 @@ function PostEditorInner ({
     }
 
     return errorMessages.length === 0
-  }, [attachmentCount, hasDescription, currentPost.type, currentPost.title, currentPost.groups, currentPost.startTime, currentPost.endTime, currentPost.donationsLink, currentPost.projectManagementLink, currentPost.meetingLink, currentPost.proposalOptions])
+  }, [attachmentCount, hasDescription, currentPost.type, currentPost.title, currentPost.groups, currentPost.startTime, currentPost.endTime, currentPost.donationsLink, currentPost.projectManagementLink, currentPost.location, currentPost.proposalOptions])
 
   // const handleCancel = () => {
   //   if (onCancel) {
@@ -1194,7 +1187,6 @@ function PostEditorInner ({
         linkPreviewFeatured,
         skipLinkPreview,
         locationId,
-        meetingLink,
         members,
         projectManagementLink,
         proposalOptions,
@@ -1229,7 +1221,6 @@ function PostEditorInner ({
         location: postLocation,
         locationId
       })
-      const meetingLinkValue = meetingLinkInputRef.current?.value ?? meetingLink
 
       const postToSave = {
         id,
@@ -1259,7 +1250,7 @@ function PostEditorInner ({
         localId: uniqueId('post_'), // For optimistic display of the new post
         location: postLocation,
         locationId: actualLocationId,
-        meetingLink: sanitizeURL(meetingLinkValue?.trim()),
+        // Agora: no meetingLink is sent; the server always sets the event's meeting room
         memberIds,
         pending: true, // For optimistic display of the new post
         projectManagementLink: sanitizeURL(projectManagementLink),
@@ -1846,20 +1837,7 @@ function PostEditorInner ({
           />
         </div>
       )}
-      {currentPost.type === 'event' && (
-        <div className='flex items-center border-2 border-transparent transition-all bg-input rounded-md p-2 gap-2'>
-          <div className={cn('text-xs text-foreground/50 w-[100px]', { 'text-destructive': !!currentPost.meetingLink && !sanitizeURL(currentPost.meetingLink) })}>{t('Join link')}</div>
-          <input
-            type='text'
-            className='w-full outline-none border-none bg-transparent placeholder:text-foreground/50'
-            placeholder={t('Add a video call link (Zoom, Meet, Jitsi, etc.)')}
-            value={currentPost.meetingLink || ''}
-            onChange={handleMeetingLinkChange}
-            ref={meetingLinkInputRef}
-            disabled={loading}
-          />
-        </div>
-      )}
+      {/* Agora: no field for a video call link. Every event's call is its own Agora meeting room */}
       {currentPost.type === 'event' && (
         <div className='flex items-center border-2 border-transparent transition-all bg-input rounded-md p-2'>
           <div className='text-xs text-foreground/50 w-[100px]'>{t('Invite People')}</div>

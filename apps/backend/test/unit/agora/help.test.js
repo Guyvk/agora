@@ -19,7 +19,7 @@ const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
 
 const SAVED_ENV = {}
-const ENV_NAMES = ['ANTHROPIC_API_KEY', 'AGORA_HELPDESK_ADMINS', 'AGORA_VERSION', 'AGORA_HELP_CHAT_PER_HOUR', 'AGORA_HELP_REQUESTS_PER_DAY', 'AGORA_HELP_REPLY_EMAIL']
+const ENV_NAMES = ['ANTHROPIC_API_KEY', 'AGORA_HELPDESK_ADMINS', 'AGORA_ADMINS', 'AGORA_VERSION', 'AGORA_HELP_CHAT_PER_HOUR', 'AGORA_HELP_REQUESTS_PER_DAY', 'AGORA_HELP_REPLY_EMAIL']
 
 describe('Agora help', () => {
   let amara, lars, guy, unconfirmed, sleeping
@@ -116,6 +116,26 @@ describe('Agora help', () => {
         expect(await Help.isAdmin(guy.id)).to.equal(false)
       } finally {
         process.env.AGORA_HELPDESK_ADMINS = saved
+      }
+    })
+
+    it('also lets Agora admins (AGORA_ADMINS) run the Help desk, with the same rules', async () => {
+      const saved = process.env.AGORA_HELPDESK_ADMINS
+      try {
+        process.env.AGORA_HELPDESK_ADMINS = ''
+        process.env.AGORA_ADMINS = `${lars.id}, boss@agora.test, gone@agora.test`
+        expect(await Help.isAdmin(lars.id)).to.equal(true)
+        expect(await Help.isAdmin(unconfirmed.id)).to.equal(false)
+        expect(await Help.isAdmin(sleeping.id)).to.equal(false)
+        expect(await Help.isAdmin(guy.id)).to.equal(false)
+        // Both lists together
+        process.env.AGORA_HELPDESK_ADMINS = String(guy.id)
+        expect(await Help.isAdmin(guy.id)).to.equal(true)
+        expect(await Help.isAdmin(lars.id)).to.equal(true)
+        expect(await Help.isAdmin(amara.id)).to.equal(false)
+      } finally {
+        process.env.AGORA_HELPDESK_ADMINS = saved
+        delete process.env.AGORA_ADMINS
       }
     })
 
@@ -362,6 +382,7 @@ describe('Agora help', () => {
       expect(sent[0].model).to.equal('claude-haiku-5-5')
       expect(sent[0].tools[0].name).to.equal('file_request')
       expect(sent[0].system[0].text).to.contain('<guide>')
+      expect(sent[0].system[0].text).to.contain('Agora is by invitation. A steward of a circle invites you')
       expect(sent[0].messages).to.deep.equal([{ role: 'user', content: '[I am on the page /groups/7bp/playbook]\n\nHow do I join a circle?' }])
 
       const second = await chat(amara.id, { chatId: first.body.chatId, message: 'Thanks' })
@@ -373,6 +394,48 @@ describe('Agora help', () => {
       ])
       const count = await knex()('agora_help_requests').count('id as n').first()
       expect(Number(count.n)).to.equal(0)
+    })
+
+    describe('the guide', () => {
+      const savedGuideFile = process.env.AGORA_HELP_GUIDE_FILE
+      beforeEach(() => { delete process.env.AGORA_HELP_GUIDE_FILE })
+      after(() => { if (savedGuideFile === undefined) delete process.env.AGORA_HELP_GUIDE_FILE; else process.env.AGORA_HELP_GUIDE_FILE = savedGuideFile })
+
+      it('answers from the same guide members read, part by part in order, then the Help desk notes', () => {
+        const parts = require('../../../../web/src/agora/guide/guideParts.json').parts
+        const english = require('../../../../web/public/locales/en.json')
+        const prompt = HelpClaude.systemPrompt()
+        const guideText = prompt.slice(prompt.indexOf('<guide>'), prompt.indexOf('</guide>'))
+        let last = -1
+        parts.forEach(part => {
+          const at = guideText.indexOf(`## ${english[part.title]} (/guide#${part.id})`)
+          expect(at, part.id).to.be.above(last)
+          last = at
+          part.blocks.filter(b => b.text).forEach(b => expect(guideText).to.contain(english[b.text]))
+        })
+        expect(guideText).to.contain('Coming soon: A guest link')
+        expect(guideText).to.contain('- Link: Open Contacts (/contacts)')
+        // The notes come after the guide, and do not repeat it
+        const notes = guideText.indexOf('# More notes for Help')
+        expect(notes).to.be.above(last)
+        expect(guideText).to.contain('Forgot password?')
+        expect(guideText).not.to.contain('Click Help at the bottom right')
+      })
+
+      it('answers from AGORA_HELP_GUIDE_FILE instead, when it is set', () => {
+        const file = require('path').join(require('os').tmpdir(), `agora-help-guide-${process.pid}.md`)
+        require('fs').writeFileSync(file, 'Our own guide: the tea is in the kitchen.')
+        process.env.AGORA_HELP_GUIDE_FILE = file
+        try {
+          const prompt = HelpClaude.systemPrompt()
+          expect(prompt).to.contain('Our own guide: the tea is in the kitchen.')
+          expect(prompt).not.to.contain('Agora is by invitation')
+        } finally {
+          delete process.env.AGORA_HELP_GUIDE_FILE
+          require('fs').unlinkSync(file)
+        }
+        expect(HelpClaude.systemPrompt()).to.contain('Agora is by invitation')
+      })
     })
 
     it('uses the model in AGORA_HELP_MODEL', async () => {

@@ -87,7 +87,7 @@ import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook 
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
 import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
-import HelpDeskPage from '@/agora/help/HelpDeskPage' // Agora: the Help desk
+import AdminPage, { OldHelpDeskAddress } from '@/agora/admin/AdminPage' // Agora: the admin area, with the Help desk
 import ThreadList from 'routes/Messages/ThreadList'
 import MySpaceCollection from 'routes/MySpaceCollection'
 import MyTransactions from 'routes/MyTransactions'
@@ -1209,9 +1209,13 @@ export default function AuthLayoutRouter (props) {
                 <Route path='contacts/:contactId' element={<ContactsPage />} />
                 <Route path='contacts' element={<ContactsPage />} />
                 <Route path='guide' element={<GuidePage />} /> {/* Agora: the guide */}
-                {/* Agora: the Help desk, for its admins */}
-                <Route path='help-desk/:requestId' element={<HelpDeskPage />} />
-                <Route path='help-desk' element={<HelpDeskPage />} />
+                {/* Agora: the admin area, with the Help desk as a tab. The old Help desk addresses send people there */}
+                <Route path='admin/help-desk/:requestId' element={<AdminPage tab='help-desk' />} />
+                <Route path='admin/help-desk' element={<AdminPage tab='help-desk' />} />
+                <Route path='admin/:tab' element={<AdminPage />} />
+                <Route path='admin' element={<AdminPage />} />
+                <Route path='help-desk/:requestId' element={<OldHelpDeskAddress />} />
+                <Route path='help-desk' element={<OldHelpDeskAddress />} />
                 <Route path='post/:postId/*' element={<PostDetail />} />
                 {/* Keep old settings paths for mobile */}
                 <Route path='settings/*' element={<UserSettings />} />

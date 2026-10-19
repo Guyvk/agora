@@ -91,6 +91,16 @@ module.exports.routes = {
   'POST   /noo/meeting/:postId/segment':                  'MeetingController.segment',
   'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
   'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
+  // Agora: guest links. Making and closing one is for members (MeetingController);
+  // the guest's own room and calls need no login (MeetingGuestController)
+  'GET    /noo/meeting/:postId/guest-link':               'MeetingController.guestLink',
+  'POST   /noo/meeting/:postId/guest-link':               'MeetingController.createGuestLink',
+  'POST   /noo/meeting/:postId/guest-link/revoke':        'MeetingController.revokeGuestLink',
+  'GET    /noo/meeting/:postId/guest/:token':             'MeetingGuestController.page',
+  'POST   /noo/meeting/:postId/guest/:token/join':        'MeetingGuestController.join',
+  'POST   /noo/meeting/:postId/guest/:token/segment':     'MeetingGuestController.segment',
+  'GET    /noo/meeting/:postId/guest/:token/status':      'MeetingGuestController.status',
+  'POST   /noo/meeting/:postId/guest/:token/end':         'MeetingGuestController.end',
 
   // Agora files: a circle's Google Drive folder. Members may add files and folders
   'GET    /noo/agora/files/:groupSlug':                   'AgoraFilesController.page',
@@ -127,6 +137,20 @@ module.exports.routes = {
   'POST   /noo/agora/help/api/desk/:requestId/update':    'AgoraHelpController.deskUpdate',
   'POST   /noo/agora/help/api/desk/:requestId/reply':     'AgoraHelpController.deskReply',
   'POST   /noo/agora/help/api/desk/:requestId/build':     'AgoraHelpController.deskBuild',
+
+  // Agora admin dashboard (/admin in the web app): for Agora admins only, each action checks
+  'GET    /noo/agora/admin/api/me':                       'AgoraAdminController.me',
+  'GET    /noo/agora/admin/api/overview':                 'AgoraAdminController.overview',
+  'GET    /noo/agora/admin/api/invitations':              'AgoraAdminController.invitations',
+  'POST   /noo/agora/admin/api/invitations/:invitationId/resend': 'AgoraAdminController.resendInvitation',
+  'POST   /noo/agora/admin/api/invitations/:invitationId/revoke': 'AgoraAdminController.revokeInvitation',
+  'GET    /noo/agora/admin/api/joins':                    'AgoraAdminController.joins',
+  'GET    /noo/agora/admin/api/accounts':                 'AgoraAdminController.accounts',
+  'POST   /noo/agora/admin/api/accounts/let-in':          'AgoraAdminController.letIn',
+  'POST   /noo/agora/admin/api/accounts/:accountId/deactivate': 'AgoraAdminController.deactivate',
+  'POST   /noo/agora/admin/api/accounts/:accountId/reactivate': 'AgoraAdminController.reactivate',
+  'GET    /noo/agora/admin/api/system':                   'AgoraAdminController.system',
+  'GET    /noo/agora/admin/api/activity':                 'AgoraAdminController.activity',
 
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'

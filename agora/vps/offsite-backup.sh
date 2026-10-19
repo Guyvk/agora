@@ -184,6 +184,8 @@ upload() {
     fi
   done < <("${RC[@]}" lsf --dirs-only "${REMOTE}uploads" 2>/dev/null || true)
 
+  # A mark with the time of the last copy that worked, for the admin dashboard
+  touch "$BACKUP_DIR/.offsite-last-done" 2>/dev/null || true
   say "done for $day ($what) to $BUCKET, encrypted: $ENCRYPT, kept $KEEP_DAYS days, $removed old part(s) removed."
 }
 

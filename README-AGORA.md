@@ -10,7 +10,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 
 | Addition | What it does | Where the code lives |
 | --- | --- | --- |
-| Meetings that write their own minutes | Every event has a meeting room. While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js` |
+| Meetings that write their own minutes | Every event has a meeting room, and video calls always go through it (no Zoom or other links). While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group. People without an account can join through a guest link | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/controllers/MeetingGuestController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `scripts/agora-meeting-links.js` |
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
@@ -21,6 +21,8 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
 | Terms of use and Privacy notice | Agora's own pages at `/terms` and `/privacy`, readable without logging in. The login, sign-up and help links point there instead of hylo.com. Both are drafts until 7BP approves them | `apps/web/src/agora/legal/`, texts in `apps/web/public/locales/en.json` |
 | Help and the Help desk | A Help button at the bottom right of every page, where people report faults, wishes and questions. The Help desk is where the team works through them, answers, and turns them into builder tasks | `apps/web/src/agora/help/`, `apps/backend/lib/agora/help.js`, `apps/backend/api/controllers/AgoraHelpController.js` |
+| Admin area | A page at `/admin` for the people who run Agora: the main numbers, the Help desk, every invitation and what became of it, all accounts with "Let someone in" and switching accounts off and on, the system and its backups, and the latest events | `apps/web/src/agora/admin/`, `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/api/controllers/AgoraAdminController.js` |
+| A free chat list | Hylo's chat used a paid list component (`@virtuoso.dev/message-list`) that shows nothing without a licence key. Agora has its own small list: newest at the bottom, it opens at the last message read, older messages load when scrolling up without the page jumping, and it follows new messages while you are at the bottom | `apps/web/src/agora/chat/AgoraMessageList.jsx` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -68,7 +70,15 @@ It installs PostgreSQL 17 with PostGIS, Redis and Node 24, creates the databases
 
 Open any event and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
 
-When you schedule an event and leave its video call link empty, Agora fills in the event's meeting room. That link then also appears in invitations, emails and calendar entries, so everyone lands in the same room. If you type a link of your own, for example for Zoom, Agora leaves it alone. This only happens when `AGORA_MEET_DOMAIN` is set. Events made before this was added keep an empty link until they are edited.
+Video calls in Agora always go through the event's own meeting room. There is no field for a video call link on an event: Agora gives every event its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The event form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as an event's location. When `AGORA_MEET_DOMAIN` is empty there is no call server, so events have no video call link at all.
+
+**Older events.** Events made before this can still have a Zoom link, or no link. One command, in `apps/backend` (on the server: `/srv/agora/apps/backend`, as the `agora` user), shows what it would change and saves nothing:
+
+```
+node scripts/agora-meeting-links.js
+```
+
+Then the same with `--apply` makes the changes: every event gets its meeting room as its link, and an event whose location is only a video call link gets an empty location. A location with more in it (an address and a Zoom link) is listed, for a steward to change by hand. Nobody gets an email; calendars show the meeting room once the worker has made the calendar files again. Running it a second time changes nothing.
 
 How it works:
 
@@ -83,7 +93,7 @@ Three settings in `apps/backend/.env` switch this on:
 | --- | --- |
 | `AGORA_TRANSCRIPTION_URL` and `AGORA_TRANSCRIPTION_KEY` | The address and key of a speech-to-text service. Any service that follows the OpenAI format works, for example Infomaniak AI Tools (Whisper, hosted in Switzerland) |
 | `ANTHROPIC_API_KEY` | A key from a Claude developer account, for writing the minutes |
-| `AGORA_MEET_DOMAIN` | The Jitsi server for the call. Leave empty to open the event's own video link in a second window |
+| `AGORA_MEET_DOMAIN` | The Jitsi server for the call: `kmeet.infomaniak.com` (kMeet by Infomaniak). Every call runs here. If the call cannot be shown inside the room, the room offers the same kMeet room in a second window. Leave empty only to have no video calls at all: then events have no video call link, and the room only writes notes for people sitting together |
 
 Without the first, meetings work but no notes are written. Without the second, you get the transcript without a summary.
 
@@ -93,6 +103,31 @@ Things to know:
 - **Phones.** The room is laid out for phones, but recording next to a call has not been tested on phone browsers yet.
 - **kMeet.** Showing kMeet inside another page works today, but Infomaniak does not document it as a supported use. If it stops working, set another Jitsi server.
 - **Consent.** People choose on entering whether their voice is in the notes, and can pause at any time. Agree as a group that meetings are transcribed before using this for real.
+
+## Guests in a meeting
+
+Members can invite people who have no Agora account into a meeting, so the call still happens in Agora.
+
+**Making a link.** Open the event. The person who made the event and the stewards of its circle (anyone with Administration or Manage Content there) see a box "Guests from outside Agora" under the event. **Make a guest link** shows the link with a **Copy** button. Send it to the guests by email or chat. Other members do not see the box.
+
+- Agora keeps only a fingerprint (a sha256 hash) of the link, never the link itself. So the link is shown only once, right after it is made. If it is lost, make a new one: the old one stops working at once, and guests who came in through it are sent out within seconds.
+- The link works until two hours after the event ends (an event without an end time counts as one hour long). Change the event's time before making the link, or make a new link after changing it.
+- **Revoke** closes the link. Guests in the call are sent out within seconds.
+- There is one link per event. It only works while members are in the meeting: a guest who comes early waits, and the page tries again by itself.
+- Guest links need the call inside Agora (`AGORA_MEET_DOMAIN`). Without it the box says so.
+
+**What the guest sees.** The link opens a page that asks for their name (at most 60 letters, digits and spaces) and explains, in plain words, that the meeting is held in Agora by 7 Billion Presidents, that if they agree their speech is turned into text by Infomaniak (Switzerland), that the minutes are written by Claude (Anthropic, United States) and posted inside the circle with their name followed by "(guest)". They choose **Join, and agree to be in the notes** or **Join without being in the notes**. Without the notes their microphone is never recorded by Agora. Then they get the same kMeet call as members, with "(guest)" after their name. They see the call and a Leave button. They never see the notes, the transcript, the minutes, the event page or anything else in Agora.
+
+**What members see.** Guests appear in the "Here:" line and in the notes as "Name (guest)". The minutes post lists them on a separate line, "Guests (joined through the guest link, not members of Agora)".
+
+**Safety checks** (in `lib/agora/meetingGuests.js` and `api/controllers/MeetingGuestController.js`, tested in `test/unit/agora/meetingGuests.test.js`):
+
+- The link's secret is 32 random bytes. It is checked against the stored hash in constant time. Wrong, old, revoked and expired links are refused.
+- Each guest who joins gets a second secret of their own, so one guest cannot speak under another guest's name.
+- Guests can only do five things: open the page, join, send their own speech (only if they agreed), ask whether the meeting is still going, and leave. Leaving never ends the meeting for others. The member calls (notes, ending the meeting, making links) still need a login.
+- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
+- The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
+- The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
 
 ## Google Drive
 
@@ -186,7 +221,7 @@ The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left e
 sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-allow-signup.js someone@example.org
 ```
 
-It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below.
+It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below. Once you are an Agora admin, **Let someone in** in the admin area does the same from the page (see "Admin area").
 
 **When a steward cannot invite.** If a steward is told "You don't have permission to create an invitation", the database lacks the list of what stewards may do. A new database made from Hylo's `schema.sql` has the tables but not that list. The setup and update scripts add it, and also repair circles that were made without it. To do it by hand, in `/srv/agora/apps/backend`:
 
@@ -207,14 +242,15 @@ Each group has a playbook page at `/groups/<group>/playbook`, for example `/grou
 
 ## Guide and welcome steps
 
-The guide is a page in Agora at `/guide`. It explains in short parts what Agora is for 7BP: circles and joining by invitation, posts, discussions and proposals, events and the meeting room with its notes, files in Google Drive, the playbook, contacts, notifications and email digests, your profile, where to get help (the Help button at the bottom right and the Help desk), and the Terms of use and Privacy notice. Parts that are not live yet (a guest link for meetings, Google Drive, Agora's own mailbox) say "Coming soon". Change the guide when something new goes live: its texts are in `apps/web/src/agora/guide/GuidePage.jsx` and in the language files.
+The guide is a page in Agora at `/guide`. It explains in short parts what Agora is for 7BP: circles and joining by invitation, posts, discussions and proposals, events and the meeting room with its notes, files in Google Drive, the playbook, contacts, notifications and email digests, your profile, where to get help (the Help button at the bottom right and the Help desk), and the Terms of use and Privacy notice. Parts that are not live yet (a guest link for meetings, Google Drive, Agora's own mailbox) say "Coming soon". Change the guide when something new goes live: its parts, in order, are in `apps/web/src/agora/guide/guideParts.json`, and their words in the language files. The same parts show in the Help window, and Claude in Help answers from them, so one change reaches all three.
 
 People find it:
 
 - in the question mark menu in the bar on the left (it replaces the link to Hylo's own user guide), and in the tab bar's help menu;
 - in the gear menu in the same bar, under Agora guide;
 - on the last page of the sign-up wizard, as the first card;
-- in the welcome steps.
+- in the welcome steps;
+- in the Help window, under Guide, which is what Help opens on.
 
 The welcome steps are a small box at the top of the page for a new member, with four steps: fill in your profile, open your circle, read the guide, say hi in your circle. Each step is ticked off by itself: the profile when it has a line about you or a bio, the circle once any circle has been opened, the guide once it has been opened, saying hi once its link to the circle's chat has been used. The box goes away when all four are done, or when the person closes it with the cross. Agora remembers that with the account, in Hylo's own list of guided tours someone has seen (the `toursSeen` setting), so it does not come back on another device and needs no change to the server. The box is not shown on maps, in messages, in settings or during the sign-up wizard.
 
@@ -230,39 +266,85 @@ The words are in `apps/web/public/locales/en.json`, under keys that start with `
 
 ## Help and the Help desk
 
-Everyone who is logged in sees a **Help** button at the bottom right of every page. It opens a small window where people tell, in their own words, what is wrong, what they wish for, or what they want to know. Agora adds by itself: the page they were on (without the part after a `?`, which can hold codes), their browser, their screen size, the version of Agora and who they are. Under **My requests** they see what they sent, its status and the answers from the team, and they can add to it. A number on the button shows new answers.
+Everyone who is logged in sees a **Help** button at the bottom right of every page. It opens a small window on the **Guide**: a search box and the parts of the guide as a short list. Clicking a part shows its text in the window, with "Open the full guide" to that part on the guide page (`/guide#<part>`). Under the list, **Still stuck? Tell us** leads to the form or the chat. There people tell, in their own words, what is wrong, what they wish for, or what they want to know. Agora adds by itself: the page they were on (without the part after a `?`, which can hold codes), their browser, their screen size, the version of Agora and who they are. Under **My requests** they see what they sent, its status and the answers from the team, and they can add to it. A number on the button shows new answers.
+
+Other pages can open Help on a given view with `openHelp()` from `apps/web/src/agora/help/openHelp.js`: `openHelp({ view: 'guide', part: 'events' })` for one part of the guide, `openHelp({ view: 'new' })` for the form or chat, `openHelp({ view: 'mine' })` for My requests. The **Open Help** button in the guide's Getting help part uses it.
 
 There are two ways to send a request:
 
 - **The plain form** (always there): what it is about (something is wrong, a wish, a question), what happened, what they expected, and how urgent it is.
-- **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from Agora's guide (`apps/backend/lib/agora/helpGuide.md`). For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
+- **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from the same guide members read: the first time someone chats, the server reads the parts from `apps/web/src/agora/guide/guideParts.json`, in order, with their English words from `apps/web/public/locales/en.json` (see `apps/backend/lib/agora/helpGuideText.js`). After the guide come a few extra notes for Help in `apps/backend/lib/agora/helpGuide.md`, things the guide leaves out, such as where the settings are. Put anything members should read in the guide itself, not in those notes. For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
 
-**The Help desk** is at `/help-desk` (for example http://localhost:3000/help-desk). Help desk admins also find a "Help desk" link in their Help window. There they:
+What people send ends up in the **Help desk**, a tab of the admin area (see "Admin area" below). A request can be read only by the person who sent it and by the people who run the Help desk. The server checks this for every request.
 
-- see every request, filtered by status (new, looking at it, being built, fixed, won't do) and type, with how many there are of each;
-- open one to read it with the chat, who sent it, the page, browser, screen and version;
-- change the status, and keep an internal note that only the Help desk sees;
-- answer the person. The answer shows in their Help window, and they get an email (through Agora's own email sender, so on a Mac it is printed in the Terminal). A change of status also shows as new in their window, without an email;
-- use **Build this**: it marks the request as being built and stores a short task for a builder, without names or personal details, ready to copy. Type the task yourself, or, for a request that came from a chat with Claude, leave the box empty and Claude writes it; the person's name and email address are taken out before anything goes to Claude. A request from the plain form is never sent to Claude. Agora warns when a task seems to name the person. A field holds a link to wherever the task ends up. Nothing is posted anywhere else yet.
-
-Who may see what: a request can be read only by the person who sent it and by Help desk admins. The internal note and the builder task are for the Help desk only. The server checks this for every request.
-
-Settings in `apps/backend/.env`:
+Settings in `apps/backend/.env` (who runs the Help desk: see "Admin area"):
 
 | Setting | What it does |
 | --- | --- |
-| `AGORA_HELPDESK_ADMINS` | Who runs the Help desk: user ids or email addresses, separated by commas, for example `1,guy@example.org`. An email address only counts for an active account whose address is confirmed. Ids are the surest. Empty means nobody can open the Help desk (requests are still kept) |
 | `ANTHROPIC_API_KEY` | A key from a Claude developer account. Without it, Help is the plain form |
 | `AGORA_HELP_MODEL` | The Claude model for Help. Default `claude-haiku-5-5`, small and fast |
 | `AGORA_HELP_CHAT_PER_HOUR` | Chat messages per person per hour, default 30 |
 | `AGORA_HELP_REQUESTS_PER_DAY` | New requests per person per day, default 20 |
 | `AGORA_HELP_REPLY_EMAIL` | `off` sends no email when the Help desk answers |
-| `AGORA_HELP_GUIDE_FILE` | Another guide for Claude to answer from, instead of `helpGuide.md` |
+| `AGORA_HELP_GUIDE_FILE` | Another file for Claude to answer from, instead of the guide and `helpGuide.md` together |
 | `AGORA_VERSION` | The version stored with each request. Without it, the git commit Agora runs from |
 
-To find your own user id: open your profile in Agora; the number in the address (`/members/<number>`) is your id.
-
 After updating to a version with Help, run `cd apps/backend && yarn migrate` once, which adds the three tables (`agora_help_requests`, `agora_help_replies`, `agora_help_chats`), and `yarn install` for Anthropic's library.
+
+## Admin area
+
+The admin area is a page in Agora at `/admin` (for example https://agora.guyvankoolwijk.nl/admin), for the people who run Agora. They find it in the gear menu in the bar on the left, under **Admin**. Everyone else does not see the link, and the page tells them it does not exist. The server checks this for every request.
+
+### Who gets in
+
+Two settings in `apps/backend/.env`, each a list of user ids or email addresses separated by commas, for example `1,guy@example.org`:
+
+| Setting | Who | What they see |
+| --- | --- | --- |
+| `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
+| `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
+
+For both: the account must be switched on, and an email address only counts when the account has confirmed it, so nobody gets in by signing up with an address from the list. Ids are the surest. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+
+### The six tabs
+
+- **Overview**: how many members (accounts that are switched on), new sign-ups in the last 7 and 30 days, circles, people who were active in the last 7 days (logged in or used Agora), invitations and join requests that wait, and the meetings of this month with the minutes of sound that went to speech to text. The cost next to it is an estimate at 0.006 per minute; the real bill comes from Infomaniak. A Help desk box shows the open requests per status and the newest few, each a link into the Help desk tab.
+- **Help desk** (`/admin/help-desk`; the old address `/help-desk` still works and leads there). People who run the Help desk also find a "Help desk" link in their own Help window. There they:
+  - see every request, filtered by status (new, looking at it, being built, fixed, won't do) and type, with how many there are of each;
+  - open one to read it with the chat, who sent it, the page, browser, screen and version;
+  - change the status, and keep an internal note that only the Help desk sees;
+  - answer the person. The answer shows in their Help window, and they get an email (through Agora's own email sender, so on a Mac it is printed in the Terminal). A change of status also shows as new in their window, without an email;
+  - use **Build this**: it marks the request as being built and stores a short task for a builder, without names or personal details, ready to copy. Type the task yourself, or, for a request that came from a chat with Claude, leave the box empty and Claude writes it; the person's name and email address are taken out before anything goes to Claude. A request from the plain form is never sent to Claude. Agora warns when a task seems to name the person. A field holds a link to wherever the task ends up. Nothing is posted anywhere else yet.
+
+  The internal note and the builder task are for the Help desk only.
+- **Invitations**: every circle invitation in one list, with its circle, who sent it, when it was made and last sent, how often it was sent, and what became of it: waiting, accepted (by whom and when) or expired or withdrawn. Filter by status and circle. For a waiting invitation: copy its link, send it again (Hylo's own invitation email) or withdraw it. Below that, each circle's join link (to copy) and the join requests that wait. Hylo does not record who joined through a join link, so the page shows how many members joined without an email invitation (through the join link, a join request, or added by a steward).
+- **Accounts**: everyone with an account, with email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
+- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
+- **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended and Help desk requests. It is put together from what Agora already stores, so it needs nothing new.
+
+### Let someone in
+
+On the Accounts tab, **Let someone in** does what `scripts/agora-allow-signup.js` does, from the page. Type an email address, and choose a circle if you like:
+
+- **with a circle**, Agora makes an invitation to that circle, the same as a steward's invitation. Its link lets the person make an account and join the circle. It keeps working until it is used or withdrawn;
+- **without a circle**, Agora makes a sign-up link that works for 4 hours, the same one the script prints.
+
+The page shows the link to copy. While Agora has no mailbox, emails only go into the server log, and the page says "Send it yourself: Agora cannot email yet". Keep a sign-up link private: whoever opens it can make the account for that address. Someone who already has an account is told so; they can log in.
+
+The admin area cannot log in as someone else and cannot delete accounts. Hylo's own staff admin (`/noo/admin`) is separate and stays unused.
+
+The time of the last copy away from the server comes from a small mark file that `agora/vps/offsite-backup.sh` leaves in `/var/backups/agora` after each copy that worked, so it shows after the first night with this version.
+
+### After updating to a version with the admin area
+
+**Important:** until now the server only had `AGORA_HELPDESK_ADMINS=1`. That still opens the Help desk tab, but nothing else. To keep Guy in charge of the whole admin area:
+
+1. Open the settings file: `sudo -u agora nano /srv/agora/apps/backend/.env`
+2. Add the line `AGORA_ADMINS=1` (1 is Guy's user id; add more ids with commas). The line `AGORA_HELPDESK_ADMINS=1` may stay. Save with Ctrl+O and Enter, and close with Ctrl+X.
+3. Restart: `sudo systemctl restart agora-api agora-worker`
+4. Open `/admin` in Agora. If only the Help desk tab shows, `AGORA_ADMINS` is missing or has the wrong id.
+
+No database change is needed.
 
 ## Email
 

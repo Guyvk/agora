@@ -1,7 +1,8 @@
 // Agora: the guide page.
 import React from 'react'
 import orm from 'store/models'
-import { AllTheProviders, render, screen, within } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, render, screen, within, fireEvent } from 'util/testing/reactTestingLibraryExtended'
+import { OPEN_HELP_EVENT } from '../help/openHelp'
 import GuidePage from './GuidePage'
 import WelcomeSteps from './WelcomeSteps'
 
@@ -53,11 +54,24 @@ describe('GuidePage', () => {
     expect(screen.getByRole('link', { name: 'Open Contacts' })).toHaveAttribute('href', '/contacts')
     expect(screen.getByRole('link', { name: 'Choose my notifications' })).toHaveAttribute('href', '/my/notifications')
     expect(screen.getByRole('link', { name: 'Fill in my profile' })).toHaveAttribute('href', '/my/edit-profile')
-    expect(screen.getByText(/Click Help at the bottom right of any page/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
     // Meeting notes are live, so they are explained, not promised
     expect(screen.getByText(/posts the transcript and a short summary/)).toBeInTheDocument()
+  })
+
+  it('opens the Help window from Getting help', () => {
+    const opened = jest.fn()
+    window.addEventListener(OPEN_HELP_EVENT, opened)
+    try {
+      render(<GuidePage />, { wrapper: providers() })
+      expect(screen.getByText(/Open Help, with the button below/)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Open Help' }))
+      expect(opened).toHaveBeenCalledTimes(1)
+      expect(opened.mock.calls[0][0].detail).toEqual({ view: 'new', part: null })
+    } finally {
+      window.removeEventListener(OPEN_HELP_EVENT, opened)
+    }
   })
 
   it('points to the list of circles for someone without one', () => {

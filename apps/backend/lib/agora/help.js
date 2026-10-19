@@ -15,8 +15,9 @@
  *     admins. Everyone else is told it does not exist;
  *   - the internal note and the builder task are for admins only;
  *   - Help desk admins are listed in AGORA_HELPDESK_ADMINS (user ids, or
- *     email addresses of accounts whose address is confirmed). Without that
- *     setting nobody can open the Help desk.
+ *     email addresses of accounts whose address is confirmed). Agora admins
+ *     (AGORA_ADMINS) run the Help desk too. Without either setting nobody can
+ *     open the Help desk.
  *
  * Settings (see .env.example):
  *   AGORA_HELPDESK_ADMINS        who runs the Help desk, e.g. "1,guy@example.org"
@@ -26,6 +27,7 @@
  */
 import { execFileSync } from 'child_process'
 import HelpClaude from './helpClaude'
+import Admins from './admins'
 
 const STATUSES = ['new', 'looking', 'building', 'fixed', 'wont_do']
 const TYPES = ['fault', 'wish', 'question']
@@ -50,25 +52,13 @@ const knex = () => bookshelf.knex
 /* Who is who                                                               */
 /* ----------------------------------------------------------------------- */
 
-function adminList () {
-  return String(process.env.AGORA_HELPDESK_ADMINS || '')
-    .split(',')
-    .map(entry => entry.trim().toLowerCase())
-    .filter(Boolean)
-}
-
 /**
  * True for a Help desk admin: an active account whose id is in
- * AGORA_HELPDESK_ADMINS, or whose confirmed email address is.
+ * AGORA_HELPDESK_ADMINS or AGORA_ADMINS, or whose confirmed email address is
+ * (see admins.js).
  */
-async function isAdmin (userId) {
-  if (!userId) return false
-  const list = adminList()
-  if (list.length === 0) return false
-  const user = await knex()('users').where({ id: userId }).first('id', 'email', 'active', 'email_validated')
-  if (!user || user.active === false) return false
-  if (list.includes(String(user.id))) return true
-  return Boolean(user.email_validated && user.email && list.includes(String(user.email).toLowerCase()))
+function isAdmin (userId) {
+  return Admins.isHelpDeskAdmin(userId)
 }
 
 /* ----------------------------------------------------------------------- */
@@ -637,5 +627,6 @@ module.exports = {
   cleanContext,
   readableConversation,
   scrub,
-  resetChatLimits
+  resetChatLimits,
+  appVersion
 }

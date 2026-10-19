@@ -1,6 +1,7 @@
-import fs from 'fs'
-import path from 'path'
-import { isMeetingRoomUrl } from '../../lib/agora/meetingLink'
+import {
+  renderRoom, meetDomain, webUrl, setRoomHeaders, fromAgoraPage, receiveSegment
+} from '../../lib/agora/meetingRoom'
+import { canManageGuestLink, createLink, revokeLink, findLink, guestLabel, defaultExpiry } from '../../lib/agora/meetingGuests'
 
 /**
  * Agora meetings.
@@ -12,56 +13,9 @@ import { isMeetingRoomUrl } from '../../lib/agora/meetingLink'
  *
  * Settings (see .env.example):
  *   AGORA_MEET_DOMAIN   the Jitsi server that hosts the call, e.g. kmeet.infomaniak.com.
- *                       Leave empty to use the event's own video link in a second window.
+ *                       Calls always run here: the room never opens another
+ *                       platform's link. Empty means no call, only the notes.
  */
-
-const MAX_SEGMENT_BYTES = 4 * 1024 * 1024
-const MAX_SEGMENT_MS = 120000
-const MAX_SEGMENTS_PER_PERSON = 3000
-
-const ROOM_TEMPLATE_PATH = path.join(__dirname, '..', '..', 'agora', 'meeting-room.html')
-let roomTemplate = null
-
-function loadRoomTemplate () {
-  if (!roomTemplate || process.env.NODE_ENV === 'development') {
-    roomTemplate = fs.readFileSync(ROOM_TEMPLATE_PATH, 'utf8')
-  }
-  return roomTemplate
-}
-
-function meetDomain () {
-  return (process.env.AGORA_MEET_DOMAIN || '').trim().replace(/^https?:\/\//, '').replace(/\/+$/, '')
-}
-
-function webUrl (pathname) {
-  return `${process.env.PROTOCOL}://${process.env.DOMAIN}${pathname}`
-}
-
-function readBody (req, limit) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    let size = 0
-    let tooLarge = false
-    req.on('data', chunk => {
-      size += chunk.length
-      if (size > limit) {
-        tooLarge = true
-        return
-      }
-      chunks.push(chunk)
-    })
-    req.on('end', () => tooLarge ? reject(new Error('too large')) : resolve(Buffer.concat(chunks)))
-    req.on('error', reject)
-  })
-}
-
-/**
- * Every call that changes something must carry this header. A form on another
- * website cannot send it, so the calls cannot be triggered from outside Agora.
- */
-function fromAgoraPage (req) {
-  return req.headers['x-agora'] === '1'
-}
 
 async function loadEvent (req, res) {
   const postId = req.param('postId')
@@ -110,6 +64,19 @@ async function statusPayload (post, session, userId) {
     .orderBy('meeting_participants.joined_at', 'asc')
     .select('users.id', 'users.name', 'meeting_participants.notes_consent')
 
+  // Guests who are still here, each name once (a guest who reloads the page joins again).
+  const guestRows = await bookshelf.knex('meeting_guests')
+    .where({ session_id: session.id })
+    .whereNull('left_at')
+    .orderBy('joined_at', 'asc')
+    .select('name', 'notes_consent')
+  const guests = []
+  for (const g of guestRows) {
+    const existing = guests.find(x => x.name === g.name)
+    if (existing) existing.notes = g.notes_consent
+    else guests.push({ name: g.name, notes: g.notes_consent })
+  }
+
   return {
     status: session.get('status'),
     sessionId: String(session.id),
@@ -118,6 +85,17 @@ async function statusPayload (post, session, userId) {
     failing: Number(troubled.count),
     minutesUrl,
     people: people.map(p => ({ id: String(p.id), name: p.name, notes: p.notes_consent, me: String(p.id) === String(userId) }))
+      .concat(guests.map(g => ({ id: null, name: guestLabel(g.name), notes: g.notes, guest: true, me: false })))
+  }
+}
+
+/** What the event page shows about the guest link to someone who may manage it. */
+function guestLinkPayload (row) {
+  if (!row || row.revoked_at) return null
+  return {
+    expiresAt: row.expires_at,
+    expired: new Date(row.expires_at).getTime() <= Date.now(),
+    createdAt: row.updated_at || row.created_at
   }
 }
 
@@ -142,8 +120,6 @@ module.exports = {
       title: post.get('name') || 'Meeting',
       groupName: group ? group.get('name') : '',
       eventUrl: Frontend.Route.post(post, group),
-      // The event's own video call link, unless that link is this room itself
-      meetingLink: isMeetingRoomUrl(post.get('meeting_link')) ? '' : (post.get('meeting_link') || ''),
       api: `/noo/meeting/${post.id}`,
       meetDomain: domain,
       me: { id: String(user.id), name: user.get('name') },
@@ -151,16 +127,8 @@ module.exports = {
       assistantReady: MeetingMinutes.isConfigured()
     }
 
-    // A function is used so that "$" in a title is not read as a replace pattern.
-    const bootJson = JSON.stringify(boot).replace(/</g, '\\u003c')
-    const html = loadRoomTemplate().replace('"__AGORA_BOOT__"', () => bootJson)
-
-    // The call runs inside a frame from another site, which needs to be told
-    // that it may use the camera and the microphone.
-    const frameOrigin = domain ? ` "https://${domain}"` : ''
-    res.set('Permissions-Policy', `camera=(self${frameOrigin}), microphone=(self${frameOrigin}), display-capture=(self${frameOrigin})`)
-    res.set('Cache-Control', 'no-store')
-    res.type('html').send(html)
+    setRoomHeaders(res)
+    res.type('html').send(renderRoom(boot))
   },
 
   /**
@@ -202,57 +170,7 @@ module.exports = {
       return res.status(403).send({ error: 'Your voice is not part of the notes for this meeting.' })
     }
 
-    // Without speech to text there is nothing to do with sound, so none is accepted or kept.
-    if (!Transcription.isConfigured()) {
-      return res.status(503).send({ error: 'Speech to text is not connected, so nothing is recorded.' })
-    }
-
-    const durationMs = Math.round(Number(req.query.durationMs))
-    if (!(durationMs > 0) || durationMs > MAX_SEGMENT_MS) {
-      return res.status(400).send({ error: 'The timing of this piece of speech is not valid.' })
-    }
-    // The time comes from the speaker's own computer, whose clock can be off.
-    // Rather than lose the speech, a time that cannot be right is replaced by
-    // the moment it arrived here.
-    let spokenAt = new Date(Number(req.query.spokenAt))
-    const earliest = new Date(session.get('started_at')).getTime() - 60000
-    if (isNaN(spokenAt) || spokenAt.getTime() < earliest || spokenAt.getTime() > Date.now() + 60000) {
-      spokenAt = new Date(Date.now() - durationMs)
-    }
-
-    const count = await bookshelf.knex('meeting_segments')
-      .where({ session_id: session.id, user_id: userId })
-      .count('id as count')
-      .first()
-    if (Number(count.count) >= MAX_SEGMENTS_PER_PERSON) {
-      return res.status(429).send({ error: 'Too much speech was sent for one meeting.' })
-    }
-
-    let audio
-    try {
-      audio = await readBody(req, MAX_SEGMENT_BYTES)
-    } catch (err) {
-      return res.status(413).send({ error: 'This piece of speech is too large.' })
-    }
-    if (audio.length < 200) return res.status(400).send({ error: 'No sound was received.' })
-
-    const mimeType = String(req.headers['content-type'] || 'audio/webm').slice(0, 100)
-    if (!mimeType.startsWith('audio/')) return res.status(415).send({ error: 'Only sound is accepted here.' })
-
-    const segment = await new MeetingSegment({
-      session_id: session.id,
-      user_id: userId,
-      spoken_at: spokenAt,
-      duration_ms: durationMs,
-      mime_type: mimeType,
-      audio,
-      status: MeetingSegment.Status.PENDING
-    }).save()
-
-    await MeetingSession.touch(session.id)
-    await Queue.classMethod('MeetingSegment', 'transcribe', { segmentId: segment.id }, 0)
-
-    res.ok({ id: String(segment.id), transcribing: true })
+    return receiveSegment({ req, res, session, speaker: { user_id: userId } })
   },
 
   /**
@@ -291,5 +209,60 @@ module.exports = {
 
     await MeetingSession.end({ sessionId: session.id, userId: req.session.userId })
     res.ok({ status: MeetingSession.Status.CLOSING })
+  },
+
+  /**
+   * The guest link of this event, for the event page. Only the person who made
+   * the event and the circle's stewards see it; everyone else gets canManage: false.
+   * The link itself is never shown again after it was made: Agora keeps only its hash.
+   */
+  guestLink: async function (req, res) {
+    const post = await loadEvent(req, res)
+    if (!post) return
+    res.set('Cache-Control', 'no-store')
+    if (!(await canManageGuestLink(req.session.userId, post))) return res.ok({ canManage: false })
+    res.ok({
+      canManage: true,
+      available: !!meetDomain(),
+      link: guestLinkPayload(await findLink(post.id))
+    })
+  },
+
+  /**
+   * Makes a new guest link, replacing the old one (which stops working).
+   */
+  createGuestLink: async function (req, res) {
+    if (!fromAgoraPage(req)) return res.status(400).send({ error: 'Bad request.' })
+    const post = await loadEvent(req, res)
+    if (!post) return
+    if (!(await canManageGuestLink(req.session.userId, post))) {
+      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+    }
+    if (!meetDomain()) {
+      return res.status(503).send({ error: 'Guest links need the call inside Agora, which is not switched on here (AGORA_MEET_DOMAIN).' })
+    }
+    if (defaultExpiry(post).getTime() <= Date.now()) {
+      return res.status(409).send({ error: 'This event ended more than two hours ago, so a guest link would not work any more.' })
+    }
+    const { secret } = await createLink({ post, userId: req.session.userId })
+    res.set('Cache-Control', 'no-store')
+    res.ok({
+      url: webUrl(`/noo/meeting/${post.id}/guest/${secret}`),
+      link: guestLinkPayload(await findLink(post.id))
+    })
+  },
+
+  /**
+   * Closes the guest link. Guests in the call are sent out within seconds.
+   */
+  revokeGuestLink: async function (req, res) {
+    if (!fromAgoraPage(req)) return res.status(400).send({ error: 'Bad request.' })
+    const post = await loadEvent(req, res)
+    if (!post) return
+    if (!(await canManageGuestLink(req.session.userId, post))) {
+      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+    }
+    await revokeLink(post.id)
+    res.ok({ link: null })
   }
 }

@@ -5,13 +5,7 @@ import orm from 'store/models'
 import ChatRoom from './ChatRoom'
 import { chatRoomPageParams, chatShowsDayLabel, computeChatInitialScrollIndex, isPersistedChatPostId, samePostId } from './chatRoomUtils'
 
-jest.mock('@virtuoso.dev/message-list', () => ({
-  VirtuosoMessageList: () => <div data-testid='virtuoso-message-list' />,
-  VirtuosoMessageListLicense: ({ children }) => <div>{children}</div>,
-  useCurrentlyRenderedData: () => [],
-  useVirtuosoLocation: () => ({ bottomOffset: 0, listOffset: 0 }),
-  useVirtuosoMethods: () => ({ scrollToItem: jest.fn() })
-}))
+// Agora: the chat list is our own AgoraMessageList now (no paid library to mock)
 
 jest.mock('client/websockets.js', () => ({
   getSocket: () => ({

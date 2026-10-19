@@ -48,7 +48,7 @@ function fakeServer ({ forbidden = false } = {}) {
 
 function renderAt (requestId) {
   useParams.mockReturnValue(requestId ? { requestId } : {})
-  return render(<HelpDeskPage />, { wrapper: AllTheProviders({}, ['/help-desk']) })
+  return render(<HelpDeskPage />, { wrapper: AllTheProviders({}, ['/admin/help-desk']) })
 }
 
 describe('HelpDeskPage', () => {

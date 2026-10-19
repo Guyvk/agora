@@ -1,0 +1,124 @@
+{
+  "about": "Agora: the parts of the guide, in order. The guide page (GuidePage.jsx), the Guide in the Help window (HelpGuide.jsx) and Claude in Help (apps/backend/lib/agora/helpClaude.js) all read this file. Every text is an English key in apps/web/public/locales/en.json. Blocks: text, list, strong, soon (Coming soon), link (to an address; $circle is the member's first circle), links (several in one row), openHelp (a button that opens the Help window).",
+  "intro": "A short tour of what you can do in Agora. Each part takes a minute to read.",
+  "parts": [
+    {
+      "id": "what",
+      "icon": "Sparkles",
+      "title": "What Agora is",
+      "blocks": [
+        { "text": "Agora is the online home of 7 Billion Presidents (7BP). The circles, the people, the meetings, the decisions and the files of 7BP come together here." },
+        { "text": "Agora is built on Hylo, an open source platform for communities. It has no ads and no tracking." }
+      ]
+    },
+    {
+      "id": "circles",
+      "icon": "Users",
+      "title": "Circles",
+      "blocks": [
+        { "text": "7BP works in circles: small teams with their own task, such as governance or communications. Each circle has its own place in Agora with its posts, chat, events and members." },
+        { "text": "Agora is by invitation. A steward of a circle invites you by email or sends you the join link of the circle. You can be in several circles. Your circles are in the bar on the left." },
+        { "text": "Stewards invite new people in the settings of their circle, under Invite." },
+        { "link": "$circle", "label": "Open {{name}}", "otherwise": { "link": "/my/groups", "label": "See my circles" } }
+      ]
+    },
+    {
+      "id": "posts",
+      "icon": "MessageSquare",
+      "title": "Posts, discussions and proposals",
+      "blocks": [
+        { "text": "In a circle you can chat, and you can write posts. Use the plus button in the bar on the left to make one." },
+        {
+          "list": [
+            "A discussion is for sharing news or talking something through. Others reply in the comments.",
+            "A proposal asks the circle to decide. Members vote on the options, and the outcome stays on the post. The Proposals view of a circle shows what it is deciding.",
+            "There are also requests, offers, projects and resources, for asking for help, offering it and sharing useful things."
+          ]
+        },
+        { "text": "Mention someone with @ and their name to let them know." }
+      ]
+    },
+    {
+      "id": "events",
+      "icon": "CalendarDays",
+      "title": "Events and meetings",
+      "blocks": [
+        { "text": "An event is a post with a date and time. When you make one, you can invite people. They get a notification and answer Going, Interested or Not going. The Events view of a circle lists what is coming up." },
+        { "text": "Every event has its own meeting room in Agora, and the call takes place there. Open the event and click \"Meet in Agora, with minutes\". Headphones help." },
+        { "text": "When you come in, the room asks if your voice may be part of the notes. Say no, or pause at any time, and your voice stays out of them. After the meeting, Agora posts the transcript and a short summary with decisions and actions in the circle. Nobody has to take notes." },
+        { "soon": "A guest link, so people from outside Agora can join a meeting." }
+      ]
+    },
+    {
+      "id": "files",
+      "icon": "FolderOpen",
+      "title": "Files",
+      "blocks": [
+        { "text": "Each circle will get a Files page that shows its folder in 7BP's Google Drive. Files open in Drive, and members of the circle can add files and folders, also big videos." },
+        { "soon": "The Google Drive of 7BP is not connected to Agora yet. Until then, keep using Drive as you do now." }
+      ]
+    },
+    {
+      "id": "playbook",
+      "icon": "BookOpen",
+      "title": "Playbook",
+      "blocks": [
+        { "text": "The playbook is how 7BP works, written down chapter by chapter: onboarding, governance, communications and more. The Playbook page of a circle shows every chapter with its owner, its status (not started, draft, in review or agreed) and a link to the text." },
+        { "text": "Members read it. Stewards add and change chapters. A chapter is usually agreed through a proposal first." },
+        { "text": "You find it in the menu of a circle, under Playbook, once the circle has chapters." },
+        { "link": "$circle/playbook", "label": "Open the playbook of {{name}}" }
+      ]
+    },
+    {
+      "id": "contacts",
+      "icon": "BookUser",
+      "title": "Contacts",
+      "blocks": [
+        { "text": "The Contacts page is one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. Each contact has notes and follow-ups, a next step with a date and a person. The number on the Contacts button in the bar on the left is how many of your follow-ups are due." },
+        { "text": "Every member can read and change it, and every change is logged." },
+        { "strong": "Please do not put real people's details in yet. That waits until 7BP has agreed how it looks after personal data." },
+        { "link": "/contacts", "label": "Open Contacts" }
+      ]
+    },
+    {
+      "id": "notifications",
+      "icon": "BellIcon",
+      "title": "Notifications and email",
+      "blocks": [
+        { "text": "The bell in the bar on the left shows what happened for you: replies, mentions, invitations and new posts in your circles. Messages, the speech bubble, are private chats with one or more people." },
+        { "text": "You choose what reaches you and how often, per circle: every post, only important ones, or nothing. You can also get an email digest, a summary of new posts once a day or once a week." },
+        { "link": "/my/notifications", "label": "Choose my notifications" },
+        { "soon": "Emails from Agora. Agora's own mailbox is being set up. Until then, look at the bell." }
+      ]
+    },
+    {
+      "id": "profile",
+      "icon": "UserRound",
+      "title": "Your profile",
+      "blocks": [
+        { "text": "Your profile tells others who you are: a photo, a line about yourself, your skills and how to reach you. It helps people in other circles find you when they need what you know." },
+        { "link": "/my/edit-profile", "label": "Fill in my profile" }
+      ]
+    },
+    {
+      "id": "help",
+      "icon": "LifeBuoy",
+      "title": "Getting help",
+      "blocks": [
+        { "text": "Stuck, found something that does not work, or have a wish? Open Help, with the button below or the Help button at the bottom right of any page, and tell it in your own words. Your request goes to the Help desk team, and their answers come back in the Help window, under My requests." },
+        { "openHelp": "new", "label": "Open Help" },
+        { "text": "You can also ask in your circle, or send a message to a steward." },
+        { "text": "You can open this guide again at any time from the question mark or the gear in the bar on the left, or under Guide in the Help window." }
+      ]
+    },
+    {
+      "id": "rules",
+      "icon": "ScrollText",
+      "title": "Rules and privacy",
+      "blocks": [
+        { "text": "The Terms of use say how we use Agora together. The Privacy notice says what Agora keeps about you, why, and what you can ask for. Both are drafts until 7BP approves them." },
+        { "links": [{ "link": "/terms", "label": "Terms of Service" }, { "link": "/privacy", "label": "Privacy Policy" }] }
+      ]
+    }
+  ]
+}
