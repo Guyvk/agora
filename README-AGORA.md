@@ -287,10 +287,123 @@ The user name may be `ubuntu` or `root`; the Manager shows which. At the end it 
 
 **Still to do**
 
-- The nightly backups (`/var/backups/agora`, 14 days, the database and the uploads) sit on the same server. A second copy elsewhere, for example Infomaniak's Swiss Backup, is not set up yet. A file that did not change is stored only once across the 14 nights, so the uploads backup stays about as big as the uploads themselves plus what was added in two weeks. To bring back the uploads of one night: `sudo rsync -a /var/backups/agora/uploads-<date>/ /var/lib/agora/uploads/`.
+- The nightly backups (`/var/backups/agora`, 14 days, the database and the uploads) sit on the same server. A second, encrypted copy in Infomaniak's object storage is ready but off until you fill in its settings: see "Off-server backups" below. A file that did not change is stored only once across the 14 nights, so the uploads backup stays about as big as the uploads themselves plus what was added in two weeks. To bring back the uploads of one night: `sudo rsync -a /var/backups/agora/uploads-<date>/ /var/lib/agora/uploads/`.
+- The warning when Agora is down (see "When Agora is down" below) works by itself once it is merged.
 - Profile pictures, banners and attachments now work: they are kept on the server's own disk (see "Uploads"). The 80 GB disk holds them for a long time at 10 MB a file at most; `df -h /` shows how full it is.
 - Anyone with an account can make a new circle. Decide whether only stewards should be able to.
 - The script was written for Ubuntu 24.04 and checked line by line, but it has not run on a real VPS yet. The first run is the test.
+
+## Off-server backups
+
+Every night at 02:30 the server backs up the database and the uploads into `/var/backups/agora` (`agora/vps/backup.sh`). If the server itself is lost, those backups are lost with it. So the same script can also send each night's backup to **object storage** in the same Infomaniak Public Cloud project: a storage space for files, separate from the server, that speaks the same language as Amazon's S3. The tool that sends it is **rclone**, a well known copying program that comes with Ubuntu (`agora/vps/offsite-backup.sh`).
+
+It is off until the settings file `/etc/agora/offsite-backup.conf` exists. Without it, the backup works as before and writes one line in its log: "Off-server copy: not set up".
+
+**What is stored**, in a container (S3 says "bucket") called `agora-backups`:
+
+- the database of every night, kept for 30 days (`OFFSITE_KEEP_DAYS`);
+- the uploads as they are now, plus for 30 days the old version of every upload that was changed or deleted;
+- the server's settings file `apps/backend/.env`, so a new server gets the same secrets and mail settings back. It holds every key, so it is only sent when encryption is on.
+
+**Encryption.** Everything is encrypted on the server before it leaves (rclone's "crypt"), file names too. Infomaniak, or anyone who gets the storage keys, only sees scrambled data. The trade-off:
+
+- The password must also be on the server, because the server encrypts every night. It protects the copy in storage, not a server that someone has broken into (such a person can read the live database anyway).
+- **If the password is lost, nobody can ever read the copies, also not you.** Keep it in your password manager, next to the two storage keys.
+- To use another password later, also use a new container name (`OFFSITE_BUCKET`), because old copies can only be read with the old password. Remove the old container once the new one has a few nights.
+- Without encryption (`OFFSITE_ENCRYPT=no`) the files are readable for anyone with the storage keys, and the settings file is not sent. Not advised: the database holds the names, email addresses and messages of 7BP's members.
+
+**What it costs.** Infomaniak charges about CHF 0.011 per GB per month for object storage (CHF 0.000015 per GB per hour on its price page), and sending data in is free. Agora's database is small (a few MB to some tens of MB), so 30 nights plus the uploads are likely a few GB: well under CHF 1 a month. Check the current price at infomaniak.com, Public Cloud, Prices.
+
+### Switching it on (once, about 15 minutes)
+
+You do this yourself; nobody else needs to see the keys or the password.
+
+1. **Merge** the pull request and update the server, then install rclone and the example settings file in `/etc/agora` (the second command is only needed this first time; later updates do it themselves):
+   ```
+   sudo /srv/agora/agora/vps/update.sh
+   sudo bash /srv/agora/agora/vps/offsite-backup.sh prepare
+   ```
+2. **Make storage keys.** Object storage keys are made with OpenStack's command line tool. The easiest place is the server itself:
+   - In the Public Cloud dashboard (Horizon), open *API Access* and download the **OpenStack RC file** for the project. It holds no password.
+   - Copy it to the server from your Mac: `scp ~/Downloads/<the file>-openrc.sh ubuntu@<the IP address>:`
+   - On the server:
+     ```
+     sudo apt-get install -y python3-openstackclient
+     source ~/<the file>-openrc.sh
+     openstack ec2 credentials create
+     ```
+     `source` asks for the project's password. The last command prints two keys, `access` and `secret`. Put both in your password manager. (`openstack ec2 credentials list` shows them again later.)
+3. **Choose an encryption password**: at least 20 characters, for example five random words. Put it in your password manager too.
+4. **Make the settings file** and fill in the two keys and the password:
+   ```
+   sudo install -m 640 -o root -g agora /etc/agora/offsite-backup.conf.example /etc/agora/offsite-backup.conf
+   sudo nano /etc/agora/offsite-backup.conf
+   ```
+   Save with Ctrl-O, Enter, and close with Ctrl-X. Only root can change this file and only Agora's own user can read it.
+5. **Test it.** This makes the container `agora-backups` if it is not there yet, writes a test file, reads it back and removes it:
+   ```
+   sudo -u agora bash /srv/agora/agora/vps/offsite-backup.sh check
+   ```
+6. **Send the first copy now** instead of waiting for the night: `sudo systemctl start agora-backup`, then `sudo journalctl -u agora-backup -n 5` should end with "Off-server copy: done for ...".
+7. Later, to see what is stored: `sudo -u agora bash /srv/agora/agora/vps/offsite-backup.sh list`.
+
+If a night's copy fails (for example the storage cannot be reached), the backup on the server is still complete, and `sudo systemctl status agora-backup` shows "failed" with the reason. The next night tries again. Updates (`update.sh`) make a backup on the server only and do not wait for the copy.
+
+### Restoring onto a new server
+
+For when the server is lost or broken beyond repair. You need the two storage keys and the encryption password from your password manager.
+
+1. Make a new instance as in "Going online" (steps 3 and 4), and point Agora's address at its new IP address. If the old server still runs somewhere, switch it off first: two servers must never send their copies to the same container.
+2. Set it up as usual: `sudo bash setup-server.sh <Agora's address>`. This makes an empty Agora.
+3. Make the settings file again, exactly as in steps 4 and 5 of "Switching it on", with the same keys, password and container name.
+4. Fetch the newest backup (or add a date, such as `2026-10-19`, at the end for an older night; `list` shows which nights there are):
+   ```
+   sudo -u agora bash /srv/agora/agora/vps/offsite-backup.sh fetch /var/backups/agora/restore
+   ```
+5. Stop Agora while the data goes back:
+   ```
+   sudo systemctl stop agora-web agora-worker agora-api agora-backup.timer agora-cron-every10minutes.timer agora-cron-hourly.timer agora-cron-daily.timer
+   ```
+6. Put the database back. This throws away the empty database of step 2. Replace `<date>` with the date of the file in `/var/backups/agora/restore`:
+   ```
+   sudo -u postgres dropdb agora
+   sudo -u postgres createdb -O agora agora
+   sudo cat /var/backups/agora/restore/agora-<date>.dump | sudo -u postgres pg_restore --exit-on-error -d agora
+   ```
+7. Put the uploads back:
+   ```
+   sudo rsync -a /var/backups/agora/restore/uploads/ /var/lib/agora/uploads/
+   ```
+8. Put the old settings back, keeping only the new server's database password:
+   ```
+   sudo -u agora bash -c 'cd /srv/agora/apps/backend && db="$(grep "^DATABASE_URL=" .env)" && cp .env .env.new-server && cp /var/backups/agora/restore/settings/backend.env .env && sed -i "s|^DATABASE_URL=.*|$db|" .env'
+   ```
+   If Agora now has a different address than before, also change `DOMAIN` and `CORS_ALLOWED_ORIGINS` in that file (`sudo -u agora nano /srv/agora/apps/backend/.env`).
+9. Bring the database up to date with the code and start everything again:
+   ```
+   cd /srv/agora/apps/backend && sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn migrate
+   sudo systemctl start agora-api agora-worker agora-web agora-backup.timer agora-cron-every10minutes.timer agora-cron-hourly.timer agora-cron-daily.timer
+   ```
+10. Open Agora and log in. When everything looks right, remove the fetched copy: `sudo rm -rf /var/backups/agora/restore`.
+
+The uploads come back as they were on the last night. An older version of a changed or deleted upload is in `uploads/changed-<date>` in the storage; `rclone` can fetch a single one if someone misses a file.
+
+## When Agora is down
+
+A server that is down cannot warn anyone, so the check runs elsewhere: on GitHub's computers, as a scheduled job in this repository (`.github/workflows/agora-uptime.yml`). Every 30 minutes it opens Agora's login page and asks Agora's server one small question (`/noo/graphql`, "who is logged in", which also answers when nobody is). If that fails three times in a row, two minutes apart, it opens an issue **"Agora is down"** on GitHub, assigned to you, so GitHub emails you. While Agora stays down, nothing more is sent. When Agora answers again, it writes a comment and closes the issue, which sends a second email. It costs nothing (public repositories get these jobs free) and needs no new account.
+
+Things to know:
+
+- The repository is public, so the issues and the job's log are public too. They only show the address and what the server answered; no keys are used.
+- GitHub sometimes starts scheduled jobs late, by a few minutes up to an hour when it is busy. Fine for a volunteer site, not to the minute.
+- GitHub pauses scheduled jobs in a public repository after **60 days without any change** to the repository, and emails you before it does. Then open *Actions*, *Agora uptime check*, and click *Enable workflow*.
+- Check your email settings on GitHub once: *Settings*, *Notifications*, "Issues" or "Participating" by email on.
+- Try it by hand: *Actions*, *Agora uptime check*, *Run workflow*.
+- When Agora moves to agora.7billionpresidents.org: *Settings*, *Secrets and variables*, *Actions*, *Variables*, add `AGORA_URL` with `https://agora.7billionpresidents.org`. No code change needed.
+
+What to do when the email comes: open Agora yourself first. If it does not open, log in to the server and look: `sudo systemctl status agora-api agora-worker agora-web caddy`, then `sudo journalctl -u agora-api -n 50`. A restart often helps: `sudo systemctl restart agora-api agora-worker agora-web`. If the server itself does not answer to ssh, look at the instance in the Public Cloud dashboard (restart it there). If it is gone, see "Restoring onto a new server" above.
+
+Other free options, if you ever want a second opinion or checks every few minutes: **UptimeRobot** (free plan: 50 checks every 5 minutes, email alerts; for personal and non-commercial use) and **Better Stack** (free plan: 10 checks every 3 minutes, email alerts). Both need an account of their own. Point either at `https://agora.guyvankoolwijk.nl/login`.
 
 ## Changing Agora
 

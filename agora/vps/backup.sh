@@ -10,11 +10,14 @@
 # what was added. To bring back the uploads of a night:
 #   sudo rsync -a /var/backups/agora/uploads-<date>/ /var/lib/agora/uploads/
 #
-# These backups sit on the same server. A copy elsewhere (Infomaniak's Swiss
-# Backup) is still to be set up; see "Going online" in README-AGORA.md.
+# These backups sit on the same server. When /etc/agora/offsite-backup.conf
+# exists, offsite-backup.sh then also copies them, encrypted, to Infomaniak's
+# object storage, away from this server. Without that file it says so in one
+# line. AGORA_OFFSITE=off skips the copy for one run (update.sh does that).
+# See "Off-server backups" in README-AGORA.md.
 #
 set -euo pipefail
-dir=/var/backups/agora
+dir="${AGORA_BACKUP_DIR:-/var/backups/agora}"
 today="$(date +%F)"
 PGPASSWORD="$(cat "$HOME/.agora-db-password")" \
   pg_dump -h 127.0.0.1 -U agora -Fc agora > "$dir/agora-$today.dump.part"
@@ -33,4 +36,12 @@ if [[ -d "$uploads" ]]; then
   mv "$dir/uploads-$today.part" "$dir/uploads-$today"
   touch "$dir/uploads-$today"
   find "$dir" -maxdepth 1 -type d -name 'uploads-????-??-??' -mtime +14 -exec rm -rf {} +
+fi
+
+# The copy away from this server. If it fails, the backup on this server is
+# still complete, but the nightly job shows as failed (systemctl status agora-backup).
+if [[ "${AGORA_OFFSITE:-on}" == off ]]; then
+  echo "Off-server copy: skipped for this run (AGORA_OFFSITE=off)."
+else
+  bash "$(dirname "${BASH_SOURCE[0]}")/offsite-backup.sh" upload "$today"
 fi

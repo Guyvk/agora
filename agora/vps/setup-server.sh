@@ -21,6 +21,8 @@
 #   systemd services         agora-api, agora-worker, agora-web, and timers for
 #                            the scheduled jobs and a nightly database backup
 #   /var/backups/agora       the nightly backups (database and uploads), kept for 14 days
+#   /etc/agora               settings for an encrypted copy of those backups in
+#                            Infomaniak's object storage (off until filled in)
 #
 # Later updates: sudo /srv/agora/agora/vps/update.sh
 #
@@ -52,7 +54,7 @@ step "1/10  Updating the server and installing what Agora needs"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq ca-certificates curl git ufw fail2ban unattended-upgrades \
-  build-essential python3 rsync postgresql postgresql-contrib redis-server caddy >/dev/null
+  build-essential python3 rsync rclone postgresql postgresql-contrib redis-server caddy >/dev/null
 PG_MAJOR="$(apt-cache depends postgresql | sed -n 's/.*Depends: postgresql-\([0-9]*\)$/\1/p' | head -1)"
 apt-get install -y -qq "postgresql-$PG_MAJOR-postgis-3" >/dev/null
 echo "  PostgreSQL $PG_MAJOR, Redis $(redis-server --version | awk '{print $3}'), Caddy $(caddy version | awk '{print $1}')"
@@ -171,6 +173,8 @@ echo "  The database is up to date. No demo data: this is the real Agora."
 
 step "9/10  Services, scheduled jobs and backups"
 install -d -o "$APP_USER" -g "$APP_USER" -m 700 /var/backups/agora
+# The off-server copy of the backups: off until /etc/agora/offsite-backup.conf is filled in.
+bash "$APP_DIR/agora/vps/offsite-backup.sh" prepare
 unit () { cat > "/etc/systemd/system/$1"; }
 service_common="User=$APP_USER
 Environment=PATH=$NODE_DIR/bin:/usr/bin:/bin
