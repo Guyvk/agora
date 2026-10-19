@@ -156,8 +156,9 @@ export default function NonAuthLayoutRouter (props) {
           />
         </Routes>
         <div className='bg-midground rounded-md w-full max-w-[320px] mx-auto p-4 mt-4 text-center'>
-          <a href='https://hylo.com/terms/' target='_blank' rel='noreferrer' className='text-foreground/100'>{t('Terms of Service')}</a> +&nbsp;
-          <a href='https://hylo.com/privacy' target='_blank' rel='noreferrer' className='text-foreground/100'>{t('Privacy Policy')}</a>
+          {/* Agora: our own Terms of use and Privacy notice instead of Hylo's */}
+          <a href='/terms' target='_blank' rel='noreferrer' className='text-foreground/100'>{t('Terms of Service')}</a> +&nbsp;
+          <a href='/privacy' target='_blank' rel='noreferrer' className='text-foreground/100'>{t('Privacy Policy')}</a>
         </div>
       </div>
     </Div100vh>

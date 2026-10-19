@@ -18,6 +18,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
+| Terms of use and Privacy notice | Agora's own pages at `/terms` and `/privacy`, readable without logging in. The login, sign-up and help links point there instead of hylo.com. Both are drafts until 7BP approves them | `apps/web/src/agora/legal/`, texts in `apps/web/public/locales/en.json` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -195,6 +196,14 @@ Each group has a playbook page at `/groups/<group>/playbook`, for example `/grou
 - Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
 - The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
 - The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
+
+## Terms of use and Privacy notice
+
+Agora has its own Terms of use at `/terms` and Privacy notice at `/privacy`. Anyone can read them, also without an account. The links on the login and sign-up pages, in the help menu and in the sign-up agreement go there.
+
+Both are **drafts**: a box at the top of each page says "Draft, to be approved by 7BP", and the questions that are still open are listed at the end of each page. Words in [square brackets], such as the foundation's legal name, address and contact email, still have to be filled in. This is not legal advice: someone who knows the GDPR should read both before real members rely on them.
+
+The words are in `apps/web/public/locales/en.json`, under keys that start with `agoraTerms.`, `agoraPrivacy.` and `agoraLegal.`. Other languages show the English text until the English is approved and translated. To add or move a paragraph, change `apps/web/src/agora/legal/legalTexts.js` as well. When Agora starts sending data somewhere new (a mail service, the help chat, a second backup), update the Privacy notice in the same pull request.
 
 ## Email
 
