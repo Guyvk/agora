@@ -2312,6 +2312,10 @@ type Post {
   id: ID
   # NOT USED RIGHT NOW. Whether this post can accept financial contributions
   acceptContributions: Boolean
+  # Agora: for an event post, 'meeting' (for the team, with a meeting room, never public) or 'event' (a gathering with a place). Empty for other posts
+  agoraKind: String
+  # Agora: true when a steward of the main 7BP circle marked it for all of 7BP: it shows in everyone's Agora calendar
+  agoraForAll: Boolean
   # whether voting is anonymous for this proposal (Only used by proposal type posts)
   anonymousVoting: Boolean
   # Was this post marked an announcement by a group moderator?
@@ -2369,7 +2373,7 @@ type Post {
   location: String
   # Object with geocoded location deatils
   locationObject: Location
-  # Video call link for online or hybrid events. Agora: always the event's own meeting room; a link sent here is ignored
+  # Video call link for online or hybrid events. Agora: always a Meeting's own meeting room, none for an Event; a link sent here is ignored
   meetingLink: String
   # Logged in user's attendance response to an event post: 'yes', 'maybe' or 'no'
   myEventResponse: String
@@ -4403,8 +4407,14 @@ input PostInput {
   location: String
   # Id to location object with geocoded location deatils
   locationId: ID
-  # Video call link for online or hybrid events. Agora: always the event's own meeting room; a link sent here is ignored
+  # Video call link for online or hybrid events. Agora: always a Meeting's own meeting room, none for an Event; a link sent here is ignored
   meetingLink: String
+  # Agora: for an event post, 'meeting' or 'event'. Left out on a change: the kind stays as it was. Left out when making one: a meeting
+  agoraKind: String
+  # Agora: for all of 7BP. Only stewards of the main 7BP circle may switch it on or off
+  agoraForAll: Boolean
+  # Agora: when making a meeting or event for all of 7BP, also send every Agora member a calendar invitation by email
+  agoraInviteEveryone: Boolean
   # Topic name of the chat room the user is currently viewing. When set, that topic follow's last_read_post_id is always updated regardless of new_post_count.
   markAsReadTopicName: String
   # People to add as members to a project type Post

@@ -1,17 +1,19 @@
 /**
- * Agora: makes every event's video call link its own meeting room. For
- * administrators, run in the Terminal from apps/backend:
+ * Agora: makes every Meeting's video call link its own meeting room, and takes
+ * any link off Events. For administrators, run in the Terminal from apps/backend:
  *
  *   node scripts/agora-meeting-links.js
  *        only shows what would change; nothing is saved
  *   node scripts/agora-meeting-links.js --apply
  *        makes the changes
  *
- * Video calls in Agora always go through the event's meeting room. Events
+ * Video calls in Agora always go through a Meeting's meeting room. Meetings
  * made earlier can still have a link of their own, for example for Zoom, or
  * no link at all. This script gives each of them its meeting room as its
- * link. When AGORA_MEET_DOMAIN is empty there is no call server, so events
- * get no video call link at all. Posts that are not events never have one.
+ * link. Events (talks, stands, gatherings with a place, see
+ * lib/agora/eventKinds.js) never have a video call link. When
+ * AGORA_MEET_DOMAIN is empty there is no call server, so nothing gets a video
+ * call link at all. Posts that are not events never have one.
  *
  * An event whose location is only a link to another video call platform has
  * that location emptied. When the location has more in it (an address and a
@@ -29,8 +31,8 @@ async function run (apply) {
   const { links, locations, enabled } = await bringPostsIntoLine({ apply })
 
   console.log(enabled
-    ? `\nThe call server is ${process.env.AGORA_MEET_DOMAIN.trim()}: every event's video call link becomes its meeting room.`
-    : '\nAGORA_MEET_DOMAIN is empty, so there is no call server: events get no video call link at all.')
+    ? `\nThe call server is ${process.env.AGORA_MEET_DOMAIN.trim()}: every Meeting's video call link becomes its meeting room, and Events get none.`
+    : '\nAGORA_MEET_DOMAIN is empty, so there is no call server: Meetings and Events get no video call link at all.')
 
   console.log(`\nVideo call links ${apply ? 'changed' : 'to change'}: ${links.length}`)
   for (const fix of links) {

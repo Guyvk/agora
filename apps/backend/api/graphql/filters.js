@@ -373,6 +373,7 @@ export const postFilter = (userId, isAdmin) => relation => {
       q.where(q3 => {
         const selectIdsForMember = Group.selectIdsForMember(userId)
         q3.whereIn('groups_posts.group_id', selectIdsForMember).orWhere('posts.is_public', true)
+          .orWhere('posts.agora_for_all', true) // Agora: meetings and events for all of 7BP, see lib/agora/eventKinds.js
       })
 
       // Don't show posts from blocked users

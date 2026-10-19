@@ -72,6 +72,12 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora calendar: for anyone logged in. The calendar feed needs no login: its secret address is the key.
+  AgoraCalendarController: {
+    feed: true,
+    '*': 'sessionAuth'
+  },
+
   // Agora sign-up: the sign-up page asks whether new accounts need an invitation, before anyone is logged in
   AgoraSignupController: {
     policy: true

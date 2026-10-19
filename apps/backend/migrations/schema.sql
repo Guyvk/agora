@@ -7534,3 +7534,31 @@ ALTER TABLE ONLY public.agora_help_chats
 
 ALTER TABLE ONLY public.agora_help_chats
     ADD CONSTRAINT agora_help_chats_request_id_foreign FOREIGN KEY (request_id) REFERENCES public.agora_help_requests(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Added by migrations/20261019180000_add_agora_meetings_and_events.js
+--
+
+ALTER TABLE ONLY public.posts
+    ADD COLUMN agora_kind character varying(10),
+    ADD COLUMN agora_for_all boolean DEFAULT false NOT NULL;
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_agora_kind_check CHECK (((agora_kind IS NULL) OR ((agora_kind)::text = ANY ((ARRAY['meeting'::character varying, 'event'::character varying])::text[]))));
+
+CREATE INDEX posts_agora_for_all_index ON public.posts USING btree (start_time) WHERE agora_for_all;
+
+CREATE TABLE public.agora_calendar_feeds (
+    user_id bigint NOT NULL,
+    token character varying(64) NOT NULL,
+    created_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_calendar_feeds
+    ADD CONSTRAINT agora_calendar_feeds_pkey PRIMARY KEY (user_id);
+
+ALTER TABLE ONLY public.agora_calendar_feeds
+    ADD CONSTRAINT agora_calendar_feeds_token_unique UNIQUE (token);
+
+ALTER TABLE ONLY public.agora_calendar_feeds
+    ADD CONSTRAINT agora_calendar_feeds_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;

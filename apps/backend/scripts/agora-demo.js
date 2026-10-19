@@ -5,7 +5,8 @@
  *
  * Fills an empty copy of Agora with a small, made-up version of 7BP, so there
  * is something to click through: a main group, a group per circle, a few
- * people, sample playbook proposals, playbook chapters and two meetings.
+ * people, sample playbook proposals, playbook chapters, three meetings (one
+ * for all of 7BP) and two events.
  *
  *   cd apps/backend
  *   node scripts/agora-demo.js
@@ -188,9 +189,14 @@ async function run () {
     })
   }
 
+  // Meetings (for the team, with a meeting room) and Events (gatherings with a
+  // place), see lib/agora/eventKinds.js. One meeting is for all of 7BP.
   const meetings = [
-    { group: governance, by: people.lars, name: 'Governance circle weekly', day: 1, hour: 17, text: 'Review of the playbook chapters that are up for a response.' },
-    { group: circles['7bp-communications'], by: people.amara, name: 'Communications circle meeting', day: 3, hour: 17, text: 'First meeting: find out what the circle needs and set objectives.' }
+    { group: governance, by: people.lars, name: 'Governance circle weekly', day: 1, hour: 17, text: 'Review of the playbook chapters that are up for a response.', kind: 'meeting', location: 'Online, in Agora' },
+    { group: circles['7bp-communications'], by: people.amara, name: 'Communications circle meeting', day: 3, hour: 17, text: 'First meeting: find out what the circle needs and set objectives.', kind: 'meeting', location: 'Online, in Agora' },
+    { group: main, by: steward, name: 'All hands: the monthly 7BP call', day: 5, hour: 19, text: 'Every circle shares what moved this month. For all of 7BP.', kind: 'meeting', forAll: true },
+    { group: circles['7bp-communications'], by: people.amara, name: 'Info evening: what is 7BP? (made up)', day: 9, hour: 19, hours: 2, text: 'An evening for people who want to know more about 7BP.', kind: 'event', location: 'Community centre De Pijp, Amsterdam (made up)' },
+    { group: circles['7bp-network'], by: people.kenji, name: 'Stand at the Commons Festival (made up)', day: 16, hour: 11, hours: 6, text: 'Our stand at the festival. Come and help for an hour.', kind: 'event', location: 'Westergasfabriek, Amsterdam (made up)' }
   ]
   for (const meeting of meetings) {
     if (await hasPost(meeting.group.id, meeting.name)) continue
@@ -198,10 +204,12 @@ async function run () {
       name: meeting.name,
       description: `<p>${meeting.text}</p>`,
       type: 'event',
+      agoraKind: meeting.kind,
+      agoraForAll: Boolean(meeting.forAll),
       group_ids: [meeting.group.id],
       startTime: at(meeting.day, meeting.hour),
-      endTime: at(meeting.day, meeting.hour + 1),
-      location: 'Online, in Agora',
+      endTime: at(meeting.day, meeting.hour + (meeting.hours || 1)),
+      location: meeting.location || null,
       skip_link_preview: true
     })
   }

@@ -44,7 +44,8 @@ module.exports.http = {
     compress: responseCompression,
 
     requestLogger: function (req, res, next) {
-      sails.log.info(magenta(`${req.method} ${req.url}`))
+      // Agora: the secret of a calendar link never goes into the log
+      sails.log.info(magenta(`${req.method} ${String(req.url).replace(/(\/noo\/agora\/calendar\/)[^/?]+\.ics/, '$1(hidden).ics')}`))
       next()
     },
 

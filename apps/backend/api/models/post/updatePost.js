@@ -9,6 +9,7 @@ import {
 } from './util'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { keepMeetingLink, lockMeetingLinkParam, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events keep their meeting room
+import { withKindForUpdate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
 
 export default function updatePost (userId, id, params) {
   if (!id) throw new GraphQLError('updatePost called with no ID')
@@ -17,6 +18,7 @@ export default function updatePost (userId, id, params) {
     ? { ...params, imageUrls: hostedImageUrls }
     : params
   return setupPostAttrs(userId, paramsForUpdate)
+    .then(attrs => withKindForUpdate(userId, id, attrs, paramsForUpdate)) // Agora: Meeting or Event, and "for all of 7BP"
     .then(attrs => bookshelf.transaction(transacting =>
       Post.find(id).then(post => {
         if (!post) throw new GraphQLError('Post not found')

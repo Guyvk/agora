@@ -1,5 +1,10 @@
 /**
- * Agora: every event's video call goes through its own meeting room.
+ * Agora: every Meeting's video call goes through its own meeting room.
+ *
+ * Since Agora split events into Meetings and Events (lib/agora/eventKinds.js),
+ * only Meetings have a meeting room. An Event (a talk, a festival stand) has
+ * a place and never a video call link. Below, "event" means Hylo's event
+ * post, which is either.
  *
  * Hylo shows an event's video call link on the event, in invitations, in
  * emails and in calendar entries, and lets people type any link there, for
@@ -18,6 +23,7 @@
  * scripts/agora-meeting-links.js brings events made before this into line.
  */
 import { GraphQLError } from 'graphql'
+import { kindOf, MEETING, EVENT } from './eventKinds'
 
 function isEnabled () {
   return Boolean((process.env.AGORA_MEET_DOMAIN || '').trim())
@@ -75,9 +81,20 @@ export function hasOutsideCallLink (text) {
   })
 }
 
-/** What an event's video call link must be. Null for every other kind of post. */
-export function lockedMeetingLink (postId, type) {
-  return isEnabled() && type === 'event' ? meetingRoomUrl(postId) : null
+/**
+ * What a post's video call link must be: its meeting room for a Meeting, null
+ * for an Event and for every other kind of post. `kind` is 'meeting' or
+ * 'event'; an event post without one counts as a Meeting.
+ */
+export function lockedMeetingLink (postId, type, kind) {
+  return isEnabled() && type === 'event' && kind !== EVENT ? meetingRoomUrl(postId) : null
+}
+
+/** The kind a post has after a change: the one being saved, else the one it had. */
+function kindAfter (post, type, newKind) {
+  if (type !== 'event') return null
+  if (newKind === MEETING || newKind === EVENT) return newKind
+  return kindOf(post) || MEETING
 }
 
 /**
@@ -86,7 +103,7 @@ export function lockedMeetingLink (postId, type) {
  */
 export function refuseOutsideCallLocation (type, location) {
   if (type !== 'event' || !hasOutsideCallLink(location)) return
-  throw new GraphQLError('Video calls in Agora always use the event\'s own meeting room. Please take the video call link out of the location.')
+  throw new GraphQLError('Video calls in Agora only take place in a meeting\'s own meeting room. Please take the video call link out of the location.')
 }
 
 /**
@@ -95,17 +112,18 @@ export function refuseOutsideCallLocation (type, location) {
  * database transaction as the post itself.
  */
 export async function fillMeetingLink (post, { transacting } = {}) {
-  const link = lockedMeetingLink(post.id, post.get('type'))
+  const link = lockedMeetingLink(post.id, post.get('type'), kindOf(post))
   if ((post.get('meeting_link') || null) === link) return post
   return post.save({ meeting_link: link }, { patch: true, transacting })
 }
 
 /**
- * Before a post is changed: whatever video call link the change carries, an
- * event keeps its meeting room and other posts get none.
+ * Before a post is changed: whatever video call link the change carries, a
+ * Meeting keeps its meeting room and other posts (Events too) get none.
  */
 export function keepMeetingLink (post, attrs) {
-  return { ...attrs, meeting_link: lockedMeetingLink(post.id, attrs.type || post.get('type')) }
+  const type = attrs.type || post.get('type')
+  return { ...attrs, meeting_link: lockedMeetingLink(post.id, type, kindAfter(post, type, attrs.agora_kind)) }
 }
 
 /**
@@ -114,13 +132,14 @@ export function keepMeetingLink (post, attrs) {
  * reaches anyone.
  */
 export function lockMeetingLinkParam (post, params) {
-  return { ...params, meetingLink: lockedMeetingLink(post.id, params.type || post.get('type')) }
+  const type = params.type || post.get('type')
+  return { ...params, meetingLink: lockedMeetingLink(post.id, type, kindAfter(post, type, params.agoraKind)) }
 }
 
 /**
  * For scripts/agora-meeting-links.js: finds posts whose video call link is not
- * what it must be (an event with a Zoom link, an event made before Agora
- * filled in the room, a non-event with a link), and events whose location is
+ * what it must be (a Meeting with a Zoom link or without its room, an Event
+ * with any link, a non-event with a link), and events whose location is
  * a link to another video call platform. With apply, puts them right: the
  * video call link becomes the meeting room (or nothing), and a location that
  * is only such a link is emptied. A location with more in it (an address and
@@ -133,13 +152,13 @@ export async function bringPostsIntoLine ({ apply = false } = {}) {
   const rows = await knex('posts')
     .where('active', true)
     .where(q => q.where('type', 'event').orWhereNotNull('meeting_link'))
-    .select('id', 'type', 'name', 'meeting_link', 'location')
+    .select('id', 'type', 'agora_kind', 'name', 'meeting_link', 'location')
     .orderBy('id')
 
   const links = []
   const locations = []
   for (const row of rows) {
-    const link = lockedMeetingLink(row.id, row.type)
+    const link = lockedMeetingLink(row.id, row.type, kindOf(row))
     if ((row.meeting_link || null) !== link) {
       links.push({ id: row.id, name: row.name, from: row.meeting_link || null, to: link })
     }

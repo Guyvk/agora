@@ -692,6 +692,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
       model: Post,
       attributes: [
         'accept_contributions',
+        'agora_for_all', // Agora: for all of 7BP
+        'agora_kind', // Agora: 'meeting' or 'event'
         'announcement',
         'anonymous_voting',
         'budget',

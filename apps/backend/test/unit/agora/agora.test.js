@@ -121,6 +121,35 @@ describe('Agora mailer', () => {
     expect(email.text).to.contain('Where: Online')
   })
 
+  it('says "meeting" or "event" in an invitation, as the post is', () => {
+    const meeting = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
+      group_name: 'Network', post: { title: 'Weekly', agora_kind: 'meeting', url: 'https://agora.test/p/2' }
+    }, { sender: { name: 'Lars' } })
+    expect(meeting.text).to.contain('Lars invites you to a meeting in Network.')
+    expect(meeting.text).to.contain('See the meeting and reply')
+    const gathering = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
+      post: { title: 'Info evening', agora_kind: 'event', url: 'https://agora.test/p/3' }
+    }, { sender: { name: 'Lars' } })
+    expect(gathering.text).to.contain('Lars invites you to an event.')
+  })
+
+  it('writes the calendar invitation for all of 7BP', () => {
+    const email = mailer.TEMPLATES.agora_calendar_invite({
+      kind: 'meeting',
+      title: 'All hands',
+      inviter_name: 'Demo Steward',
+      recipient_name: 'Amara',
+      when: 'Mon, Oct 20',
+      room_url: 'https://agora.test/noo/meeting/9/room',
+      details: '<p>Agenda</p>',
+      url: 'https://agora.test/post/9'
+    })
+    expect(email.subject).to.equal('Invitation for all of 7BP: All hands')
+    expect(email.text).to.contain('Demo Steward invites everyone in 7BP to this meeting:')
+    expect(email.text).to.contain('Meeting room: https://agora.test/noo/meeting/9/room')
+    expect(email.text).to.contain('calendar file')
+  })
+
   it('says what a reply to an event means and mentions the calendar file', () => {
     const email = mailer.TEMPLATES.tem_93YXdBV6bg4WmD8w3krpGP7H({
       user_name: 'Amara', event_name: 'Circle meeting', response: 'Going to', date: 'Mon, Oct 20', event_url: 'https://agora.test/p/2'

@@ -96,7 +96,11 @@ write('apps/backend/.env', {
   DISABLE_SEGMENT: '1',
   // New accounts need an invitation to a circle. The first person gets in with
   // scripts/agora-allow-signup.js (see README-AGORA.md).
-  AGORA_INVITE_ONLY: 'on'
+  AGORA_INVITE_ONLY: 'on',
+  // The main 7BP circle: its stewards may mark meetings and events for all of
+  // 7BP (see README-AGORA.md, "Meetings and Events"). Set AGORA_MAIN_GROUP_SLUG
+  // before running this script to use another circle.
+  AGORA_MAIN_GROUP_SLUG: process.env.AGORA_MAIN_GROUP_SLUG || '7bp'
 })
 
 write('apps/web/.env', {
