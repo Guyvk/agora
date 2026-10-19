@@ -21,6 +21,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
 | Terms of use and Privacy notice | Agora's own pages at `/terms` and `/privacy`, readable without logging in. The login, sign-up and help links point there instead of hylo.com. Both are drafts until 7BP approves them | `apps/web/src/agora/legal/`, texts in `apps/web/public/locales/en.json` |
 | Help and the Help desk | A Help button at the bottom right of every page, where people report faults, wishes and questions. The Help desk is where the team works through them, answers, and turns them into builder tasks | `apps/web/src/agora/help/`, `apps/backend/lib/agora/help.js`, `apps/backend/api/controllers/AgoraHelpController.js` |
+| Admin area | A page at `/admin` for the people who run Agora: the main numbers, the Help desk, every invitation and what became of it, all accounts with "Let someone in" and switching accounts off and on, the system and its backups, and the latest events | `apps/web/src/agora/admin/`, `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/api/controllers/AgoraAdminController.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -180,7 +181,7 @@ The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left e
 sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-allow-signup.js someone@example.org
 ```
 
-It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below.
+It prints a sign-up link that works for 4 hours (and also emails it, once a mailbox is connected). Opening the link confirms the address and goes on to choosing a name and password. Keep the link private: it logs in as that address. This is how the first person gets in, see "After the setup" below. Once you are an Agora admin, **Let someone in** in the admin area does the same from the page (see "Admin area").
 
 **When a steward cannot invite.** If a steward is told "You don't have permission to create an invitation", the database lacks the list of what stewards may do. A new database made from Hylo's `schema.sql` has the tables but not that list. The setup and update scripts add it, and also repair circles that were made without it. To do it by hand, in `/srv/agora/apps/backend`:
 
@@ -231,21 +232,12 @@ There are two ways to send a request:
 - **The plain form** (always there): what it is about (something is wrong, a wish, a question), what happened, what they expected, and how urgent it is.
 - **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from Agora's guide (`apps/backend/lib/agora/helpGuide.md`). For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
 
-**The Help desk** is at `/help-desk` (for example http://localhost:3000/help-desk). Help desk admins also find a "Help desk" link in their Help window. There they:
+What people send ends up in the **Help desk**, a tab of the admin area (see "Admin area" below). A request can be read only by the person who sent it and by the people who run the Help desk. The server checks this for every request.
 
-- see every request, filtered by status (new, looking at it, being built, fixed, won't do) and type, with how many there are of each;
-- open one to read it with the chat, who sent it, the page, browser, screen and version;
-- change the status, and keep an internal note that only the Help desk sees;
-- answer the person. The answer shows in their Help window, and they get an email (through Agora's own email sender, so on a Mac it is printed in the Terminal). A change of status also shows as new in their window, without an email;
-- use **Build this**: it marks the request as being built and stores a short task for a builder, without names or personal details, ready to copy. Type the task yourself, or, for a request that came from a chat with Claude, leave the box empty and Claude writes it; the person's name and email address are taken out before anything goes to Claude. A request from the plain form is never sent to Claude. Agora warns when a task seems to name the person. A field holds a link to wherever the task ends up. Nothing is posted anywhere else yet.
-
-Who may see what: a request can be read only by the person who sent it and by Help desk admins. The internal note and the builder task are for the Help desk only. The server checks this for every request.
-
-Settings in `apps/backend/.env`:
+Settings in `apps/backend/.env` (who runs the Help desk: see "Admin area"):
 
 | Setting | What it does |
 | --- | --- |
-| `AGORA_HELPDESK_ADMINS` | Who runs the Help desk: user ids or email addresses, separated by commas, for example `1,guy@example.org`. An email address only counts for an active account whose address is confirmed. Ids are the surest. Empty means nobody can open the Help desk (requests are still kept) |
 | `ANTHROPIC_API_KEY` | A key from a Claude developer account. Without it, Help is the plain form |
 | `AGORA_HELP_MODEL` | The Claude model for Help. Default `claude-haiku-5-5`, small and fast |
 | `AGORA_HELP_CHAT_PER_HOUR` | Chat messages per person per hour, default 30 |
@@ -254,9 +246,62 @@ Settings in `apps/backend/.env`:
 | `AGORA_HELP_GUIDE_FILE` | Another guide for Claude to answer from, instead of `helpGuide.md` |
 | `AGORA_VERSION` | The version stored with each request. Without it, the git commit Agora runs from |
 
-To find your own user id: open your profile in Agora; the number in the address (`/members/<number>`) is your id.
-
 After updating to a version with Help, run `cd apps/backend && yarn migrate` once, which adds the three tables (`agora_help_requests`, `agora_help_replies`, `agora_help_chats`), and `yarn install` for Anthropic's library.
+
+## Admin area
+
+The admin area is a page in Agora at `/admin` (for example https://agora.guyvankoolwijk.nl/admin), for the people who run Agora. They find it in the gear menu in the bar on the left, under **Admin**. Everyone else does not see the link, and the page tells them it does not exist. The server checks this for every request.
+
+### Who gets in
+
+Two settings in `apps/backend/.env`, each a list of user ids or email addresses separated by commas, for example `1,guy@example.org`:
+
+| Setting | Who | What they see |
+| --- | --- | --- |
+| `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
+| `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
+
+For both: the account must be switched on, and an email address only counts when the account has confirmed it, so nobody gets in by signing up with an address from the list. Ids are the surest. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+
+### The six tabs
+
+- **Overview**: how many members (accounts that are switched on), new sign-ups in the last 7 and 30 days, circles, people who were active in the last 7 days (logged in or used Agora), invitations and join requests that wait, and the meetings of this month with the minutes of sound that went to speech to text. The cost next to it is an estimate at 0.006 per minute; the real bill comes from Infomaniak. A Help desk box shows the open requests per status and the newest few, each a link into the Help desk tab.
+- **Help desk** (`/admin/help-desk`; the old address `/help-desk` still works and leads there). People who run the Help desk also find a "Help desk" link in their own Help window. There they:
+  - see every request, filtered by status (new, looking at it, being built, fixed, won't do) and type, with how many there are of each;
+  - open one to read it with the chat, who sent it, the page, browser, screen and version;
+  - change the status, and keep an internal note that only the Help desk sees;
+  - answer the person. The answer shows in their Help window, and they get an email (through Agora's own email sender, so on a Mac it is printed in the Terminal). A change of status also shows as new in their window, without an email;
+  - use **Build this**: it marks the request as being built and stores a short task for a builder, without names or personal details, ready to copy. Type the task yourself, or, for a request that came from a chat with Claude, leave the box empty and Claude writes it; the person's name and email address are taken out before anything goes to Claude. A request from the plain form is never sent to Claude. Agora warns when a task seems to name the person. A field holds a link to wherever the task ends up. Nothing is posted anywhere else yet.
+
+  The internal note and the builder task are for the Help desk only.
+- **Invitations**: every circle invitation in one list, with its circle, who sent it, when it was made and last sent, how often it was sent, and what became of it: waiting, accepted (by whom and when) or expired or withdrawn. Filter by status and circle. For a waiting invitation: copy its link, send it again (Hylo's own invitation email) or withdraw it. Below that, each circle's join link (to copy) and the join requests that wait. Hylo does not record who joined through a join link, so the page shows how many members joined without an email invitation (through the join link, a join request, or added by a steward).
+- **Accounts**: everyone with an account, with email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
+- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
+- **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended and Help desk requests. It is put together from what Agora already stores, so it needs nothing new.
+
+### Let someone in
+
+On the Accounts tab, **Let someone in** does what `scripts/agora-allow-signup.js` does, from the page. Type an email address, and choose a circle if you like:
+
+- **with a circle**, Agora makes an invitation to that circle, the same as a steward's invitation. Its link lets the person make an account and join the circle. It keeps working until it is used or withdrawn;
+- **without a circle**, Agora makes a sign-up link that works for 4 hours, the same one the script prints.
+
+The page shows the link to copy. While Agora has no mailbox, emails only go into the server log, and the page says "Send it yourself: Agora cannot email yet". Keep a sign-up link private: whoever opens it can make the account for that address. Someone who already has an account is told so; they can log in.
+
+The admin area cannot log in as someone else and cannot delete accounts. Hylo's own staff admin (`/noo/admin`) is separate and stays unused.
+
+The time of the last copy away from the server comes from a small mark file that `agora/vps/offsite-backup.sh` leaves in `/var/backups/agora` after each copy that worked, so it shows after the first night with this version.
+
+### After updating to a version with the admin area
+
+**Important:** until now the server only had `AGORA_HELPDESK_ADMINS=1`. That still opens the Help desk tab, but nothing else. To keep Guy in charge of the whole admin area:
+
+1. Open the settings file: `sudo -u agora nano /srv/agora/apps/backend/.env`
+2. Add the line `AGORA_ADMINS=1` (1 is Guy's user id; add more ids with commas). The line `AGORA_HELPDESK_ADMINS=1` may stay. Save with Ctrl+O and Enter, and close with Ctrl+X.
+3. Restart: `sudo systemctl restart agora-api agora-worker`
+4. Open `/admin` in Agora. If only the Help desk tab shows, `AGORA_ADMINS` is missing or has the wrong id.
+
+No database change is needed.
 
 ## Email
 

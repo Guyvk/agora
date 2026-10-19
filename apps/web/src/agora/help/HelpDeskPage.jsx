@@ -1,14 +1,16 @@
 /**
  * Agora: the Help desk, where the people who run Agora work through what
- * members sent from the Help window.
+ * members sent from the Help window. It is the Help desk tab of the admin
+ * area (src/agora/admin/AdminPage.jsx); the old /help-desk addresses send
+ * people there.
  *
- *   /help-desk              the list, with filters by status and type
- *   /help-desk/<id>         one request: the conversation, its status, an
+ *   /admin/help-desk        the list, with filters by status and type
+ *   /admin/help-desk/<id>   one request: the conversation, its status, an
  *                           internal note, answers to the person, and
  *                           "Build this", which writes a short task for a
  *                           builder without names or personal details
  *
- * Only Help desk admins (AGORA_HELPDESK_ADMINS on the server) get in; the
+ * Only Help desk admins (AGORA_ADMINS or AGORA_HELPDESK_ADMINS on the server) get in; the
  * server checks this for every request. See apps/backend/lib/agora/help.js.
  */
 import React, { useCallback, useEffect, useState } from 'react'
@@ -169,7 +171,8 @@ function Detail ({ id, labels, onChanged }) {
   )
 }
 
-export default function HelpDeskPage () {
+/** embedded: shown as a tab of the admin area, which has its own title and header. */
+export default function HelpDeskPage ({ embedded = false }) {
   const { t } = useTranslation()
   const labels = helpLabels(t)
   const navigate = useNavigate()
@@ -180,8 +183,8 @@ export default function HelpDeskPage () {
 
   const { setHeaderDetails } = useViewHeader()
   useEffect(() => {
-    setHeaderDetails({ title: t('Help desk'), icon: <LifeBuoy /> })
-  }, [setHeaderDetails, t])
+    if (!embedded) setHeaderDetails({ title: t('Help desk'), icon: <LifeBuoy /> })
+  }, [setHeaderDetails, t, embedded])
 
   const load = useCallback(async () => {
     const params = new URLSearchParams()
@@ -209,7 +212,7 @@ export default function HelpDeskPage () {
   if (!data) return <Loading />
 
   return (
-    <div className='p-4 w-full max-w-[1200px] mx-auto flex flex-col gap-4'>
+    <div className={cn('w-full flex flex-col gap-4', embedded ? '' : 'p-4 max-w-[1200px] mx-auto')}>
       <Helmet><title>{t('Help desk')} | Agora</title></Helmet>
       <div className='grid grid-cols-2 gap-2 max-w-[600px]'>
         <select aria-label={t('Status')} className={cn(fieldClasses, 'h-10')} value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
