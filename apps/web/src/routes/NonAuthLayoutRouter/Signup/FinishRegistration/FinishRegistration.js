@@ -76,57 +76,71 @@ export default function FinishRegistration () {
 
           {error && formatError(error, 'Signup', t)}
 
-          <TextInput
-            aria-label='name'
-            autoFocus
-            id='name'
-            internalLabel={t('Name')}
-            label='name'
-            name='name'
-            onChange={handleChange}
-            className='bg-card border-2 border-foreground/20 rounded-md mb-3'
-            inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
-            type='text'
-            value={formValues.name}
-          />
-
-          <TextInput
-            aria-label='password'
-            autoComplete='off'
-            id='password'
-            internalLabel={t('Password (at least 9 characters)')}
-            label='password'
-            name='password'
-            onChange={handleChange}
-            className='bg-card border-2 border-foreground/20 rounded-md mb-3'
-            inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
-            type='password'
-            value={formValues.password}
-          />
-
-          <TextInput
-            aria-label='passwordConfirmation'
-            autoComplete='off'
-            id='passwordConfirmation'
-            internalLabel={t('Confirm Password')}
-            label='passwordConfirmation'
-            name='passwordConfirmation'
-            onChange={handleChange}
-            onEnter={handleSubmit}
-            className='bg-card border-2 border-foreground/20 rounded-md mb-3'
-            inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
-            type='password'
-            value={formValues.passwordConfirmation}
-          />
-
-          <Button
-            variant='highVisibility'
-            className={cn('w-full text-base', canSubmit ? 'bg-selected' : 'bg-gray-400 cursor-not-allowed')}
-            onClick={canSubmit ? () => handleSubmit() : null}
-            disabled={!canSubmit}
+          {/* Agora: a real form with the account's email as a hidden username, so password managers offer to save the new password */}
+          <form
+            name='finish-registration'
+            method='post'
+            action='/signup/finish'
+            noValidate
+            onSubmit={event => {
+              event.preventDefault()
+              if (canSubmit) handleSubmit()
+            }}
           >
-            {t('Jump in to Hylo!')}
-          </Button>
+            <input type='email' name='username' autoComplete='username' value={email || ''} readOnly hidden />
+
+            <TextInput
+              aria-label='name'
+              autoFocus
+              id='name'
+              internalLabel={t('Name')}
+              label='name'
+              name='name'
+              autoComplete='name' // Agora: for password managers
+              onChange={handleChange}
+              className='bg-card border-2 border-foreground/20 rounded-md mb-3'
+              inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
+              type='text'
+              value={formValues.name}
+            />
+
+            <TextInput
+              aria-label='password'
+              autoComplete='new-password' // Agora: was off; lets password managers suggest and save it
+              id='password'
+              internalLabel={t('Password (at least 9 characters)')}
+              label='password'
+              name='password'
+              onChange={handleChange}
+              className='bg-card border-2 border-foreground/20 rounded-md mb-3'
+              inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
+              type='password'
+              value={formValues.password}
+            />
+
+            <TextInput
+              aria-label='passwordConfirmation'
+              autoComplete='new-password' // Agora: was off
+              id='passwordConfirmation'
+              internalLabel={t('Confirm Password')}
+              label='passwordConfirmation'
+              name='passwordConfirmation'
+              onChange={handleChange}
+              className='bg-card border-2 border-foreground/20 rounded-md mb-3'
+              inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
+              type='password'
+              value={formValues.passwordConfirmation}
+            />
+
+            <Button
+              variant='highVisibility'
+              className={cn('w-full text-base', canSubmit ? 'bg-selected' : 'bg-gray-400 cursor-not-allowed')}
+              type='submit' // Agora: submits the form
+              disabled={!canSubmit}
+            >
+              {t('Jump in to Hylo!')}
+            </Button>
+          </form>
         </div>
       </div>
     </div>

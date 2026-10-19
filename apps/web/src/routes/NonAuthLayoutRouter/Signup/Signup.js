@@ -109,7 +109,7 @@ export default function Signup (props) {
           label='email'
           name='email'
           id='email'
-          autoComplete='off'
+          autoComplete='username' // Agora: was off; the email is the username password managers save later
           autoFocus
           internalLabel={t('Your email address')}
           onChange={handleEmailChange}

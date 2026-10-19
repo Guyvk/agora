@@ -85,12 +85,24 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/web/src/routes/ChatRoom/ChatRoom.js` | The chat list is Agora's own `AgoraMessageList` instead of Hylo's paid `@virtuoso.dev/message-list`, which needs a licence key and without one showed only a red licence notice and no messages. Same props, no licence wrapper |
+| `apps/web/src/routes/ChatRoom/ChatRoom.module.scss` | The phone rule for the chat scroller points at the new list |
+| `apps/web/src/routes/ChatRoom/ChatRoom.test.js` | No longer pretends the paid list is there |
+| `apps/web/package.json`, `yarn.lock` (chat) | `@virtuoso.dev/message-list` (and its helper `@virtuoso.dev/gurx`) removed |
+| `apps/web/vite.config.js` | A comment only: the old note about the Virtuoso licence watermark no longer applies |
+| `apps/web/src/routes/NonAuthLayoutRouter/Login/Login.js` | A real form: email marked as username, password as current password, the button submits it, so password managers fill and save the login |
+| `apps/web/src/routes/OAuth/Login/Login.js` | Same username and current-password marks |
+| `apps/web/src/routes/NonAuthLayoutRouter/PasswordReset/PasswordReset.js` | A real form, the email field marked as username |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` | The email field is marked as username (it said "no autofill") |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.js` | The "choose a password" step is a real form with the email as a hidden username and both password fields marked as new password, so password managers offer to save it |
+| `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js` | Email and new password fields are a real form (username, new-password); after a password is saved, a same-page history step tells the browser it worked, so it offers to save the new password. The "Set a new password" link from the reset email lands here |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
 ## Files that are new
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
+- `apps/web/src/agora/chat/AgoraMessageList.jsx`, `apps/web/src/agora/chat/AgoraMessageList.test.js` (the chat list), `apps/web/src/agora/passwordForms.test.js` (password manager marks on the login, reset, sign-up and account forms)
 - `agora/setup-mac.sh`, `agora/setup-cloud.sh`, `AGORA-CLOUD.md`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
 - `agora/vps/setup-server.sh`, `agora/vps/server-env.mjs`, `agora/vps/update.sh`, `agora/vps/backup.sh` (the server at Infomaniak)
 - `agora/vps/offsite-backup.sh`, `agora/vps/offsite-backup.conf.example` (an encrypted copy of the backups in object storage), `.github/workflows/agora-uptime.yml` (a warning when Agora is down)
