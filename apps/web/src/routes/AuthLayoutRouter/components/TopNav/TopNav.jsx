@@ -4,7 +4,7 @@ import { Globe, HelpCircle, PlusCircle, Bell, MessagesSquare, Layers, Pin } from
 import React, { Suspense, useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector, useDispatch } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom' // Agora: Link for the guide
 import {
   Popover,
   PopoverContent,
@@ -21,6 +21,7 @@ import { getMyGroupsWithChildren, isSpaceGroup } from 'store/selectors/getMyGrou
 import useRouteParams from 'hooks/useRouteParams'
 import { baseUrl, myHomeLandingUrl, isMyHomeContext } from '@hylo/navigation'
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
+import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
 import { DEFAULT_AVATAR } from 'store/models/Group'
 import { SettingsMenu } from '../GlobalNav/GlobalNav'
 import { pinGroup } from 'store/actions/pinGroup'
@@ -462,7 +463,7 @@ export default function TopNav ({ currentUser }) {
           </PopoverTrigger>
           <PopoverContent side='bottom' align='end'>
             <ul className='flex flex-col gap-2 m-0 p-0'>
-              <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='https://hylozoic.gitbook.io/hylo/guides/hylo-user-guide' target='_blank' rel='noreferrer'>{t('User Guide')}</a></li>
+              <li className='w-full'><Link className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' to={GUIDE_URL}>{t('Agora guide')}</Link></li> {/* Agora: our own guide instead of Hylo's user guide */}
               {/* Agora: our own Terms of use and Privacy notice */}
               <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='/terms' target='_blank' rel='noreferrer'>{t('Terms & Privacy')}</a></li>
               <li className='w-full'><a className='text-foreground cursor-pointer hover:text-foreground/100 px-2 py-1 border-foreground/20 border-2 w-full rounded-lg block hover:scale-105 transition-all hover:border-foreground/50 flex items-center gap-2 text-sm' href='https://opencollective.com/hylo' target='_blank' rel='noreferrer'>{t('Contribute to Hylo')}</a></li>

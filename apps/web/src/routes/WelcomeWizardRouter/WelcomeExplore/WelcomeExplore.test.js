@@ -30,6 +30,8 @@ describe('WelcomeExplore', () => {
     expect(screen.getByRole('link', { name: /Public stream/i })).toHaveAttribute('href', '/public/all')
     expect(screen.getByRole('link', { name: /Create a group/i })).toHaveAttribute('href', '/public?create=group')
     expect(screen.getByRole('link', { name: /Complete your profile/i })).toHaveAttribute('href', '/my/edit-profile')
+    // Agora: the guide
+    expect(screen.getByRole('link', { name: /Read the Agora guide/i })).toHaveAttribute('href', '/guide')
   })
 
   it('displays user avatar when provided', () => {
