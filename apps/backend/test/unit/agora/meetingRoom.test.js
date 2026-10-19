@@ -58,6 +58,13 @@ describe('Agora meeting room without speech to text', () => {
     expect(res.body).to.contain('"transcriptionReady":false')
   })
 
+  it('never hands the page another platform\'s link', async () => {
+    await bookshelf.knex('posts').where('id', event.id).update({ meeting_link: 'https://zoom.us/j/123' })
+    const res = await call('room')
+    expect(res.body).not.to.contain('zoom.us')
+    expect(res.body).not.to.contain('"meetingLink"')
+  })
+
   it('refuses speech, and keeps none of it', async () => {
     const joined = await call('join', { notes: true })
     const res = await call('segment', {}, {

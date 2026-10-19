@@ -10,7 +10,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 
 | Addition | What it does | Where the code lives |
 | --- | --- | --- |
-| Meetings that write their own minutes | Every event has a meeting room. While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js` |
+| Meetings that write their own minutes | Every event has a meeting room, and video calls always go through it (no Zoom or other links). While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `scripts/agora-meeting-links.js` |
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
@@ -65,7 +65,15 @@ It installs PostgreSQL 17 with PostGIS, Redis and Node 24, creates the databases
 
 Open any event and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
 
-When you schedule an event and leave its video call link empty, Agora fills in the event's meeting room. That link then also appears in invitations, emails and calendar entries, so everyone lands in the same room. If you type a link of your own, for example for Zoom, Agora leaves it alone. This only happens when `AGORA_MEET_DOMAIN` is set. Events made before this was added keep an empty link until they are edited.
+Video calls in Agora always go through the event's own meeting room. There is no field for a video call link on an event: Agora gives every event its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The event form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as an event's location. When `AGORA_MEET_DOMAIN` is empty there is no call server, so events have no video call link at all.
+
+**Older events.** Events made before this can still have a Zoom link, or no link. One command, in `apps/backend` (on the server: `/srv/agora/apps/backend`, as the `agora` user), shows what it would change and saves nothing:
+
+```
+node scripts/agora-meeting-links.js
+```
+
+Then the same with `--apply` makes the changes: every event gets its meeting room as its link, and an event whose location is only a video call link gets an empty location. A location with more in it (an address and a Zoom link) is listed, for a steward to change by hand. Nobody gets an email; calendars show the meeting room once the worker has made the calendar files again. Running it a second time changes nothing.
 
 How it works:
 
@@ -80,7 +88,7 @@ Three settings in `apps/backend/.env` switch this on:
 | --- | --- |
 | `AGORA_TRANSCRIPTION_URL` and `AGORA_TRANSCRIPTION_KEY` | The address and key of a speech-to-text service. Any service that follows the OpenAI format works, for example Infomaniak AI Tools (Whisper, hosted in Switzerland) |
 | `ANTHROPIC_API_KEY` | A key from a Claude developer account, for writing the minutes |
-| `AGORA_MEET_DOMAIN` | The Jitsi server for the call. Leave empty to open the event's own video link in a second window |
+| `AGORA_MEET_DOMAIN` | The Jitsi server for the call: `kmeet.infomaniak.com` (kMeet by Infomaniak). Every call runs here. If the call cannot be shown inside the room, the room offers the same kMeet room in a second window. Leave empty only to have no video calls at all: then events have no video call link, and the room only writes notes for people sitting together |
 
 Without the first, meetings work but no notes are written. Without the second, you get the transcript without a summary.
 

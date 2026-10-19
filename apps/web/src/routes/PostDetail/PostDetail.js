@@ -525,7 +525,8 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
 
   const meetingUrl = useMemo(() => {
     const link = post?.meetingLink?.trim()
-    if (!link) return null
+    // Agora: only the event's own meeting room, never an older link to another platform
+    if (!link || !/\/noo\/meeting\/\d+\/room\/?$/.test(link)) return null
     return link.startsWith('http') ? link : `https://${link}`
   }, [post?.meetingLink])
 

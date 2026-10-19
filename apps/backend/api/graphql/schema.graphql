@@ -2369,7 +2369,7 @@ type Post {
   location: String
   # Object with geocoded location deatils
   locationObject: Location
-  # Video call link for online or hybrid events (Zoom, Meet, Jitsi, etc.)
+  # Video call link for online or hybrid events. Agora: always the event's own meeting room; a link sent here is ignored
   meetingLink: String
   # Logged in user's attendance response to an event post: 'yes', 'maybe' or 'no'
   myEventResponse: String
@@ -4403,7 +4403,7 @@ input PostInput {
   location: String
   # Id to location object with geocoded location deatils
   locationId: ID
-  # Video call link for online or hybrid events (Zoom, Meet, Jitsi, etc.)
+  # Video call link for online or hybrid events. Agora: always the event's own meeting room; a link sent here is ignored
   meetingLink: String
   # Topic name of the chat room the user is currently viewing. When set, that topic follow's last_read_post_id is always updated regardless of new_post_count.
   markAsReadTopicName: String

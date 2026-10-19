@@ -61,7 +61,7 @@ Not needed now (Guy's choice). For later: one 4 vCPU / 8 GB Infomaniak Public Cl
 ### 1d. meet.jit.si and Google Meet
 
 - **meet.jit.si** (the public Jitsi server): its live `config.js` sets `disableIframeAPI: true` and asks people to sign in to start a room, so it cannot be shown inside Agora. Jitsi points people who want to embed to its paid service JaaS (it has a free tier for up to 25 users). [meet.jit.si/config.js](https://meet.jit.si/config.js), [jitsi.org/jaas](https://jitsi.org/jaas/)
-- **Google Meet** cannot be shown inside another page: it sends `X-Frame-Options: SAMEORIGIN` (checked). Agora could only link to it, as the room already does when `AGORA_MEET_DOMAIN` is empty (Agora's own listening still works in that case). Google's own transcripts need Workspace Business Standard or higher ([Google help](https://support.google.com/meet/answer/12849897?hl=en)); Business Standard for nonprofits is about USD 3.50 per user per month ([Google for Nonprofits](https://google.com/intl/en-GB/nonprofits/workspace/compare)). Not needed with kMeet.
+- **Google Meet** cannot be shown inside another page: it sends `X-Frame-Options: SAMEORIGIN` (checked). Agora could only link to it. Since 19 October that is no longer possible: Guy decided that calls always go through Agora's own meeting room on kMeet, so events have no field for another platform's link (see "Meetings" in README-AGORA.md). Google's own transcripts need Workspace Business Standard or higher ([Google help](https://support.google.com/meet/answer/12849897?hl=en)); Business Standard for nonprofits is about USD 3.50 per user per month ([Google for Nonprofits](https://google.com/intl/en-GB/nonprofits/workspace/compare)). Not needed with kMeet.
 
 ### 1e. Other Infomaniak video products
 

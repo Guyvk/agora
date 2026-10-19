@@ -29,10 +29,11 @@ describe('PostTitle', () => {
     expect(screen.getByTestId('icon-Location')).toBeInTheDocument()
   })
 
-  it('renders meeting link for event posts', () => {
-    render(<PostTitle {...defaultProps} type='event' meetingLink='https://zoom.us/j/123' location='' />)
-    expect(screen.getByText('Join online')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Join online' })).toHaveAttribute('href', 'https://zoom.us/j/123')
+  // Agora: calls only in the event's own meeting room, never another platform's link
+  it('shows the meeting room, and not a link to another platform', () => {
+    render(<PostTitle {...defaultProps} id='7' type='event' meetingLink='https://zoom.us/j/123' location='' />)
+    expect(screen.queryByText('Join online')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Meet in Agora, with minutes' })).toHaveAttribute('href', '/noo/meeting/7/room')
   })
 
   it('applies constrained class when constrained prop is true', () => {
