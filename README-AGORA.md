@@ -18,6 +18,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
+| Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -195,6 +196,21 @@ Each group has a playbook page at `/groups/<group>/playbook`, for example `/grou
 - Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
 - The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
 - The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
+
+## Guide and welcome steps
+
+The guide is a page in Agora at `/guide`. It explains in short parts what Agora is for 7BP: circles and joining by invitation, posts, discussions and proposals, events and the meeting room, files in Google Drive, the playbook, contacts, notifications and email digests, your profile, and where to get help. Parts that are built but wait for a key or an account (minutes that write themselves, Google Drive, Agora's own mailbox) say "Coming soon". Change the guide when something new goes live: its texts are in `apps/web/src/agora/guide/GuidePage.jsx` and in the language files.
+
+People find it:
+
+- in the question mark menu in the bar on the left (it replaces the link to Hylo's own user guide), and in the tab bar's help menu;
+- in the gear menu in the same bar, under Agora guide;
+- on the last page of the sign-up wizard, as the first card;
+- in the welcome steps.
+
+The welcome steps are a small box at the top of the page for a new member, with four steps: fill in your profile, open your circle, read the guide, say hi in your circle. Each step is ticked off by itself: the profile when it has a line about you or a bio, the circle once any circle has been opened, the guide once it has been opened, saying hi once its link to the circle's chat has been used. The box goes away when all four are done, or when the person closes it with the cross. Agora remembers that with the account, in Hylo's own list of guided tours someone has seen (the `toursSeen` setting), so it does not come back on another device and needs no change to the server. The box is not shown on maps, in messages, in settings or during the sign-up wizard.
+
+The guide is in English. The headings, the menu item and the welcome steps are also in the other languages; the longer texts follow once the guide has settled.
 
 ## Email
 

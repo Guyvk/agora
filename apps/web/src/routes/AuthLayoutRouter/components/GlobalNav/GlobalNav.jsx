@@ -8,7 +8,7 @@ import { GLOBAL_CHROME_TOUR_ID, globalChromeTourSteps } from 'tours/globalChrome
 import { tourCatalog, isTourAvailable } from 'tours/catalog'
 import { useIntercom } from 'react-use-intercom'
 import { useSelector, useDispatch } from 'react-redux'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom' // Agora: Link for the guide
 import { replace } from 'redux-first-history'
 import {
   DndContext,
@@ -67,6 +67,7 @@ import logout from 'store/actions/logout'
 import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHomeLandingUrl } from '@hylo/navigation'
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
+import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
 import {
   LOCALE_DE,
@@ -416,6 +417,11 @@ function SettingsMenu ({ currentUser, triggerClassName, contentSide = 'right', c
         <DropdownMenuItem onClick={handleNotificationSettings}>
           <BellIcon className='mr-2 h-4 w-4' />
           <span>{t('Notifications')}</span>
+        </DropdownMenuItem>
+        {/* Agora: the guide */}
+        <DropdownMenuItem onClick={() => navigate(GUIDE_URL)}>
+          <BookOpen className='mr-2 h-4 w-4' />
+          <span>{t('Agora guide')}</span>
         </DropdownMenuItem>
         <SettingsSubMenu compact={compactLayout} icon={<Palette className='mr-2 h-4 w-4' />} label={t('Appearance')}>
           <SettingsSubMenu compact={compactLayout} label={t('Color Mode')}>
@@ -1273,11 +1279,12 @@ export default function GlobalNav (props) {
                 <MessagesSquare className='mr-2 h-4 w-4' />
                 <span>{t('Feedback & Support')}</span>
               </DropdownMenuItem>
+              {/* Agora: our own guide instead of Hylo's user guide */}
               <DropdownMenuItem asChild>
-                <a href='https://hylozoic.gitbook.io/hylo/guides/hylo-user-guide' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>
+                <Link to={GUIDE_URL} className='text-foreground hover:text-foreground' data-testid='agora-guide-link'>
                   <BookOpen className='mr-2 h-4 w-4' />
-                  <span>{t('User Guide')}</span>
-                </a>
+                  <span>{t('Agora guide')}</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a href='http://hylo.com/terms/' target='_blank' rel='noreferrer' className='text-foreground hover:text-foreground'>

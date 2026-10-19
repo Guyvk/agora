@@ -1,0 +1,70 @@
+// Agora: the guide page.
+import React from 'react'
+import orm from 'store/models'
+import { AllTheProviders, render, screen, within } from 'util/testing/reactTestingLibraryExtended'
+import GuidePage from './GuidePage'
+import WelcomeSteps from './WelcomeSteps'
+
+function providers ({ circle = true } = {}) {
+  const session = orm.mutableSession(orm.getEmptyState())
+  session.Me.create({ id: '1', name: 'Amara Okafor', settings: { toursSeen: [] } })
+  if (circle) {
+    session.Group.create({ id: '7', slug: 'governance', name: 'Governance' })
+    session.Membership.create({ id: 'm1', group: '7', person: '1' })
+  }
+  return AllTheProviders({ orm: session.state }, ['/guide'])
+}
+
+describe('GuidePage', () => {
+  it('explains every part of Agora in short sections', () => {
+    render(<GuidePage />, { wrapper: providers() })
+    const titles = screen.getAllByTestId('guide-section').map(s => within(s).getByRole('heading').textContent.trim())
+    expect(titles).toEqual([
+      'What Agora is',
+      'Circles',
+      'Posts, discussions and proposals',
+      'Events and meetings',
+      'Files',
+      'Playbook',
+      'Contacts',
+      'Notifications and email',
+      'Your profile',
+      'Getting help'
+    ])
+    // A list of the sections at the top, linking to each one
+    const nav = screen.getByRole('navigation', { name: 'On this page' })
+    expect(within(nav).getByRole('link', { name: 'Files' })).toHaveAttribute('href', '#files')
+  })
+
+  it('says honestly what is not ready yet', () => {
+    render(<GuidePage />, { wrapper: providers() })
+    const soon = screen.getAllByTestId('guide-coming-soon').map(n => n.textContent)
+    expect(soon).toHaveLength(3)
+    expect(soon[0]).toMatch(/Minutes that write themselves/)
+    expect(soon[1]).toMatch(/Google Drive/)
+    expect(soon[2]).toMatch(/Emails from Agora/)
+  })
+
+  it('links to the member\'s own circle and its playbook, and to pages that exist', () => {
+    render(<GuidePage />, { wrapper: providers() })
+    expect(screen.getByRole('link', { name: 'Open Governance' })).toHaveAttribute('href', '/groups/governance')
+    expect(screen.getByRole('link', { name: 'Open the playbook of Governance' })).toHaveAttribute('href', '/groups/governance/playbook')
+    expect(screen.getByRole('link', { name: 'Open Contacts' })).toHaveAttribute('href', '/contacts')
+    expect(screen.getByRole('link', { name: 'Choose my notifications' })).toHaveAttribute('href', '/my/notifications')
+    expect(screen.getByRole('link', { name: 'Fill in my profile' })).toHaveAttribute('href', '/my/edit-profile')
+    expect(screen.getByText(/Help, bottom right/)).toBeInTheDocument()
+  })
+
+  it('points to the list of circles for someone without one', () => {
+    render(<GuidePage />, { wrapper: providers({ circle: false }) })
+    expect(screen.getByRole('link', { name: 'See my circles' })).toHaveAttribute('href', '/my/groups')
+    expect(screen.queryByRole('link', { name: /Open the playbook/ })).not.toBeInTheDocument()
+  })
+
+  it('ticks off "Read the guide" in the welcome steps once opened', () => {
+    render(<><WelcomeSteps /><GuidePage /></>, { wrapper: providers() })
+    const guideStep = screen.getAllByTestId('welcome-step')[2]
+    expect(guideStep).toHaveAttribute('data-done', 'true')
+    expect(guideStep).toHaveTextContent('Read the Agora guide')
+  })
+})

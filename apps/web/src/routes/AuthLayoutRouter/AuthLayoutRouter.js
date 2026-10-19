@@ -84,6 +84,8 @@ import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
+import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
+import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
 import ThreadList from 'routes/Messages/ThreadList'
 import MySpaceCollection from 'routes/MySpaceCollection'
 import MyTransactions from 'routes/MyTransactions'
@@ -1070,6 +1072,7 @@ export default function AuthLayoutRouter (props) {
 
             <div className={cn('AuthLayout_centerColumn bg-midground flex flex-col px-0 relative min-h-1 h-full flex-1 overflow-y-auto overflow-x-hidden transition-all duration-450', { 'z-[60]': withoutNav, 'sm:p-0': isMapView })} id={CENTER_COLUMN_ID}>
               <ViewHeader />
+              <WelcomeSteps /> {/* Agora: welcome steps for new members */}
               {/* NOTE: It could be more clear to group the following switched routes by component  */}
               <Routes>
                 {/* **** Member Routes **** */}
@@ -1202,6 +1205,7 @@ export default function AuthLayoutRouter (props) {
                 {/* Agora: the shared Contacts page */}
                 <Route path='contacts/:contactId' element={<ContactsPage />} />
                 <Route path='contacts' element={<ContactsPage />} />
+                <Route path='guide' element={<GuidePage />} /> {/* Agora: the guide */}
                 <Route path='post/:postId/*' element={<PostDetail />} />
                 {/* Keep old settings paths for mobile */}
                 <Route path='settings/*' element={<UserSettings />} />
