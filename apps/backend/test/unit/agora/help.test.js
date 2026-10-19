@@ -19,7 +19,7 @@ const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
 
 const SAVED_ENV = {}
-const ENV_NAMES = ['ANTHROPIC_API_KEY', 'AGORA_HELPDESK_ADMINS', 'AGORA_VERSION', 'AGORA_HELP_CHAT_PER_HOUR', 'AGORA_HELP_REQUESTS_PER_DAY', 'AGORA_HELP_REPLY_EMAIL']
+const ENV_NAMES = ['ANTHROPIC_API_KEY', 'AGORA_HELPDESK_ADMINS', 'AGORA_ADMINS', 'AGORA_VERSION', 'AGORA_HELP_CHAT_PER_HOUR', 'AGORA_HELP_REQUESTS_PER_DAY', 'AGORA_HELP_REPLY_EMAIL']
 
 describe('Agora help', () => {
   let amara, lars, guy, unconfirmed, sleeping
@@ -116,6 +116,26 @@ describe('Agora help', () => {
         expect(await Help.isAdmin(guy.id)).to.equal(false)
       } finally {
         process.env.AGORA_HELPDESK_ADMINS = saved
+      }
+    })
+
+    it('also lets Agora admins (AGORA_ADMINS) run the Help desk, with the same rules', async () => {
+      const saved = process.env.AGORA_HELPDESK_ADMINS
+      try {
+        process.env.AGORA_HELPDESK_ADMINS = ''
+        process.env.AGORA_ADMINS = `${lars.id}, boss@agora.test, gone@agora.test`
+        expect(await Help.isAdmin(lars.id)).to.equal(true)
+        expect(await Help.isAdmin(unconfirmed.id)).to.equal(false)
+        expect(await Help.isAdmin(sleeping.id)).to.equal(false)
+        expect(await Help.isAdmin(guy.id)).to.equal(false)
+        // Both lists together
+        process.env.AGORA_HELPDESK_ADMINS = String(guy.id)
+        expect(await Help.isAdmin(guy.id)).to.equal(true)
+        expect(await Help.isAdmin(lars.id)).to.equal(true)
+        expect(await Help.isAdmin(amara.id)).to.equal(false)
+      } finally {
+        process.env.AGORA_HELPDESK_ADMINS = saved
+        delete process.env.AGORA_ADMINS
       }
     })
 

@@ -33,7 +33,8 @@ export function helpContext () {
   }
 }
 
-export const HELP_DESK_URL = '/help-desk'
+/** The Help desk is a tab of the admin area. The old address /help-desk sends people here. */
+export const HELP_DESK_URL = '/admin/help-desk'
 
 export function formatMoment (iso) {
   return iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''

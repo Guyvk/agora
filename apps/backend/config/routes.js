@@ -128,6 +128,20 @@ module.exports.routes = {
   'POST   /noo/agora/help/api/desk/:requestId/reply':     'AgoraHelpController.deskReply',
   'POST   /noo/agora/help/api/desk/:requestId/build':     'AgoraHelpController.deskBuild',
 
+  // Agora admin dashboard (/admin in the web app): for Agora admins only, each action checks
+  'GET    /noo/agora/admin/api/me':                       'AgoraAdminController.me',
+  'GET    /noo/agora/admin/api/overview':                 'AgoraAdminController.overview',
+  'GET    /noo/agora/admin/api/invitations':              'AgoraAdminController.invitations',
+  'POST   /noo/agora/admin/api/invitations/:invitationId/resend': 'AgoraAdminController.resendInvitation',
+  'POST   /noo/agora/admin/api/invitations/:invitationId/revoke': 'AgoraAdminController.revokeInvitation',
+  'GET    /noo/agora/admin/api/joins':                    'AgoraAdminController.joins',
+  'GET    /noo/agora/admin/api/accounts':                 'AgoraAdminController.accounts',
+  'POST   /noo/agora/admin/api/accounts/let-in':          'AgoraAdminController.letIn',
+  'POST   /noo/agora/admin/api/accounts/:accountId/deactivate': 'AgoraAdminController.deactivate',
+  'POST   /noo/agora/admin/api/accounts/:accountId/reactivate': 'AgoraAdminController.reactivate',
+  'GET    /noo/agora/admin/api/system':                   'AgoraAdminController.system',
+  'GET    /noo/agora/admin/api/activity':                 'AgoraAdminController.activity',
+
   'GET    /noo/export/group':                             'ExportController.groupData',
   'POST   /noo/export/user-account':                      'ExportController.userAccountData'
 }
