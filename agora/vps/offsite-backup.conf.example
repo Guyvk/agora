@@ -1,0 +1,41 @@
+# Agora: settings for the off-server copy of the nightly backup.
+#
+# This is an example without real values. To switch the copy on, log in to the
+# server and make your own file from it, readable only by root and the user
+# "agora":
+#
+#   sudo install -m 640 -o root -g agora /etc/agora/offsite-backup.conf.example /etc/agora/offsite-backup.conf
+#   sudo nano /etc/agora/offsite-backup.conf
+#   sudo -u agora bash /srv/agora/agora/vps/offsite-backup.sh check
+#
+# Fill in the values after the "=" signs, without spaces around them. Quotes
+# are not needed. Never put this file in git, a chat or an email. Keep the
+# keys and the encryption password in your password manager as well: without
+# them nobody can read the copy, also not you.
+#
+# All steps: "Off-server backups" in README-AGORA.md.
+
+# Infomaniak's object storage. pub2 is the cloud where Agora's server runs
+# (dc4-a on api.pub2.infomaniak.cloud).
+OFFSITE_ENDPOINT=https://s3.pub2.infomaniak.cloud
+
+# The container (S3 calls it a "bucket") that holds the copies. The check
+# command above makes it when it does not exist yet.
+OFFSITE_BUCKET=agora-backups
+
+# The two keys that "openstack ec2 credentials create" printed: "access" and "secret".
+OFFSITE_ACCESS_KEY=
+OFFSITE_SECRET_KEY=
+
+# Everything is encrypted on the server before it leaves, with this password.
+# Choose a long one (at least 20 characters, for example five random words)
+# and keep it in your password manager. If it is lost, the copy cannot be
+# read by anyone. Changing it later makes a fresh copy: see the README.
+OFFSITE_PASSWORD=
+
+# yes: encrypt (strongly advised, the database holds personal data).
+# no:  send the files as they are (then the settings files are not copied).
+OFFSITE_ENCRYPT=yes
+
+# How many days of database copies and of changed or deleted uploads to keep.
+OFFSITE_KEEP_DAYS=30
