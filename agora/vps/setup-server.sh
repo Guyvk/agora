@@ -55,6 +55,9 @@ apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq ca-certificates curl git ufw fail2ban unattended-upgrades \
   build-essential python3 rsync rclone postgresql postgresql-contrib redis-server caddy >/dev/null
+# The circle library reads text from files: PDF (poppler-utils), Word and
+# OpenDocument (unzip), and cuts recordings into pieces for speech to text (ffmpeg).
+apt-get install -y -qq poppler-utils unzip ffmpeg >/dev/null
 PG_MAJOR="$(apt-cache depends postgresql | sed -n 's/.*Depends: postgresql-\([0-9]*\)$/\1/p' | head -1)"
 apt-get install -y -qq "postgresql-$PG_MAJOR-postgis-3" >/dev/null
 echo "  PostgreSQL $PG_MAJOR, Redis $(redis-server --version | awk '{print $3}'), Caddy $(caddy version | awk '{print $1}')"

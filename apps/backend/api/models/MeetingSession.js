@@ -251,6 +251,25 @@ module.exports = bookshelf.Model.extend({
       minutes_post_id: minutesPost.id
     }, { patch: true })
 
+    // The transcript and the minutes also go into each circle's library, with
+    // their full text for search and AI. If that fails, the minutes still stand.
+    try {
+      await AgoraLibrary.fileMeeting({
+        sessionId,
+        title,
+        date,
+        attendees,
+        lines,
+        startedAt,
+        minutes,
+        minutesPostId: minutesPost.id,
+        assistantId: assistant.id,
+        groupIds: groups.map(g => g.id)
+      })
+    } catch (err) {
+      sails.log.error(`MeetingSession.finalize: could not file meeting ${sessionId} in the library: ${err.message}`)
+    }
+
     return minutesPost
   }
 })

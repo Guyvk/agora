@@ -84,7 +84,7 @@ function textFromResult (data) {
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-async function fetchBatchResult ({ url, batchId, headers, deadline }) {
+async function fetchBatchResult ({ url, batchId, headers, deadline, timeoutMs = TIMEOUT_MS }) {
   const resultsUrl = resultsUrlFor(url, batchId)
   while (Date.now() < deadline) {
     await wait(POLL_EVERY_MS)
@@ -104,7 +104,7 @@ async function fetchBatchResult ({ url, batchId, headers, deadline }) {
     }
     // pending or processing: ask again
   }
-  throw new Error(`Transcription batch ${batchId} was not ready within ${TIMEOUT_MS / 1000} seconds`)
+  throw new Error(`Transcription batch ${batchId} was not ready within ${timeoutMs / 1000} seconds`)
 }
 
 module.exports = {
@@ -128,12 +128,14 @@ module.exports = {
    * @param {Buffer} args.audio      the recorded sound
    * @param {string} args.mimeType   e.g. "audio/webm;codecs=opus"
    * @param {number} [args.durationMs]
+   * @param {number} [args.timeoutMs] how long to wait in all, default 2 minutes. The
+   *                                  library sends pieces of up to 10 minutes and waits longer.
    * @returns {Promise<string>} the spoken words, or '' when nothing was said
    */
-  transcribe: async function ({ audio, mimeType = 'audio/webm', durationMs }) {
+  transcribe: async function ({ audio, mimeType = 'audio/webm', durationMs, timeoutMs = TIMEOUT_MS }) {
     const url = process.env.AGORA_TRANSCRIPTION_URL
     if (!url) throw new Error('Transcription is not set up: AGORA_TRANSCRIPTION_URL is empty')
-    const deadline = Date.now() + TIMEOUT_MS
+    const deadline = Date.now() + timeoutMs
 
     const baseType = mimeType.split(';')[0]
     const form = new FormData()
@@ -153,7 +155,7 @@ module.exports = {
       method: 'POST',
       headers,
       body: form,
-      signal: AbortSignal.timeout(TIMEOUT_MS)
+      signal: AbortSignal.timeout(timeoutMs)
     })
 
     if (!response.ok) {
@@ -166,7 +168,7 @@ module.exports = {
     if (data && typeof data.text === 'string') {
       raw = data.text
     } else if (data && data.batch_id) {
-      raw = await fetchBatchResult({ url, batchId: data.batch_id, headers, deadline })
+      raw = await fetchBatchResult({ url, batchId: data.batch_id, headers, deadline, timeoutMs })
     } else {
       // Never treat an answer we do not understand as silence: that would lose speech without a trace.
       throw new Error(`Transcription service answered without text or batch_id: ${JSON.stringify(data).slice(0, 300)}`)
