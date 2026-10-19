@@ -55,6 +55,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora library: for anyone logged in, and every action checks that the person is a member of the circle.
+  AgoraLibraryController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora contacts: for Agora members. The page sends people to the login page itself.
   AgoraContactsController: {
     page: true,

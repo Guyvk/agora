@@ -85,6 +85,14 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/backend/api/models/post/createPost.js` (library) | A new resource post queues the job that reads the text of its attachments for the circle library, unless the library made it |
+| `apps/backend/cron.js` (library) | Once a day, files sent to a circle library but never added to an item are removed |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (library) | The addresses of the circle library, for anyone logged in; each one checks that the person is a member of the circle |
+| `apps/backend/migrations/schema.sql` (library) | The three tables of the circle library: items, files, and the text read from files (`agora_file_texts`) |
+| `apps/backend/package.json` (library) | Told the style checker about the `AgoraLibrary` service |
+| `apps/backend/.env.example` (library) | The library's settings: where files are kept (disk or S3 object storage), the S3 settings, the size limits |
+| `apps/web/public/locales/en.json` (library) | The texts of the circle library, in English only for now; other languages show the English |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (library) | A circle's Resources tab shows the circle library instead of Hylo's list of resources |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -124,3 +132,5 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/admin/AdminPage.jsx`, `apps/web/src/agora/admin/api.js`, `apps/web/src/agora/admin/AdminPage.test.js` (the admin area page; the Help desk page `HelpDeskPage.jsx` is now its Help desk tab)
 - `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`
+- `apps/backend/migrations/20261019180000_add_agora_library.js`, `apps/backend/lib/agora/library.js`, `apps/backend/lib/agora/libraryStorage.js`, `apps/backend/lib/agora/libraryExtract.js`, `apps/backend/lib/agora/fileTexts.js`, `apps/backend/api/services/AgoraLibrary.js`, `apps/backend/api/controllers/AgoraLibraryController.js`, `apps/backend/scripts/agora-library-backfill.js`, `apps/backend/scripts/agora-library-check.js`, `apps/backend/test/unit/agora/library.test.js` (the circle library; `api/models/MeetingSession.js` files meeting notes in it, `api/services/Transcription.js` can wait longer for a long recording, and `lib/agora/diskUploads.js` never serves hidden folders such as the library's)
+- `apps/web/src/agora/library/LibraryPage.jsx`, `apps/web/src/agora/library/api.js`, `apps/web/src/agora/library/LibraryPage.test.js`, `apps/web/src/agora/library/api.test.js` (the Resources tab as the circle library; `agora/vps/setup-server.sh` and `update.sh` install poppler-utils, unzip and ffmpeg for it)

@@ -21,6 +21,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
 | Terms of use and Privacy notice | Agora's own pages at `/terms` and `/privacy`, readable without logging in. The login, sign-up and help links point there instead of hylo.com. Both are drafts until 7BP approves them | `apps/web/src/agora/legal/`, texts in `apps/web/public/locales/en.json` |
 | Help and the Help desk | A Help button at the bottom right of every page, where people report faults, wishes and questions. The Help desk is where the team works through them, answers, and turns them into builder tasks | `apps/web/src/agora/help/`, `apps/backend/lib/agora/help.js`, `apps/backend/api/controllers/AgoraHelpController.js` |
+| Circle library | Each circle's Resources tab is its library: documents, pictures, recordings (the sound and its transcript), meeting notes and links. Members search titles, descriptions and the text inside files. Files up to 500 MB, kept in Infomaniak's object storage (or on the server's disk), for members of the circle only. Meeting notes are filed by themselves | `apps/web/src/agora/library/`, `apps/backend/lib/agora/library*.js`, `apps/backend/lib/agora/fileTexts.js`, `apps/backend/api/controllers/AgoraLibraryController.js` |
 | Admin area | A page at `/admin` for the people who run Agora: the main numbers, the Help desk, every invitation and what became of it, all accounts with "Let someone in" and switching accounts off and on, the system and its backups, and the latest events | `apps/web/src/agora/admin/`, `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/api/controllers/AgoraAdminController.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
@@ -336,6 +337,78 @@ Things to know:
   ```
   The update step also runs `yarn install`, which the new building block (`send`) needs.
 - If a bucket and key for Amazon S3 are set (`AWS_S3_BUCKET` and `AWS_ACCESS_KEY_ID`), Agora uses S3 like Hylo, and the folder is not used. Setting a Filestack key brings Hylo's Filestack picker back.
+
+## Library
+
+Each circle's **Resources** tab is its library: the place for everything the circle keeps. Members add documents (PDF, Word, OpenDocument, text, Markdown), pictures, sound recordings, videos and links. When a meeting in the meeting room ends, its notes go in by themselves.
+
+### What a member sees
+
+- A list, newest first: the kind of item (document, picture, recording, video, meeting notes, link), its title, who added it and when, its tags, and whether its text has been read.
+- A search box. It looks in titles, descriptions, file names, tags **and the text inside the files**: the words of a PDF, a Word file, a transcript. Where the words were found inside a file, a short piece of that text is shown. A menu narrows the list to one kind.
+- **Add to the library**: choose files with the button, or drop them anywhere on the page. A title, a description, tags and a link are optional. A bar per file shows how far it is. Recordings and videos can be up to 500 MB, other files up to 100 MB (`AGORA_LIBRARY_MAX_MEDIA_MB`, `AGORA_LIBRARY_MAX_DOCUMENT_MB`).
+- Clicking an item opens it: a picture is shown, a recording or video plays, a PDF opens in a new tab, every file can be downloaded, and the text read from it (the transcript of a recording) is shown underneath. A link leads to the post with its comments.
+- Each item is a normal Hylo "resource" post in the circle, so it also appears in the circle's stream, where people can comment on it. Resources made with Hylo's own post editor are in the library too.
+
+Only members of the circle can list, search, open or download its library; Agora checks this for every request. A file's address (`/noo/agora/library/file/...`) only works for a logged-in member. With object storage, Agora then sends the browser on to a signed address that works for five minutes; the bucket itself is never public. Profile pictures, banners and the attachments of other posts stay where they were (see "Uploads").
+
+### Text for search and for the AI
+
+The worker reads the text of each file after it is added, as a background job:
+
+| File | What is read | How |
+| --- | --- | --- |
+| PDF | the text (not scanned pages: those have no text inside) | `pdftotext` (poppler-utils) |
+| Word `.docx`, OpenDocument `.odt` `.ods` `.odp`, PowerPoint `.pptx` | the text, paragraph by paragraph, slide by slide | `unzip` and Agora's own reading of the XML inside |
+| Text, Markdown, CSV, subtitles, web pages | the text | read directly |
+| Recordings and videos | a transcript, with the time every 10 minutes, and the length | `ffmpeg` cuts the sound into 10-minute MP3 pieces (about 3.6 MB each, well under the 25 MB that Infomaniak's speech to text takes per request); each piece goes to the same speech to text as the meeting room (`AGORA_TRANSCRIPTION_URL`, `KEY`, `MODEL`). The sound file is kept |
+| Pictures | only the size in pixels for now. Reading text in a picture (OCR) or describing it is a later step | `sharp` |
+| Meeting notes | the minutes (when the assistant wrote them) and the full transcript | saved when the meeting ends |
+| Old Word `.doc`, Excel, other files | nothing yet; the item says so | |
+
+Recordings longer than 240 minutes (`AGORA_LIBRARY_MAX_TRANSCRIBE_MINUTES`) are kept but not transcribed, to keep the cost in hand: Infomaniak charges CHF 0.006 per minute of processing. Without speech to text connected, a recording is kept and marked "could not be read"; run the catch-up below once it is connected.
+
+The texts are kept in the table `agora_file_texts`, one row per file, with its circle, post, attachment, kind, title, text, language, status (`pending`, `done`, `failed`, `too_big`) and the reason when it failed. The AI "Ask" tab reads this table, so its shape is fixed: see `apps/backend/lib/agora/fileTexts.js` before changing it. When a file's text changes, its row gets a new, higher id, so a reader can ask for everything above the last id it saw (`listForGroup(groupId, sinceId)`).
+
+### Meeting notes
+
+When a meeting ends, the assistant posts the minutes in the circle as before, and also files a library item "Meeting notes: <event> (<date>)" in the circle of the event, with the transcript (and the minutes) as text files and the full text saved for search and AI. Meetings from before this was built are caught up by the script below.
+
+### Catching up
+
+```
+cd /srv/agora/apps/backend
+sudo -u agora node scripts/agora-library-backfill.js          # shows what is missing, changes nothing
+sudo -u agora node scripts/agora-library-backfill.js --apply  # files old meeting notes and reads missing texts
+```
+
+It is safe to run again. Reading recordings costs speech-to-text minutes, so look at the list first.
+
+### Where the files are kept
+
+`AGORA_FILE_STORAGE` chooses:
+
+- **`s3`**: object storage in Infomaniak's Public Cloud, the same project as the server (1000 GB; about CHF 0.011 per GB per month). Settings: `AGORA_S3_ENDPOINT` (default `https://s3.pub2.infomaniak.cloud`), `AGORA_S3_REGION` (default `us-east-1`), `AGORA_S3_BUCKET` (default `agora-files`), `AGORA_S3_ACCESS_KEY` and `AGORA_S3_SECRET_KEY`. The bucket is made by Agora the first time it is needed, private. It is a different bucket from the backups (`agora-backups`), but the same pair of keys works for both. This is the setting for the server.
+- **`disk`**: the server's own disk, in the hidden folder `.library` inside the uploads folder (`/var/lib/agora/uploads/.library`; `AGORA_LIBRARY_DIR` changes it). The public address `/noo/uploads` never serves it, and the nightly backup copies it with the uploads. Mind the server's disk of 80 GB.
+
+`s3` without both keys falls back to the disk, so the library works before object storage is set up. Files already on the disk stay there when you switch; new files go to the new place.
+
+How a file travels: with object storage, the browser sends the file straight to the storage at a signed address that works for an hour (big files in parts of 16 MB), so it never passes through Agora's server. If the browser cannot reach the storage that way (the storage must allow requests from Agora's address, "CORS"), the page sends the file through Agora in pieces of 8 MB instead, by itself. `AGORA_S3_DIRECT_UPLOAD=off` always sends files through Agora. On the disk, files always go through Agora in pieces of 8 MB. Files that were sent but never added to an item are removed after a day.
+
+**Switching object storage on (once, about 10 minutes):**
+
+1. Make the storage keys, if you have not yet for the backups: step 2 of "Switching it on" under [Off-server backups](#switching-it-on-once-about-15-minutes) (`openstack ec2 credentials create`). If you already made them for the backups, use the same `access` and `secret`.
+2. Put them in the server's settings yourself (never in a chat): `sudo nano /srv/agora/apps/backend/.env`, and fill in the two lines
+   ```
+   AGORA_S3_ACCESS_KEY=<access>
+   AGORA_S3_SECRET_KEY=<secret>
+   ```
+   and check that `AGORA_FILE_STORAGE=s3` is there.
+3. Test it. This makes the bucket `agora-files` when it is missing, writes a test file, reads it back and deletes it, and prints only OK or failed:
+   ```
+   cd /srv/agora/apps/backend && sudo -u agora node scripts/agora-library-check.js
+   ```
+4. Restart: `sudo systemctl restart agora-api agora-worker`.
 
 ## What is switched off
 

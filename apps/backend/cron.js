@@ -45,6 +45,9 @@ const daily = now => {
     return count
   }))
 
+  // Agora: files sent to a circle library but never added to an item are removed after a day
+  tasks.push(AgoraLibrary.cleanUnfinishedUploads().then(count => sails.log.debug(`Removed ${count} unfinished library uploads`)))
+
   return tasks
 }
 

@@ -28,6 +28,18 @@ echo "  $before -> $after"
 # rclone and /etc/agora for the off-server backup copy. Installs only what is missing.
 bash "$APP_DIR/agora/vps/offsite-backup.sh" prepare || echo "  The off-server copy could not be prepared (see above). The update goes on."
 
+# The programs the circle library uses to read files (PDF, Word, recordings).
+# Installs only what is missing, so running this again changes nothing.
+library_tools=()
+for pkg in poppler-utils unzip ffmpeg; do
+  dpkg -s "$pkg" >/dev/null 2>&1 || library_tools+=("$pkg")
+done
+if (( ${#library_tools[@]} )); then
+  echo "Installing for the library: ${library_tools[*]}"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${library_tools[@]}" >/dev/null \
+    || echo "  Could not install ${library_tools[*]}. The library works, but reads no text until they are there. The update goes on."
+fi
+
 echo "Backing up the database"
 # Only on this server: the nightly backup sends its copy away, this one need not wait for that.
 as_agora AGORA_OFFSITE=off bash "$APP_DIR/agora/vps/backup.sh"

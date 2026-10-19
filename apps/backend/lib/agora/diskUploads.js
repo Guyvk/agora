@@ -206,6 +206,10 @@ export function serveUploads (req, res, next) {
 
   const relative = url.slice(ROUTE.length).split('?')[0]
   if (!relative || relative === '/') return notFound()
+  // Hidden folders are never public. The circle library keeps its files in
+  // ".library" (lib/agora/libraryStorage.js), for members only. `send` refuses
+  // them too; this says it plainly.
+  if (relative.split('/').some(part => part.startsWith('.') || part.startsWith('%2e') || part.startsWith('%2E'))) return notFound()
 
   send(req, relative, {
     root: uploadsDir(),

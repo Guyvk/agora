@@ -82,6 +82,10 @@ write('apps/backend/.env', {
   AWS_S3_CONTENT_URL: '',
   UPLOADER_PATH_PREFIX: 'evo-uploads',
   AGORA_UPLOADS_DIR: '/var/lib/agora/uploads',
+  // The circle library keeps its files in Infomaniak's object storage once
+  // AGORA_S3_ACCESS_KEY and AGORA_S3_SECRET_KEY are filled in; until then on
+  // this disk (see "Library" in README-AGORA.md).
+  AGORA_FILE_STORAGE: 's3',
   // Emails are only written to the log until a mailbox is connected
   // (AGORA_EMAIL_TRANSPORT=smtp and the AGORA_SMTP_ settings).
   AGORA_EMAIL_TRANSPORT: 'log',

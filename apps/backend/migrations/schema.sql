@@ -7534,3 +7534,159 @@ ALTER TABLE ONLY public.agora_help_chats
 
 ALTER TABLE ONLY public.agora_help_chats
     ADD CONSTRAINT agora_help_chats_request_id_foreign FOREIGN KEY (request_id) REFERENCES public.agora_help_requests(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: the circle library (Resources tab) and the text read from its files.
+-- Added by migrations/20261019180000_add_agora_library.js
+--
+
+
+CREATE TABLE public.agora_file_texts (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    post_id bigint,
+    media_id bigint,
+    kind character varying(20) NOT NULL,
+    title character varying(500),
+    text text,
+    language character varying(20),
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    error text,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_file_texts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_file_texts_id_seq OWNED BY public.agora_file_texts.id;
+
+CREATE TABLE public.agora_library_files (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    item_id bigint,
+    post_id bigint,
+    media_id bigint,
+    uploaded_by_id bigint,
+    kind character varying(20) NOT NULL,
+    file_name character varying(255) NOT NULL,
+    mime_type character varying(255),
+    size_bytes bigint NOT NULL,
+    storage character varying(10) NOT NULL,
+    storage_key character varying(1000) NOT NULL,
+    status character varying(20) DEFAULT 'uploading'::character varying NOT NULL,
+    upload_mode character varying(20),
+    s3_upload_id character varying(1000),
+    parts jsonb,
+    width integer,
+    height integer,
+    duration_seconds integer,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_library_files_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_library_files_id_seq OWNED BY public.agora_library_files.id;
+
+CREATE TABLE public.agora_library_items (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    post_id bigint NOT NULL,
+    kind character varying(20) NOT NULL,
+    link_url character varying(2000),
+    meeting_session_id bigint,
+    created_by_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_library_items_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_library_items_id_seq OWNED BY public.agora_library_items.id;
+
+ALTER TABLE ONLY public.agora_file_texts ALTER COLUMN id SET DEFAULT nextval('public.agora_file_texts_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_library_files ALTER COLUMN id SET DEFAULT nextval('public.agora_library_files_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_library_items ALTER COLUMN id SET DEFAULT nextval('public.agora_library_items_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_file_texts
+    ADD CONSTRAINT agora_file_texts_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_post_id_unique UNIQUE (post_id);
+
+CREATE INDEX agora_file_texts_group_id_id_index ON public.agora_file_texts USING btree (group_id, id);
+
+CREATE INDEX agora_file_texts_post_id_index ON public.agora_file_texts USING btree (post_id);
+
+CREATE INDEX agora_library_files_group_id_index ON public.agora_library_files USING btree (group_id);
+
+CREATE INDEX agora_library_files_item_id_index ON public.agora_library_files USING btree (item_id);
+
+CREATE INDEX agora_library_files_media_id_index ON public.agora_library_files USING btree (media_id);
+
+CREATE INDEX agora_library_files_post_id_index ON public.agora_library_files USING btree (post_id);
+
+CREATE INDEX agora_library_items_group_id_index ON public.agora_library_items USING btree (group_id);
+
+CREATE INDEX agora_library_items_meeting_session_id_index ON public.agora_library_items USING btree (meeting_session_id);
+
+ALTER TABLE ONLY public.agora_file_texts
+    ADD CONSTRAINT agora_file_texts_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_file_texts
+    ADD CONSTRAINT agora_file_texts_media_id_foreign FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_file_texts
+    ADD CONSTRAINT agora_file_texts_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_item_id_foreign FOREIGN KEY (item_id) REFERENCES public.agora_library_items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_media_id_foreign FOREIGN KEY (media_id) REFERENCES public.media(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_files
+    ADD CONSTRAINT agora_library_files_uploaded_by_id_foreign FOREIGN KEY (uploaded_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_meeting_session_id_foreign FOREIGN KEY (meeting_session_id) REFERENCES public.meeting_sessions(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_library_items
+    ADD CONSTRAINT agora_library_items_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+

@@ -42,6 +42,11 @@ export default async function createPost (userId, params) {
       if (post.get('type') === Post.Type.CHAT && !params.silent) {
         Queue.classMethod('Post', 'upsertChatActivityNotice', { postId: post.id }, 0)
       }
+      // Agora: the text of a resource's attachments is read for the circle library (lib/agora/library.js).
+      // Items made by the library itself queue this on their own (agoraLibrary).
+      if (post.get('type') === Post.Type.RESOURCE && !params.agoraLibrary) {
+        Queue.classMethod('AgoraLibrary', 'extractPost', { postId: post.id })
+      }
       return post
     })
 }

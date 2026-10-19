@@ -101,6 +101,19 @@ module.exports.routes = {
   'POST   /noo/agora/files/:groupSlug/folder':            'AgoraFilesController.createFolder',
   'POST   /noo/agora/files/:groupSlug/my-folder':         'AgoraFilesController.myFolder',
 
+  // Agora library: a circle's Resources tab, for its members only
+  'GET    /noo/agora/library/circles/:groupSlug/settings': 'AgoraLibraryController.settings',
+  'GET    /noo/agora/library/circles/:groupSlug/items':   'AgoraLibraryController.list',
+  'GET    /noo/agora/library/circles/:groupSlug/items/:postId': 'AgoraLibraryController.show',
+  'POST   /noo/agora/library/circles/:groupSlug/uploads': 'AgoraLibraryController.startUpload',
+  'POST   /noo/agora/library/circles/:groupSlug/items':   'AgoraLibraryController.create',
+  'POST   /noo/agora/library/uploads/:fileId/chunk/:index': 'AgoraLibraryController.chunk',
+  'POST   /noo/agora/library/uploads/:fileId/part-urls':  'AgoraLibraryController.partUrls',
+  'POST   /noo/agora/library/uploads/:fileId/relay':      'AgoraLibraryController.relay',
+  'POST   /noo/agora/library/uploads/:fileId/finish':     'AgoraLibraryController.finish',
+  'GET    /noo/agora/library/file/:fileId/:name':         'AgoraLibraryController.download',
+  'GET    /noo/agora/library/file/:fileId':               'AgoraLibraryController.download',
+
   // Agora contacts: one shared list of people and organisations outside Agora
   'GET    /noo/agora/contacts':                           'AgoraContactsController.page',
   'GET    /noo/agora/contacts/api/list':                  'AgoraContactsController.list',
