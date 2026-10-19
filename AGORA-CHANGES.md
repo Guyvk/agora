@@ -14,13 +14,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice |
 | `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
 | `apps/backend/api/models/post/updatePost.js` | An event keeps its meeting room as its video call link, whatever a change sends, and invitees are never told about a link that was ignored. A link to another video call platform is refused as its location |
-| `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages (with adding files and folders) and the Contacts page |
-| `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
+| `apps/backend/config/routes.js` | Added the addresses of the meeting room (with guest links and the guest's room), the circle Files pages (with adding files and folders) and the Contacts page |
+| `apps/backend/config/policies.js` | Added who may use the meeting room, the guest's room (no login, the guest link is checked instead), the circle Files pages and the Contacts page |
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
-| `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
+| `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest), the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |
@@ -34,6 +34,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message |
 | `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform |
 | `apps/web/public/locales/*.json (meeting room only)` | The texts of the video call link field are gone, and one new text says a video call link cannot be the location, in every language (Hindi in English for now) |
+| `apps/web/src/components/PostCard/EventBody/EventBody.js` | On the event's own page, the box where the event's maker and the circle's stewards make a guest link for people without an account |
+| `apps/web/public/locales/*.json (guest links)` | Twelve new texts for the guest link box, in every language |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
 | `apps/web/src/routes/AuthLayoutRouter/components/Drawer/Drawer.js` | No Public section (it only led to The Commons) while The Commons is off |
@@ -98,6 +100,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`, `apps/backend/lib/agora/driveLinks.js`, `apps/backend/lib/agora/contacts.js`
 - `apps/web/src/agora/AgoraLogo.js`, `AgoraCookieNotice.js`, `AgoraCookieNotice.test.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
+- `apps/backend/migrations/20261019120000_add_agora_meeting_guests.js`, `apps/backend/lib/agora/meetingGuests.js`, `apps/backend/lib/agora/meetingRoom.js`, `apps/backend/api/controllers/MeetingGuestController.js`, `apps/backend/test/unit/agora/meetingGuests.test.js` (guests in a meeting)
+- `apps/web/src/agora/meeting/GuestLinkPanel.jsx`, `apps/web/src/agora/meeting/GuestLinkPanel.test.js`
 - `apps/backend/scripts/agora-demo.js`
 - `apps/backend/scripts/agora-meeting-links.js` (gives older events their meeting room as their video call link)
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`

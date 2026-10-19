@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import createPost from './post/createPost'
+import { guestLabel } from '../../lib/agora/meetingGuests'
 
 /**
  * Agora: one meeting held on an event.
@@ -116,12 +117,14 @@ module.exports = bookshelf.Model.extend({
   },
 
   /**
-   * All transcribed lines of a meeting, oldest first.
-   * @returns {Promise<Array<{id, userId, name, text, spokenAt}>>}
+   * All transcribed lines of a meeting, oldest first. A line by a guest has
+   * no userId, and the guest's name ends in "(guest)".
+   * @returns {Promise<Array<{id, userId, name, text, spokenAt, guest}>>}
    */
   lines: async function (sessionId, { afterId } = {}) {
     const rows = await bookshelf.knex('meeting_segments')
-      .join('users', 'users.id', 'meeting_segments.user_id')
+      .leftJoin('users', 'users.id', 'meeting_segments.user_id')
+      .leftJoin('meeting_guests', 'meeting_guests.id', 'meeting_segments.guest_id')
       .where('meeting_segments.session_id', sessionId)
       .where('meeting_segments.status', MeetingSegment.Status.DONE)
       .modify(q => { if (afterId) q.where('meeting_segments.id', '>', afterId) })
@@ -132,10 +135,13 @@ module.exports = bookshelf.Model.extend({
         'meeting_segments.user_id',
         'meeting_segments.text',
         'meeting_segments.spoken_at',
-        'users.name'
+        'users.name',
+        'meeting_guests.name as guest_name'
       )
 
-    return rows.map(r => ({ id: String(r.id), userId: String(r.user_id), name: r.name, text: r.text, spokenAt: r.spoken_at }))
+    return rows.map(r => r.guest_name
+      ? { id: String(r.id), userId: null, name: guestLabel(r.guest_name), text: r.text, spokenAt: r.spoken_at, guest: true }
+      : { id: String(r.id), userId: String(r.user_id), name: r.name, text: r.text, spokenAt: r.spoken_at })
   },
 
   /**
@@ -204,6 +210,12 @@ module.exports = bookshelf.Model.extend({
       .orderBy('meeting_participants.joined_at', 'asc')
       .select('users.name')
     const attendees = participantRows.map(r => r.name)
+    // Guests: people without an Agora account who joined through the event's guest link
+    const guestRows = await bookshelf.knex('meeting_guests')
+      .where({ session_id: sessionId })
+      .orderBy('joined_at', 'asc')
+      .select('name')
+    const guests = [...new Set(guestRows.map(r => guestLabel(r.name)))]
 
     const title = event.get('name') || 'Meeting'
     const date = new Date(startedAt).toISOString().slice(0, 10)
@@ -212,14 +224,14 @@ module.exports = bookshelf.Model.extend({
     let error = null
     if (MeetingMinutes.isConfigured()) {
       try {
-        minutes = await MeetingMinutes.summarise({ title, date, attendees, lines, startedAt })
+        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, startedAt })
       } catch (err) {
         error = err
         sails.log.error(`MeetingSession.finalize: could not write minutes for session ${sessionId}: ${err.message}`)
       }
     }
 
-    const description = MeetingMinutes.renderHtml({ minutes, attendees, lines, startedAt, error })
+    const description = MeetingMinutes.renderHtml({ minutes, attendees, guests, lines, startedAt, error })
 
     const assistant = await MeetingSession.assistantUser()
     const now = new Date()

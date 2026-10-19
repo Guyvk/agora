@@ -7150,7 +7150,8 @@ ALTER SEQUENCE public.meeting_participants_id_seq OWNED BY public.meeting_partic
 CREATE TABLE public.meeting_segments (
     id bigint NOT NULL,
     session_id bigint NOT NULL,
-    user_id bigint NOT NULL,
+    user_id bigint,
+    guest_id bigint,
     spoken_at timestamp with time zone NOT NULL,
     duration_ms integer DEFAULT 0 NOT NULL,
     mime_type character varying(255),
@@ -7423,3 +7424,84 @@ ALTER TABLE ONLY public.agora_playbook_chapters
 
 ALTER TABLE ONLY public.agora_playbook_chapters
     ADD CONSTRAINT agora_playbook_chapters_updated_by_id_foreign FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: guests in a meeting (people without an Agora account).
+-- Added by migrations/20261019120000_add_agora_meeting_guests.js
+-- (that migration also made meeting_segments.user_id optional and added guest_id above)
+--
+
+CREATE TABLE public.meeting_guest_links (
+    id bigint NOT NULL,
+    post_id bigint NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    created_by_id bigint,
+    expires_at timestamp with time zone NOT NULL,
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.meeting_guest_links_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_guest_links_id_seq OWNED BY public.meeting_guest_links.id;
+
+ALTER TABLE ONLY public.meeting_guest_links ALTER COLUMN id SET DEFAULT nextval('public.meeting_guest_links_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_guest_links
+    ADD CONSTRAINT meeting_guest_links_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.meeting_guest_links
+    ADD CONSTRAINT meeting_guest_links_post_id_unique UNIQUE (post_id);
+
+CREATE TABLE public.meeting_guests (
+    id bigint NOT NULL,
+    session_id bigint NOT NULL,
+    link_id bigint,
+    name character varying(60) NOT NULL,
+    key_hash character varying(64) NOT NULL,
+    notes_consent boolean DEFAULT false NOT NULL,
+    joined_at timestamp with time zone,
+    left_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.meeting_guests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_guests_id_seq OWNED BY public.meeting_guests.id;
+
+ALTER TABLE ONLY public.meeting_guests ALTER COLUMN id SET DEFAULT nextval('public.meeting_guests_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_guests
+    ADD CONSTRAINT meeting_guests_pkey PRIMARY KEY (id);
+
+CREATE INDEX meeting_guests_session_id_index ON public.meeting_guests USING btree (session_id);
+
+CREATE INDEX meeting_segments_guest_id_index ON public.meeting_segments USING btree (guest_id);
+
+ALTER TABLE ONLY public.meeting_segments
+    ADD CONSTRAINT meeting_segments_member_or_guest CHECK (((user_id IS NULL) <> (guest_id IS NULL)));
+
+ALTER TABLE ONLY public.meeting_guest_links
+    ADD CONSTRAINT meeting_guest_links_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_guest_links
+    ADD CONSTRAINT meeting_guest_links_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_guests
+    ADD CONSTRAINT meeting_guests_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_guests
+    ADD CONSTRAINT meeting_guests_link_id_foreign FOREIGN KEY (link_id) REFERENCES public.meeting_guest_links(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_segments
+    ADD CONSTRAINT meeting_segments_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
