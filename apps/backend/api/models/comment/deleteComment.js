@@ -15,5 +15,5 @@ export default function deleteComment (comment, userId) {
       num_comments: post.get('num_comments') - 1,
       num_commenters: await post.getCommentersTotal()
     }, { transaction: trx })
-  })
+  }).then(() => AgoraAsk.queuePost(comment.get('post_id'))) // Agora: a removed comment leaves the Ask index
 }

@@ -1095,7 +1095,8 @@ module.exports = bookshelf.Model.extend(Object.assign({
         Track.removePost(postId, trx),
         Post.where('id', postId).query().update({ active: false, deactivated_at: new Date() }).transacting(trx),
         Queue.classMethod('Post', 'decrementNewPostCountForDeletedPost', { postId }, 0),
-        Queue.classMethod('Post', 'upsertChatActivityNotice', { postId })
+        Queue.classMethod('Post', 'upsertChatActivityNotice', { postId }),
+        Queue.classMethod('AgoraAsk', 'removePost', { postId }) // Agora: a removed post leaves the Ask index
       )),
 
   // Background task to decrement new_post_count when a post is deleted
@@ -1385,6 +1386,8 @@ module.exports = bookshelf.Model.extend(Object.assign({
 
     // Use Queue system for non-blocking post subscription publishing
     Queue.classMethod('Post', 'publishPostUpdates', { postId, options }, 0)
+    // Agora: the circle's Ask tab learns about edits, new comments and votes
+    if (['edit', 'comment', 'vote', 'completion'].includes(options.changeContext)) AgoraAsk.queuePost(postId)
   },
 
   processEventCreated: async function ({ postId, eventInviteeIds, userId, params, silent }) {

@@ -50,6 +50,7 @@ export const PRIVACY = build('agoraPrivacy', [
   ['others', ['p', 5, 'p']],
   ['meetings', ['p', 'p', 'p']],
   ['help', ['p']],
+  ['ask', ['p', 'p', 'p']],
   ['contacts', ['p']],
   ['logs', ['p', 'p']],
   ['cookies', ['p', 3, 'p']],

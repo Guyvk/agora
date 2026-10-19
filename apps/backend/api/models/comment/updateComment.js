@@ -26,5 +26,6 @@ export default async function updateComment (commenterId, id, params) {
       .then(() => updateMedia(comment, attachments, trx))
   )
   .then(() => post.addFollowers(newFollowers))
+  .then(() => AgoraAsk.queuePost(post.id)) // Agora: the circle's Ask tab learns about the change
   .then(() => comment)
 }

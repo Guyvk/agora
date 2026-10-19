@@ -147,6 +147,7 @@ export function afterCreatingPost (post, opts) {
     .then(() => !opts.silent && opts.fundingRoundId && post.get('type') === Post.Type.SUBMISSION && Queue.classMethod('FundingRound', 'notifyStewardsOfSubmission', { fundingRoundId: opts.fundingRoundId, postId: post.id, userId }))
     .then(() => !opts.silent && Queue.classMethod('Post', 'notifySlack', { postId: post.id }))
     .then(() => !opts.silent && Queue.classMethod('Post', 'zapierTriggers', { postId: post.id }))
+    .then(() => AgoraAsk.queuePost(post.id)) // Agora: the circle's Ask tab learns about the new post
     .catch((err) => {
       console.error('afterCreatingPost failed: ', err)
       throw new GraphQLError(`afterCreatingPost failed: ${err}`)

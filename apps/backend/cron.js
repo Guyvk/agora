@@ -39,6 +39,11 @@ const daily = now => {
   sails.log.debug('Sending expired access notifications')
   tasks.push(ContentAccess.sendExpiredAccessNotifications().then(count => sails.log.debug(`Sent ${count} expired access notification emails`)))
 
+  // Agora: anonymised themes from private messages for Ask (lib/agora/privateThemes.js)
+  tasks.push(AgoraAsk.refreshPrivateThemes()
+    .then(result => result && sails.log.debug(`Ask private themes: ${JSON.stringify(result)}`))
+    .catch(err => sails.log.error('Ask private themes failed; continuing', err)))
+
   sails.log.debug('Cleaning up expired OIDC payloads')
   tasks.push(OIDCAdapter.cleanupExpired().then(count => {
     sails.log.debug(`Removed ${count} expired OIDC payloads`)
@@ -88,6 +93,9 @@ const every10minutes = now => {
     Post.updateProposalStatuses(),
     // Agora: end meetings that have been quiet for a while, so their minutes get written
     MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} quiet meetings`)),
+    // Agora: the Ask index catches up with anything its jobs missed
+    AgoraAsk.catchUp().then(counts => counts && sails.log.debug(`Ask index caught up: ${JSON.stringify(counts)}`))
+      .catch(err => sails.log.error('Ask index catch-up failed; continuing', err)),
     FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`))
   ]
 }

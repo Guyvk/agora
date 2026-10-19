@@ -84,6 +84,7 @@ import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
+import AskPage from '@/agora/ask/AskPage' // Agora: the Ask tab of a circle
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
 import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
@@ -1147,6 +1148,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='members/:personId/*' element={<MemberProfile context='groups' />} />
                             <Route path='members/*' element={<Members context='groups' />} />
                             <Route path='playbook' element={<PlaybookPage />} /> {/* Agora: the playbook page of a group */}
+                            <Route path='ask' element={<AskPage />} /> {/* Agora: the Ask tab of a circle */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />
                             <Route path='chat/*' element={<ChatRoom context='groups' />} />

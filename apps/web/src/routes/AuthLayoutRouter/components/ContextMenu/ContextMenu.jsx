@@ -72,6 +72,7 @@ import { spaceRowBadgeCount, viewShowsUnreadDot, viewUnreadBadgeCount } from 'ut
 
 import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
+import AskMenuLink from '@/agora/ask/AskMenuLink' // Agora: the Ask tab of a circle
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -952,6 +953,8 @@ export default function ContextMenu (props) {
       <div className={stickyAlertsSection ? undefined : 'mt-auto'}>
         {/* Agora: the playbook page of a group */}
         {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
+        {/* Agora: the Ask tab of a circle */}
+        {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <AskMenuLink groupSlug={groupSlug} />}
         {moreSpacesSection}
         {editMenuButton}
       </div>

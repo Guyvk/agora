@@ -7534,3 +7534,96 @@ ALTER TABLE ONLY public.agora_help_chats
 
 ALTER TABLE ONLY public.agora_help_chats
     ADD CONSTRAINT agora_help_chats_request_id_foreign FOREIGN KEY (request_id) REFERENCES public.agora_help_requests(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Agora: the Ask tab of a circle.
+-- Added by migrations/20261020120000_add_agora_ask.js
+-- pgvector (the extension "vector") is added by agora/vps/setup-server.sh and
+-- update.sh when the server has it; Ask works without it, by keywords only.
+--
+
+CREATE TABLE public.agora_knowledge_chunks (
+    id bigserial PRIMARY KEY,
+    group_id bigint NOT NULL,
+    source_type character varying(20) NOT NULL,
+    source_key character varying(80) NOT NULL,
+    source_id bigint,
+    post_id bigint,
+    title text,
+    url character varying(1000),
+    author_id bigint,
+    created_at timestamp with time zone,
+    indexed_at timestamp with time zone,
+    chunk_index integer DEFAULT 0 NOT NULL,
+    text text NOT NULL,
+    text_hash character varying(64),
+    embedding real[],
+    embed_model character varying(100),
+    tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(text, ''::text)))) STORED
+);
+
+CREATE INDEX agora_knowledge_chunks_group_id_created_at_index ON public.agora_knowledge_chunks USING btree (group_id, created_at);
+CREATE INDEX agora_knowledge_chunks_source_key_index ON public.agora_knowledge_chunks USING btree (source_key);
+CREATE INDEX agora_knowledge_chunks_post_id_index ON public.agora_knowledge_chunks USING btree (post_id);
+CREATE INDEX agora_knowledge_chunks_tsv_index ON public.agora_knowledge_chunks USING gin (tsv);
+
+ALTER TABLE ONLY public.agora_knowledge_chunks
+    ADD CONSTRAINT agora_knowledge_chunks_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_ask_questions (
+    id bigserial PRIMARY KEY,
+    user_id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    question text NOT NULL,
+    answer text,
+    sources jsonb,
+    status character varying(20) NOT NULL,
+    model character varying(100),
+    shared_post_id bigint,
+    created_at timestamp with time zone
+);
+
+CREATE INDEX agora_ask_questions_user_id_group_id_created_at_index ON public.agora_ask_questions USING btree (user_id, group_id, created_at);
+
+ALTER TABLE ONLY public.agora_ask_questions
+    ADD CONSTRAINT agora_ask_questions_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_ask_questions
+    ADD CONSTRAINT agora_ask_questions_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_ask_usage (
+    id bigserial PRIMARY KEY,
+    user_id bigint,
+    group_id bigint,
+    kind character varying(20) NOT NULL,
+    model character varying(100),
+    input_tokens integer DEFAULT 0 NOT NULL,
+    output_tokens integer DEFAULT 0 NOT NULL,
+    cost_eur numeric(12,6) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone
+);
+
+CREATE INDEX agora_ask_usage_created_at_index ON public.agora_ask_usage USING btree (created_at);
+CREATE INDEX agora_ask_usage_user_id_kind_created_at_index ON public.agora_ask_usage USING btree (user_id, kind, created_at);
+
+ALTER TABLE ONLY public.agora_ask_usage
+    ADD CONSTRAINT agora_ask_usage_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_ask_usage
+    ADD CONSTRAINT agora_ask_usage_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_ask_state (
+    key character varying(100) PRIMARY KEY,
+    value text,
+    updated_at timestamp with time zone
+);
+
+CREATE TABLE public.agora_private_themes (
+    id bigserial PRIMARY KEY,
+    theme text NOT NULL,
+    group_ids bigint[],
+    source_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
