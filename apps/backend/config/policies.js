@@ -61,6 +61,12 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora help: for anyone logged in. Each action checks who may see which request,
+  // and the Help desk actions check for a Help desk admin.
+  AgoraHelpController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora sign-up: the sign-up page asks whether new accounts need an invitation, before anyone is logged in
   AgoraSignupController: {
     policy: true

@@ -18,6 +18,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
+| Help and the Help desk | A Help button at the bottom right of every page, where people report faults, wishes and questions. The Help desk is where the team works through them, answers, and turns them into builder tasks | `apps/web/src/agora/help/`, `apps/backend/lib/agora/help.js`, `apps/backend/api/controllers/AgoraHelpController.js` |
 | Demo data | A made-up 7BP with circles, people, playbook proposals, playbook chapters and meetings | `apps/backend/scripts/agora-demo.js` |
 | Setup scripts | One command to set everything up on a Mac | `agora/` |
 
@@ -195,6 +196,42 @@ Each group has a playbook page at `/groups/<group>/playbook`, for example `/grou
 - Stewards of the group (people with the Administration responsibility) read it too, and add, change and remove chapters on the same page. The server checks this for every change. For a space, the stewards of its parent group count as its stewards, as everywhere in Hylo.
 - The Playbook line in the group's menu shows when the group has chapters, or for a steward who can add the first one.
 - The order is a number per chapter: lowest first. A new chapter goes last unless you give it a number.
+
+## Help and the Help desk
+
+Everyone who is logged in sees a **Help** button at the bottom right of every page. It opens a small window where people tell, in their own words, what is wrong, what they wish for, or what they want to know. Agora adds by itself: the page they were on (without the part after a `?`, which can hold codes), their browser, their screen size, the version of Agora and who they are. Under **My requests** they see what they sent, its status and the answers from the team, and they can add to it. A number on the button shows new answers.
+
+There are two ways to send a request:
+
+- **The plain form** (always there): what it is about (something is wrong, a wish, a question), what happened, what they expected, and how urgent it is.
+- **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from Agora's guide (`apps/backend/lib/agora/helpGuide.md`). For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
+
+**The Help desk** is at `/help-desk` (for example http://localhost:3000/help-desk). Help desk admins also find a "Help desk" link in their Help window. There they:
+
+- see every request, filtered by status (new, looking at it, being built, fixed, won't do) and type, with how many there are of each;
+- open one to read it with the chat, who sent it, the page, browser, screen and version;
+- change the status, and keep an internal note that only the Help desk sees;
+- answer the person. The answer shows in their Help window, and they get an email (through Agora's own email sender, so on a Mac it is printed in the Terminal). A change of status also shows as new in their window, without an email;
+- use **Build this**: it marks the request as being built and stores a short task for a builder, without names or personal details, ready to copy. Type the task yourself, or, for a request that came from a chat with Claude, leave the box empty and Claude writes it; the person's name and email address are taken out before anything goes to Claude. A request from the plain form is never sent to Claude. Agora warns when a task seems to name the person. A field holds a link to wherever the task ends up. Nothing is posted anywhere else yet.
+
+Who may see what: a request can be read only by the person who sent it and by Help desk admins. The internal note and the builder task are for the Help desk only. The server checks this for every request.
+
+Settings in `apps/backend/.env`:
+
+| Setting | What it does |
+| --- | --- |
+| `AGORA_HELPDESK_ADMINS` | Who runs the Help desk: user ids or email addresses, separated by commas, for example `1,guy@example.org`. An email address only counts for an active account whose address is confirmed. Ids are the surest. Empty means nobody can open the Help desk (requests are still kept) |
+| `ANTHROPIC_API_KEY` | A key from a Claude developer account. Without it, Help is the plain form |
+| `AGORA_HELP_MODEL` | The Claude model for Help. Default `claude-haiku-5-5`, small and fast |
+| `AGORA_HELP_CHAT_PER_HOUR` | Chat messages per person per hour, default 30 |
+| `AGORA_HELP_REQUESTS_PER_DAY` | New requests per person per day, default 20 |
+| `AGORA_HELP_REPLY_EMAIL` | `off` sends no email when the Help desk answers |
+| `AGORA_HELP_GUIDE_FILE` | Another guide for Claude to answer from, instead of `helpGuide.md` |
+| `AGORA_VERSION` | The version stored with each request. Without it, the git commit Agora runs from |
+
+To find your own user id: open your profile in Agora; the number in the address (`/members/<number>`) is your id.
+
+After updating to a version with Help, run `cd apps/backend && yarn migrate` once, which adds the three tables (`agora_help_requests`, `agora_help_replies`, `agora_help_chats`), and `yarn install` for Anthropic's library.
 
 ## Email
 
