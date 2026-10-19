@@ -202,14 +202,15 @@ Each group has a playbook page at `/groups/<group>/playbook`, for example `/grou
 
 ## Guide and welcome steps
 
-The guide is a page in Agora at `/guide`. It explains in short parts what Agora is for 7BP: circles and joining by invitation, posts, discussions and proposals, events and the meeting room with its notes, files in Google Drive, the playbook, contacts, notifications and email digests, your profile, where to get help (the Help button at the bottom right and the Help desk), and the Terms of use and Privacy notice. Parts that are not live yet (a guest link for meetings, Google Drive, Agora's own mailbox) say "Coming soon". Change the guide when something new goes live: its texts are in `apps/web/src/agora/guide/GuidePage.jsx` and in the language files.
+The guide is a page in Agora at `/guide`. It explains in short parts what Agora is for 7BP: circles and joining by invitation, posts, discussions and proposals, events and the meeting room with its notes, files in Google Drive, the playbook, contacts, notifications and email digests, your profile, where to get help (the Help button at the bottom right and the Help desk), and the Terms of use and Privacy notice. Parts that are not live yet (a guest link for meetings, Google Drive, Agora's own mailbox) say "Coming soon". Change the guide when something new goes live: its parts, in order, are in `apps/web/src/agora/guide/guideParts.json`, and their words in the language files. The same parts show in the Help window, and Claude in Help answers from them, so one change reaches all three.
 
 People find it:
 
 - in the question mark menu in the bar on the left (it replaces the link to Hylo's own user guide), and in the tab bar's help menu;
 - in the gear menu in the same bar, under Agora guide;
 - on the last page of the sign-up wizard, as the first card;
-- in the welcome steps.
+- in the welcome steps;
+- in the Help window, under Guide, which is what Help opens on.
 
 The welcome steps are a small box at the top of the page for a new member, with four steps: fill in your profile, open your circle, read the guide, say hi in your circle. Each step is ticked off by itself: the profile when it has a line about you or a bio, the circle once any circle has been opened, the guide once it has been opened, saying hi once its link to the circle's chat has been used. The box goes away when all four are done, or when the person closes it with the cross. Agora remembers that with the account, in Hylo's own list of guided tours someone has seen (the `toursSeen` setting), so it does not come back on another device and needs no change to the server. The box is not shown on maps, in messages, in settings or during the sign-up wizard.
 
@@ -225,12 +226,14 @@ The words are in `apps/web/public/locales/en.json`, under keys that start with `
 
 ## Help and the Help desk
 
-Everyone who is logged in sees a **Help** button at the bottom right of every page. It opens a small window where people tell, in their own words, what is wrong, what they wish for, or what they want to know. Agora adds by itself: the page they were on (without the part after a `?`, which can hold codes), their browser, their screen size, the version of Agora and who they are. Under **My requests** they see what they sent, its status and the answers from the team, and they can add to it. A number on the button shows new answers.
+Everyone who is logged in sees a **Help** button at the bottom right of every page. It opens a small window on the **Guide**: a search box and the parts of the guide as a short list. Clicking a part shows its text in the window, with "Open the full guide" to that part on the guide page (`/guide#<part>`). Under the list, **Still stuck? Tell us** leads to the form or the chat. There people tell, in their own words, what is wrong, what they wish for, or what they want to know. Agora adds by itself: the page they were on (without the part after a `?`, which can hold codes), their browser, their screen size, the version of Agora and who they are. Under **My requests** they see what they sent, its status and the answers from the team, and they can add to it. A number on the button shows new answers.
+
+Other pages can open Help on a given view with `openHelp()` from `apps/web/src/agora/help/openHelp.js`: `openHelp({ view: 'guide', part: 'events' })` for one part of the guide, `openHelp({ view: 'new' })` for the form or chat, `openHelp({ view: 'mine' })` for My requests. The **Open Help** button in the guide's Getting help part uses it.
 
 There are two ways to send a request:
 
 - **The plain form** (always there): what it is about (something is wrong, a wish, a question), what happened, what they expected, and how urgent it is.
-- **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from Agora's guide (`apps/backend/lib/agora/helpGuide.md`). For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
+- **A chat with Claude**, only when `ANTHROPIC_API_KEY` is set. Before the first message a line says that the messages go to Claude (Anthropic) to be answered, with a link to the plain form instead, as 7BP's Governance Proposal asks for consent before member data goes to AI tools. Claude answers how-to questions from the same guide members read: the first time someone chats, the server reads the parts from `apps/web/src/agora/guide/guideParts.json`, in order, with their English words from `apps/web/public/locales/en.json` (see `apps/backend/lib/agora/helpGuideText.js`). After the guide come a few extra notes for Help in `apps/backend/lib/agora/helpGuide.md`, things the guide leaves out, such as where the settings are. Put anything members should read in the guide itself, not in those notes. For a fault or a wish it asks one or two questions at most, then sends a request with a short title, type, urgency and summary, and keeps the whole chat with it. If Claude cannot be reached, says no, or someone sends too many messages, the window switches to the plain form with what they wrote filled in. Chats that did not become a request are deleted after a week.
 
 What people send ends up in the **Help desk**, a tab of the admin area (see "Admin area" below). A request can be read only by the person who sent it and by the people who run the Help desk. The server checks this for every request.
 
@@ -243,7 +246,7 @@ Settings in `apps/backend/.env` (who runs the Help desk: see "Admin area"):
 | `AGORA_HELP_CHAT_PER_HOUR` | Chat messages per person per hour, default 30 |
 | `AGORA_HELP_REQUESTS_PER_DAY` | New requests per person per day, default 20 |
 | `AGORA_HELP_REPLY_EMAIL` | `off` sends no email when the Help desk answers |
-| `AGORA_HELP_GUIDE_FILE` | Another guide for Claude to answer from, instead of `helpGuide.md` |
+| `AGORA_HELP_GUIDE_FILE` | Another file for Claude to answer from, instead of the guide and `helpGuide.md` together |
 | `AGORA_VERSION` | The version stored with each request. Without it, the git commit Agora runs from |
 
 After updating to a version with Help, run `cd apps/backend && yarn migrate` once, which adds the three tables (`agora_help_requests`, `agora_help_replies`, `agora_help_chats`), and `yarn install` for Anthropic's library.
