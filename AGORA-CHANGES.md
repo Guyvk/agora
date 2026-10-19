@@ -102,6 +102,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` | The email field is marked as username (it said "no autofill") |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.js` | The "choose a password" step is a real form with the email as a hidden username and both password fields marked as new password, so password managers offer to save it |
 | `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js` | Email and new password fields are a real form (username, new-password); after a password is saved, a same-page history step tells the browser it worked, so it offers to save the new password. The "Set a new password" link from the reset email lands here |
+| `apps/web/src/routes/ChatRoom/ChatRoom.js`, `Members/Members.js`, `Groups/Groups.jsx`, `MapExplorer/MapExplorer.js`, `OAuth/OAuthLayoutRouter.js`, `NonAuthLayoutRouter/NonAuthLayoutRouter.js`, `PostDetail/PostDetail.js`, `AuthLayoutRouter/AuthLayoutRouter.js`, `apps/web/src/router/index.js`, `apps/web/src/server/postMetaTags.js` (with its test), `apps/web/public/manifest.json`, `apps/web/index.html`, `apps/web/public/locales/*.json` (tab titles) | The browser tab says Agora on every page and while a page loads (for example "Chat \| Governance \| Agora"), shared links name Agora as the site, the home screen name is Agora, and the sign-in, sign-up and password reset tab titles say Agora in every language. The name comes from `apps/web/src/agora/appName.js` |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -132,6 +133,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/scripts/agora-demo.js`
 - `apps/backend/scripts/agora-meeting-links.js` (gives older events their meeting room as their video call link)
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
+- `apps/web/src/agora/appName.js`, `apps/web/src/agora/appName.test.js` (the name in the browser tab, and the helper that builds tab titles)
 - `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
 - `apps/web/public/agora-7bp-logo.png`
 - `apps/backend/migrations/20261018120000_add_agora_playbook.js`, `apps/backend/api/models/AgoraPlaybookChapter.js`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/playbook.graphql`, `apps/backend/api/graphql/agora/playbook.js`, `apps/backend/test/unit/agora/playbook.test.js`

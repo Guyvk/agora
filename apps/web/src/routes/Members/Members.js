@@ -2,6 +2,7 @@ import { debounce, get } from 'lodash/fp'
 import React, { useEffect, useLayoutEffect, useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import { useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { createSelector as ormCreateSelector } from 'redux-orm'
@@ -292,7 +293,7 @@ function Members (props) {
   return (
     <div className='h-auto w-full mx-auto max-w-[940px] pb-28' id='members-page'>
       <Helmet>
-        <title>{pageTitle} | {group ? `${group.name} | ` : ''}Hylo</title>
+        <title>{agoraTitle(pageTitle, group?.name)}</title>
       </Helmet>
       <div className={classes.content}>
         <div className='flex flex-col gap-2 py-4'>
