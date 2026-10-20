@@ -1,6 +1,6 @@
 /**
  * Agora: the shared Contacts page, a small CRM for the people and organisations
- * 7BP works with outside Agora. Every Agora member can read, add, change and
+ * 7BP works with, team members and people outside Agora. Every Agora member can read, add, change and
  * delete contacts; the server logs who changed which fields.
  *
  *   /contacts             the list
@@ -399,7 +399,7 @@ export default function ContactsPage () {
         <title>{(editing && contact && contact.name ? contact.name + ' | ' : '') + t('Contacts')} | Agora</title>
       </Helmet>
       <div className='rounded-md border border-accent/40 bg-accent/10 px-3 py-2.5 text-sm text-foreground'>
-        {t('These are people outside Agora. Note only what 7BP needs to work with them, say where their details came from, and delete anyone who asks to be removed. Every change is logged with who made it.')}
+        {t('Everyone in Agora can see this list. It holds the people 7BP works with: team members as well as people outside Agora. Note only what 7BP needs to work together, say where the details came from, and delete anyone who asks to be removed. Every change is logged with who made it.')}
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
