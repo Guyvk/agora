@@ -8,6 +8,10 @@
  *   /contacts/<id>        one contact
  *   /contacts?mine=1      my follow-ups
  *
+ * A team member's contact can hold a short profile (from their sheet at the
+ * activist council) and a claim link, so the person can make it their own
+ * profile later (see ../claim/ClaimPage.jsx and apps/backend/lib/agora/claims.js).
+ *
  * The data comes from the server part, see apps/backend/lib/agora/contacts.js.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -26,14 +30,16 @@ import { contactsApi, today } from './api'
 
 export const CONTACT_FIELDS = [
   'name', 'organisation', 'kind', 'email', 'phone', 'website', 'status', 'circle_id',
-  'source', 'consent', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id'
+  'source', 'consent', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id',
+  'country', 'offers', 'why_here', 'skills'
 ]
+const PROFILE_FIELDS = ['country', 'offers', 'why_here', 'skills']
 
 const fieldClasses = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 function useLabels (t) {
   return useMemo(() => ({
-    kinds: { partner: t('Partner'), press: t('Press'), funder: t('Funder'), interested: t('Interested'), other: t('Other') },
+    kinds: { team: t('Team'), partner: t('Partner'), press: t('Press'), funder: t('Funder'), interested: t('Interested'), other: t('Other') },
     statuses: { new: t('New'), in_touch: t('In touch'), active: t('Active'), paused: t('Paused') },
     fields: {
       name: t('name'),
@@ -48,7 +54,12 @@ function useLabels (t) {
       consent: t('consent'),
       follow_up_on: t('next step date'),
       follow_up_what: t('next step'),
-      follow_up_owner_id: t('who does the next step')
+      follow_up_owner_id: t('who does the next step'),
+      country: t('country'),
+      offers: t('what they do and can do'),
+      why_here: t('why they are here'),
+      skills: t('skills'),
+      photo_url: t('photo')
     }
   }), [t])
 }
@@ -79,6 +90,7 @@ function Field ({ label, htmlFor, className, children }) {
 }
 
 function ContactRow ({ contact, selected, onOpen, labels }) {
+  const { t } = useTranslation()
   const due = contact.follow_up_on && contact.follow_up_on <= today()
   return (
     <button
@@ -87,13 +99,16 @@ function ContactRow ({ contact, selected, onOpen, labels }) {
       aria-current={selected ? 'true' : undefined}
       className={cn('w-full text-left px-4 py-3 flex items-start justify-between gap-3 border-b border-border last:border-b-0 transition-colors hover:bg-selected/40', { 'bg-selected/60': selected })}
     >
-      <div className='min-w-0'>
+      {contact.photo_url && <img src={contact.photo_url} alt='' loading='lazy' className='shrink-0 w-10 h-10 rounded-md object-cover border border-border' />}
+      <div className='min-w-0 mr-auto'>
         <div className='font-semibold text-foreground break-words'>{contact.name}</div>
         {contact.organisation && <div className='text-sm text-muted-foreground break-words'>{contact.organisation}</div>}
         <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
           <span className='rounded-full border border-foreground/20 px-2 py-0.5 text-foreground/80'>{labels.kinds[contact.kind] || contact.kind}</span>
           <span className='rounded-full border border-foreground/20 px-2 py-0.5 text-foreground/80'>{labels.statuses[contact.status] || contact.status}</span>
           {contact.circle_name && <span className='text-muted-foreground'>{contact.circle_name}</span>}
+          {contact.country && <span className='text-muted-foreground'>{contact.country}</span>}
+          {contact.claimed_user_id && <span className='rounded-full border border-accent/60 bg-accent/10 px-2 py-0.5 text-foreground/80'>{t('Claimed')}</span>}
         </div>
       </div>
       {contact.follow_up_on && (
@@ -106,11 +121,88 @@ function ContactRow ({ contact, selected, onOpen, labels }) {
   )
 }
 
+/**
+ * The claim link of a team member's profile: make one, copy it (it is shown
+ * only once), make a new one or withdraw it. Once claimed, who claimed it.
+ */
+export function ClaimBox ({ contact, canMakeClaimLinks, onChanged }) {
+  const { t } = useTranslation()
+  const [link, setLink] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { setLink(null); setCopied(false); setError(null) }, [contact.id])
+
+  if (contact.claimed_user_id) {
+    return (
+      <p className='m-0 text-sm text-foreground' data-testid='claim-status'>
+        {t('Claimed by')} <a href={`/members/${contact.claimed_user_id}`} className='font-semibold underline'>{contact.claimed_user_name || t('a member')}</a>
+        {contact.claimed_at ? ', ' + formatMoment(contact.claimed_at) : ''}
+      </p>
+    )
+  }
+
+  const act = async (path) => {
+    setBusy(true)
+    setError(null)
+    setCopied(false)
+    try {
+      const data = await contactsApi(`/${contact.id}/${path}`, {})
+      setLink(data.link || null)
+      onChanged()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+    } catch (e) {
+      setError(t('Copying did not work. Select the link and copy it yourself.'))
+    }
+  }
+
+  return (
+    <div className='flex flex-col gap-2 text-sm'>
+      <p className='m-0 text-muted-foreground'>{t('Not claimed yet. With a claim link the person makes an account with their own email address and makes this profile their own.')}</p>
+      {link && (
+        <div className='flex flex-col gap-1.5'>
+          <div className='flex gap-2'>
+            <Input readOnly value={link} aria-label={t('Claim link')} onFocus={e => e.target.select()} />
+            <Button type='button' variant='outline' size='sm' className='h-10' onClick={copy}>{copied ? t('Copied') : t('Copy link')}</Button>
+          </div>
+          <p className='m-0 text-muted-foreground'>{t('Copy it now: for safety Agora shows it only once. Whoever has this link can claim this profile, so give it only to this person.')}</p>
+        </div>
+      )}
+      {!link && contact.has_claim_link && (
+        <p className='m-0 text-foreground'>{t('A claim link was made on {{date}}. Agora cannot show it again. If it is lost, make a new one: the old one then stops working.', { date: formatMoment(contact.claim_token_created_at) })}</p>
+      )}
+      {canMakeClaimLinks
+        ? (
+          <div className='flex flex-wrap gap-2'>
+            <Button type='button' variant='outline' size='sm' disabled={busy} onClick={() => act('claim-link')}>
+              {contact.has_claim_link || link ? t('Make a new claim link') : t('Make claim link')}
+            </Button>
+            {(contact.has_claim_link || link) && (
+              <Button type='button' variant='ghost' size='sm' className='text-destructive' disabled={busy} onClick={() => { act('claim-link/withdraw'); setLink(null) }}>{t('Withdraw')}</Button>
+            )}
+          </div>)
+        : <p className='m-0 text-muted-foreground'>{t('Stewards can make a claim link.')}</p>}
+      {error && <p role='alert' className='m-0 text-destructive'>{error}</p>}
+    </div>
+  )
+}
+
 function emptyContact () {
   return { kind: 'partner', status: 'new', consent: false }
 }
 
-function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel }) {
+function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onClaimChanged }) {
   const { t } = useTranslation()
   const [values, setValues] = useState(() => ({ ...emptyContact(), ...(contact || {}) }))
   const [error, setError] = useState(null)
@@ -120,6 +212,7 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel }) {
   const [note, setNote] = useState('')
   const [noteError, setNoteError] = useState(null)
   const isNew = !contact || !contact.id
+  const showProfile = values.kind === 'team' || PROFILE_FIELDS.some(f => values[f])
 
   useEffect(() => {
     setValues({ ...emptyContact(), ...(contact || {}) })
@@ -174,12 +267,22 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel }) {
     if (h.action === 'created') return t('{{who}} added this contact', { who })
     if (h.action === 'updated') return t('{{who}} changed {{fields}}', { who, fields })
     if (h.action === 'note') return t('{{who}} added a note', { who })
+    if (h.action === 'claim_link') return t('{{who}} made a claim link', { who })
+    if (h.action === 'claim_link_withdrawn') return t('{{who}} withdrew the claim link', { who })
+    if (h.action === 'claimed') return t('{{who}} claimed this profile', { who })
     return `${who}: ${h.action}`
   }
 
   return (
     <form onSubmit={save} noValidate className='flex flex-col gap-4'>
-      <h2 className='text-xl font-bold text-foreground break-words'>{isNew ? t('New contact') : contact.name}</h2>
+      <div className='flex items-start gap-3'>
+        {!isNew && contact.photo_url && (
+          <a href={contact.photo_url} target='_blank' rel='noreferrer' className='shrink-0' title={t('Open the photo')}>
+            <img src={contact.photo_url} alt={t('Photo of {{name}}', { name: contact.name })} className='w-20 h-20 rounded-md object-cover border border-border' />
+          </a>
+        )}
+        <h2 className='text-xl font-bold text-foreground break-words'>{isNew ? t('New contact') : contact.name}</h2>
+      </div>
 
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
         <Field label={t('Name')} htmlFor='contact-name' className='sm:col-span-2'>
@@ -220,6 +323,23 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel }) {
           <Checkbox id='contact-consent' checked={!!values.consent} onCheckedChange={checked => set('consent')(checked === true)} />
           <Label htmlFor='contact-consent' className='text-foreground'>{t('They agreed that 7BP may contact them')}</Label>
         </div>
+        {showProfile && (
+          <>
+            <h3 className='sm:col-span-2 font-semibold text-foreground mt-2'>{t('Profile')}</h3>
+            <Field label={t('Country')} htmlFor='contact-country' className='sm:col-span-2'>
+              <Input id='contact-country' value={values.country || ''} onChange={e => set('country')(e.target.value)} maxLength={255} />
+            </Field>
+            <Field label={t('What they do and can do')} htmlFor='contact-offers' className='sm:col-span-2'>
+              <textarea id='contact-offers' className={cn(fieldClasses, 'min-h-[80px] h-auto')} value={values.offers || ''} onChange={e => set('offers')(e.target.value)} maxLength={5000} />
+            </Field>
+            <Field label={t('Why they are here')} htmlFor='contact-why-here' className='sm:col-span-2'>
+              <textarea id='contact-why-here' className={cn(fieldClasses, 'min-h-[60px] h-auto')} value={values.why_here || ''} onChange={e => set('why_here')(e.target.value)} maxLength={5000} />
+            </Field>
+            <Field label={t('Skills, separated by commas')} htmlFor='contact-skills' className='sm:col-span-2'>
+              <Input id='contact-skills' value={values.skills || ''} onChange={e => set('skills')(e.target.value)} placeholder={t('For example: facilitation, writing, video')} />
+            </Field>
+          </>
+        )}
         <Field label={t('Next step on')} htmlFor='contact-follow-up-on'>
           <Input id='contact-follow-up-on' type='date' value={values.follow_up_on || ''} onChange={e => set('follow_up_on')(e.target.value)} />
         </Field>
@@ -251,6 +371,13 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel }) {
           <Button type='button' variant='destructive' size='sm' onClick={remove}>{t('Yes, delete')}</Button>
           <Button type='button' variant='outline' size='sm' onClick={() => setConfirmDelete(false)}>{t('Keep')}</Button>
         </div>
+      )}
+
+      {!isNew && contact.kind === 'team' && (
+        <section className='flex flex-col gap-2 border-t border-border pt-4'>
+          <h3 className='font-semibold text-foreground'>{t('Claim link')}</h3>
+          <ClaimBox contact={contact} canMakeClaimLinks={!!meta.canMakeClaimLinks} onChanged={onClaimChanged} />
+        </section>
       )}
 
       {!isNew && (
@@ -454,6 +581,7 @@ export default function ContactsPage () {
               onSaved={onSaved}
               onDeleted={onDeleted}
               onCancel={() => keepSearch('/contacts')}
+              onClaimChanged={() => loadContact(contactId)}
             />
           )}
         </div>
