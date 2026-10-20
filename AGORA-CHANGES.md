@@ -109,6 +109,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` | The email field is marked as username (it said "no autofill") |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.js` | The "choose a password" step is a real form with the email as a hidden username and both password fields marked as new password, so password managers offer to save it |
 | `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js` | Email and new password fields are a real form (username, new-password); after a password is saved, a same-page history step tells the browser it worked, so it offers to save the new password. The "Set a new password" link from the reset email lands here |
+| `apps/backend/migrations/schema.sql` (claimable profiles) | The new columns of `agora_contacts` for profiles people can claim later |
+| `apps/backend/api/graphql/mutations/user.js`, `apps/backend/api/graphql/schema.graphql` (claim links) | Signing up can carry a claim link (`claimToken`), which counts as permission to make an account while sign-up is by invitation only |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (claim links) | The addresses for making and withdrawing claim links (Contacts, stewards only), and of the claim page: reading a profile needs only the link, claiming it a login |
+| `apps/backend/.env.example` (claim links) | `AGORA_MAIN_GROUP_SLUG`, the main circle people join when they claim a profile |
+| `apps/web/src/routes/RootRouter/RootRouter.js` (claim links) | The claim page at `/claim/<code>`, logged in or not |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.store.js` (claim links) | Sends a claim link along when signing up |
+| `apps/web/public/locales/*.json (claim links)` | The texts of the claim page and of the profile and claim link parts of Contacts, in every language (the translations still to be checked) |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 
@@ -141,6 +148,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/scripts/agora-meeting-links.js` (gives older events their meeting room as their video call link)
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
 - `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
+- `apps/backend/migrations/20261020120000_add_agora_claimable_profiles.js`, `apps/backend/lib/agora/claims.js`, `apps/backend/lib/agora/importProfiles.js`, `apps/backend/scripts/agora-import-profiles.js`, `apps/backend/api/controllers/AgoraClaimController.js`, `apps/backend/test/unit/agora/claims.test.js`, `apps/backend/test/unit/agora/importProfiles.test.js`, `apps/web/src/agora/claim/ClaimPage.jsx`, `apps/web/src/agora/claim/api.js`, `apps/web/src/agora/claim/ClaimPage.test.js` (profiles people can claim later)
 - `apps/web/public/agora-7bp-logo.png`
 - `apps/backend/migrations/20261018120000_add_agora_playbook.js`, `apps/backend/api/models/AgoraPlaybookChapter.js`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/playbook.graphql`, `apps/backend/api/graphql/agora/playbook.js`, `apps/backend/test/unit/agora/playbook.test.js`
 - `apps/web/src/agora/guide/GuidePage.jsx`, `guideParts.json` (the parts of the guide, shared by the page, the Help window and Claude), `guideParts.jsx`, `WelcomeSteps.jsx`, `useAgoraSeen.js`, `useMyCircle.js`, `guideUrl.js`, `GuidePage.test.js`, `WelcomeSteps.test.js` (the guide and the welcome steps)

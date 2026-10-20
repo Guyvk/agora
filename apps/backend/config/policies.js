@@ -72,6 +72,13 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora: claiming a profile. Reading it needs only the claim link's secret (the person
+  // may have no account yet); claiming it needs a login (lib/agora/claims.js).
+  AgoraClaimController: {
+    show: true,
+    claim: 'sessionAuth'
+  },
+
   // Agora help: for anyone logged in. Each action checks who may see which request,
   // and the Help desk actions check for a Help desk admin.
   AgoraHelpController: {

@@ -7616,3 +7616,28 @@ ALTER TABLE ONLY public.meeting_guests
 
 ALTER TABLE ONLY public.meeting_segments
     ADD CONSTRAINT meeting_segments_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Agora: profiles people can claim later (on contacts of the kind "team").
+-- Added by migrations/20261020120000_add_agora_claimable_profiles.js
+--
+
+ALTER TABLE public.agora_contacts
+    ADD COLUMN country character varying(255),
+    ADD COLUMN offers text,
+    ADD COLUMN why_here text,
+    ADD COLUMN skills text,
+    ADD COLUMN photo_url character varying(1000),
+    ADD COLUMN claimed_user_id bigint,
+    ADD COLUMN claimed_at timestamp with time zone,
+    ADD COLUMN claim_token_hash character varying(64),
+    ADD COLUMN claim_token_created_at timestamp with time zone;
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_claim_token_hash_unique UNIQUE (claim_token_hash);
+
+CREATE INDEX agora_contacts_claimed_user_id_index ON public.agora_contacts USING btree (claimed_user_id);
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_claimed_user_id_foreign FOREIGN KEY (claimed_user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
