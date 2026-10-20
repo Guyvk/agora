@@ -185,10 +185,12 @@ const MemberProfile = ({ currentTab = 'Overview', blockConfirmMessage, isSingleC
     if (!personName || !rawPersonId || !String(rawPersonId).includes('-')) return
     const canonical = personPathSegment(personId, personName)
     if (canonical === rawPersonId) return
-    const from = `/members/${rawPersonId}`
-    if (!location.pathname.includes(from)) return
+    // Match the address bar text itself, which may hold encoded letters (5-jos%C3%A9).
+    const from = new RegExp(`/members/${personId}-[^/?#]*`)
+    if (!from.test(location.pathname)) return
     const pathname = location.pathname.replace(from, `/members/${canonical}`)
-    navigate(`${pathname}${location.search}${location.hash}`, { replace: true, state: location.state })
+    if (pathname === location.pathname) return
+    navigate(`${pathname}${location.search || ''}${location.hash || ''}`, { replace: true, state: location.state })
   }, [rawPersonId, personId, personName, location.pathname])
 
   useEffect(() => {
