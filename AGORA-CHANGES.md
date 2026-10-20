@@ -95,6 +95,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/Invitation.js` | An email invitation can only be used by the account with the address it was sent to, while sign-up is by invitation only (`lib/agora/signup.js`) |
 | `apps/backend/api/graphql/mutations/group.js`, `apps/backend/api/graphql/mutations/spaces.js` | Joining a circle or space with an email invitation sent to another address counts as joining without an invitation, and does not use it up |
 | `apps/web/src/routes/JoinGroup/JoinGroup.js` | Someone logged in who opens an invitation email sent to another address gets a page that says so, with "Log out and continue", instead of the circle |
+| `apps/backend/api/graphql/mutations/user.js`, `apps/backend/api/controllers/SessionController.js`, `apps/backend/api/graphql/schema.graphql`, `apps/web/src/routes/JoinGroup/JoinGroup.js` (+ test), `apps/web/src/store/actions/checkInvitation.js` (joining on sign-up) | Someone who signs up from a circle's join link or invitation email becomes a member of that circle as soon as the account is finished, also when the email code is opened in another browser; someone logged in who opens one is joined at once and lands in the circle (`lib/agora/signup.js`). The invitation check also gives the parent circle's id of a space |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
 | `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
@@ -121,7 +122,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `agora/vps/offsite-backup.sh`, `agora/vps/offsite-backup.conf.example` (an encrypted copy of the backups in object storage), `.github/workflows/agora-uptime.yml` (a warning when Agora is down)
 - `agora/google-drive-login.mjs`
 - `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
-- `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
+- `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`, `apps/backend/test/unit/agora/joinOnSignup.test.js`
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
 - `apps/web/src/agora/AgoraInvitationForOtherAccount.js`, `apps/web/src/agora/invitationAccount.test.js`, `apps/backend/test/unit/agora/inviteEmail.test.js` (an invitation email for another address, the invitation text, clean links in emails)

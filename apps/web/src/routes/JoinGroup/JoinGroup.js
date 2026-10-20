@@ -10,6 +10,7 @@ import getMyMemberships from 'store/selectors/getMyMemberships'
 import { getSignupComplete } from 'store/selectors/getSignupState'
 import checkInvitation from 'store/actions/checkInvitation'
 import joinSpace from 'store/actions/joinSpace'
+import { joinGroup } from 'routes/GroupDetail/GroupDetail.store' // Agora: join straight from the link
 import Loading from 'components/Loading'
 import getMe from 'store/selectors/getMe'
 import { isInvitationForOtherAccount } from '@/agora/signup'
@@ -50,10 +51,37 @@ function buildSpaceRedirectUrl (parentGroupSlug, spaceSlug) {
 }
 
 /**
+ * Agora: makes someone who is logged in a member of the circle of the
+ * invitation, with the same join as the Join button on the About page (the
+ * link is the steward's permission). A space invitation joins the parent
+ * circle, and the server then joins the space too. Someone who is already a
+ * member is not joined again.
+ * Returns where to go (the circle, or the space), or null when it did not work.
+ */
+export async function joinFromInvitation ({ dispatch, myMemberships = [], groupId, groupSlug, isSpace, parentGroupId, parentGroupSlug, accessCode, invitationToken }) {
+  const forSpace = !!(isSpace && parentGroupSlug)
+  const joinId = forSpace ? parentGroupId : groupId
+  const joinSlug = forSpace ? parentGroupSlug : groupSlug
+  const destination = forSpace ? buildSpaceRedirectUrl(parentGroupSlug, groupSlug) : groupUrl(groupSlug)
+  if (myMemberships.some(m => m.group?.slug === joinSlug)) return destination
+  if (!joinId) return null
+  try {
+    const result = await dispatch(joinGroup(joinId, [], accessCode, invitationToken, false))
+    if (result?.error || !(result?.payload?.data?.joinGroup ?? result?.payload?.getData?.())) return null
+    return destination
+  } catch (error) {
+    return null
+  }
+}
+
+/**
  * JoinGroup route component - validates invitation and redirects.
  * Group invites go to the about page so the user can review and join.
  * Space invites auto-join when the user is already a parent-group member
  * and then open the space. Otherwise they go to the parent group's about page.
+ * Agora: someone logged in is joined at once instead (joinFromInvitation) and
+ * only sees the about page when that does not work. Someone without an account
+ * is joined by the server when their sign-up is finished (backend lib/agora/signup.js).
  */
 export default function JoinGroup (props) {
   const navigate = useNavigate()
@@ -92,7 +120,7 @@ export default function JoinGroup (props) {
           return
         }
 
-        const { groupId, groupSlug, isSpace, parentGroupSlug } = checkResult
+        const { groupId, groupSlug, isSpace, parentGroupId, parentGroupSlug } = checkResult
 
         if (!groupSlug) {
           throw new Error(t('Could not determine group from invitation'))
@@ -118,6 +146,25 @@ export default function JoinGroup (props) {
           : groupSlug
 
         if (signupComplete) {
+          // Agora: someone logged in who opens a join link or invitation becomes a member
+          // right away and lands in the circle (a space invitation joins the parent circle
+          // and the space). Agreements and join questions follow in the circle's welcome
+          // window. If joining does not work, the About page with its Join button as before.
+          const joined = await joinFromInvitation({
+            dispatch,
+            myMemberships,
+            groupId,
+            groupSlug,
+            isSpace,
+            parentGroupId,
+            parentGroupSlug,
+            accessCode,
+            invitationToken
+          })
+          if (joined) {
+            setRedirectTo(joined)
+            return
+          }
           // Redirect authenticated users to the group about page with invitation params.
           // Space invites for non-parent-members go to the parent group's join page.
           setRedirectTo(buildAboutRedirectUrl(destinationSlug, accessCode, invitationToken))

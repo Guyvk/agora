@@ -3,7 +3,7 @@ import { CHECK_INVITATION } from 'store/constants'
 /**
  * Check if an invitation is valid and get group info for redirect
  * @param inviteCodes {{ invitationToken?: string, accessCode?: string }}
- * @returns {{ valid: boolean, groupId?: string, groupSlug?: string, groupName?: string, isSpace?: boolean, parentGroupSlug?: string, parentGroupName?: string, email?: string, groupRole?: { id: string, name: string, emoji?: string } }}
+ * @returns {{ valid: boolean, groupId?: string, groupSlug?: string, groupName?: string, isSpace?: boolean, parentGroupId?: string, parentGroupSlug?: string, parentGroupName?: string, email?: string, groupRole?: { id: string, name: string, emoji?: string } }}
  */
 export default function checkInvitation (inviteCodes) {
   const { invitationToken, accessCode } = inviteCodes
@@ -18,6 +18,7 @@ export default function checkInvitation (inviteCodes) {
             groupSlug
             groupName
             isSpace
+            parentGroupId
             parentGroupSlug
             parentGroupName
             email
