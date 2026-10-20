@@ -45,7 +45,7 @@ module.exports.http = {
 
     requestLogger: function (req, res, next) {
       // Agora: the secret of a calendar link never goes into the log
-      sails.log.info(magenta(`${req.method} ${String(req.url).replace(/(\/noo\/agora\/calendar\/)[^/?]+\.ics/, '$1(hidden).ics')}`))
+      sails.log.info(magenta(`${req.method} ${require('../lib/agora/hideSecrets').hideCalendarSecret(req.url)}`))
       next()
     },
 

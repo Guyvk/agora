@@ -10,6 +10,7 @@ import {
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { keepMeetingLink, lockMeetingLinkParam, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events keep their meeting room
 import { withKindForUpdate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
+import { assertCanEditPost } from '../../../lib/agora/postEditing' // Agora: who may change a post
 
 export default function updatePost (userId, id, params) {
   if (!id) throw new GraphQLError('updatePost called with no ID')
@@ -17,7 +18,9 @@ export default function updatePost (userId, id, params) {
   const paramsForUpdate = params.imageUrls
     ? { ...params, imageUrls: hostedImageUrls }
     : params
-  return setupPostAttrs(userId, paramsForUpdate)
+  // Agora: only the post's author, or a steward with Manage Content or Administration in one of its circles
+  return assertCanEditPost(userId, id)
+    .then(() => setupPostAttrs(userId, paramsForUpdate))
     .then(attrs => withKindForUpdate(userId, id, attrs, paramsForUpdate)) // Agora: Meeting or Event, and "for all of 7BP"
     .then(attrs => bookshelf.transaction(transacting =>
       Post.find(id).then(post => {

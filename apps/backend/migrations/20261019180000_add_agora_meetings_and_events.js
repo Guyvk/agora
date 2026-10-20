@@ -28,6 +28,8 @@ exports.up = async function (knex) {
     table.boolean('agora_for_all').notNullable().defaultTo(false)
   })
   await knex.raw("alter table posts add constraint posts_agora_kind_check check (agora_kind is null or agora_kind in ('meeting', 'event'))")
+  // Only event posts (Meetings and Events) can be for all of 7BP
+  await knex.raw("alter table posts add constraint posts_agora_for_all_check check (not agora_for_all or type = 'event')")
   await knex.raw('create index posts_agora_for_all_index on posts (start_time) where agora_for_all')
 
   await knex('posts').where('type', 'event').whereNull('agora_kind').update({ agora_kind: 'meeting' })
@@ -44,6 +46,7 @@ exports.down = async function (knex) {
   await knex.schema.dropTableIfExists('agora_calendar_feeds')
   await knex.raw('drop index if exists posts_agora_for_all_index')
   await knex.raw('alter table posts drop constraint if exists posts_agora_kind_check')
+  await knex.raw('alter table posts drop constraint if exists posts_agora_for_all_check')
   await knex.schema.alterTable('posts', table => {
     table.dropColumn('agora_kind')
     table.dropColumn('agora_for_all')

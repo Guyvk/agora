@@ -10,6 +10,7 @@
 */
 
 const Sentry = require('@sentry/node')
+const { hideCalendarSecret } = require('./agora/hideSecrets') // Agora
 
 const dsn = process.env.SENTRY_DSN
 const environment = process.env.SENTRY_ENV || process.env.NODE_ENV
@@ -27,6 +28,11 @@ if (enabled) {
     registerEsmLoaderHooks: false,
     // Align with existing Rollbar person fields (id / name / email via setUser)
     sendDefaultPii: true,
+    // Agora: the secret of a calendar link never goes into an error report
+    beforeSend (event) {
+      if (event && event.request && event.request.url) event.request.url = hideCalendarSecret(event.request.url)
+      return event
+    },
     initialScope: {
       tags: {
         surface: 'backend'
@@ -45,7 +51,7 @@ function applyRequestContext (req) {
 
   Sentry.setContext('request', {
     method: req.method,
-    url: req.originalUrl || req.url,
+    url: hideCalendarSecret(req.originalUrl || req.url), // Agora: no calendar link secret in error reports
     headers: req.headers && {
       host: req.headers.host,
       'user-agent': req.headers['user-agent']

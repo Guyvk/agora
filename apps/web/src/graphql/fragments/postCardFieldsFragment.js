@@ -46,6 +46,7 @@ export default function postCardFieldsFragment ({ includeGroups = true } = {}) {
   linkPreviewFeatured
   location
   meetingLink
+  # Agora: Meeting or Event, and for all of 7BP
   agoraKind
   agoraForAll
   locationObject {

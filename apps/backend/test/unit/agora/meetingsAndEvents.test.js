@@ -13,7 +13,9 @@
 import createPost from '../../../api/models/post/createPost'
 import updatePost from '../../../api/models/post/updatePost'
 import { createRequestHandler } from '../../../api/graphql'
-import { postFilter } from '../../../api/graphql/filters'
+import { postFilter, commentFilter, reactionFilter } from '../../../api/graphql/filters'
+import { setProposalOptions } from '../../../api/graphql/mutations/post'
+import { hideCalendarSecret } from '../../../lib/agora/hideSecrets'
 import MeetingController from '../../../api/controllers/MeetingController'
 import MeetingGuestController from '../../../api/controllers/MeetingGuestController'
 import { createLink } from '../../../lib/agora/meetingGuests'
@@ -367,9 +369,81 @@ describe('Agora meetings and events', () => {
       expect(sent[0].files[0].id).to.equal('invite.ics')
       const ics = Buffer.from(sent[0].files[0].data, 'base64').toString('utf8')
       expect(ics).to.contain('SUMMARY:Public launch')
+      // The address every member can open, not the circle's own address
+      expect(ics.replace(/\r?\n /g, '')).to.contain(`URL;VALUE=URI:https://agora.example.org/post/${post.id}`)
+      expect(ics).not.to.contain('/groups/')
+      expect(ics).to.contain(`UID:event-${post.id}-hylo.com`)
       // Nothing for something that is not for all of 7BP
       const closed = await make(steward)
       expect(await Calendar.inviteEveryone({ postId: closed.id, inviterId: steward.id, sendEmail: async () => { throw new Error('no') } })).to.equal(0)
+    })
+  })
+
+  describe('who may change a post', () => {
+    let govSteward, post
+    before(async () => {
+      govSteward = await new User({ name: 'Lars', email: 'lars@agora.test', active: true }).save()
+      await assignAdministrator(govSteward, governance)
+    })
+    beforeEach(async () => {
+      post = await make(steward, { name: 'All hands', agoraForAll: true })
+    })
+
+    it('lets the author change it', async () => {
+      await change(steward, await reload(post.id), { name: 'All hands, renamed' })
+      expect((await reload(post.id)).get('name')).to.equal('All hands, renamed')
+    })
+
+    it('lets a steward of one of its circles change it', async () => {
+      await change(govSteward, await reload(post.id), { name: 'Moderated' })
+      expect((await reload(post.id)).get('name')).to.equal('Moderated')
+    })
+
+    it('refuses another member of the circle, and someone outside it, also through GraphQL', async () => {
+      expect(await failsWith(() => change(amara, post, { name: 'Taken over' }))).to.contain("don't have permission")
+      expect(await failsWith(() => change(kenji, post, { name: 'Moved', group_ids: [care.id] }))).to.contain("don't have permission")
+      const result = await gql('mutation ($id: ID, $data: PostInput) { updatePost(id: $id, data: $data) { id } }', { id: post.id, data: { title: 'Moved', type: 'event', groupIds: [care.id], startTime: new Date(soon()), endTime: new Date(soon() + 3600000) } }, kenji)
+      expect(result.errors[0].message).to.contain("don't have permission")
+      const saved = await reload(post.id)
+      expect(saved.get('name')).to.equal('All hands')
+      const groups = await bookshelf.knex('groups_posts').where('post_id', post.id).pluck('group_id')
+      expect(groups.map(String)).to.deep.equal([String(governance.id)])
+    })
+
+    it('refuses changing proposal options to someone who may not change the post', async () => {
+      const proposal = await createPost(amara.id, { name: 'A proposal', type: Post.Type.PROPOSAL, group_ids: [governance.id], proposalOptions: [{ text: 'Yes', emoji: '', color: '' }] })
+      expect(await failsWith(() => setProposalOptions({ userId: steward.id, postId: proposal.id, options: [{ text: 'No', emoji: '', color: '' }] }))).to.contain("don't have permission")
+    })
+  })
+
+  describe('comments and reactions on something for all of 7BP', () => {
+    it('are visible to every logged-in member, not only to the circle', async () => {
+      const forAll = await make(steward, { name: 'All hands with notes', agoraForAll: true })
+      const closed = await make(steward, { name: 'Governance only, with notes' })
+      for (const p of [forAll, closed]) {
+        await bookshelf.knex('comments').insert({ user_id: amara.id, post_id: p.id, text: 'See you there', active: true, created_at: new Date() })
+        await bookshelf.knex('reactions').insert({ user_id: amara.id, entity_id: p.id, entity_type: 'post', emoji_full: ':+1:', date_reacted: new Date() })
+      }
+      const comments = await commentFilter(kenji.id)(Comment.collection().query(q => q.whereIn('comments.post_id', [forAll.id, closed.id]))).fetch()
+      expect(comments.map(c => String(c.get('post_id')))).to.deep.equal([String(forAll.id)])
+      const reactions = await reactionFilter(kenji.id)(Reaction.collection().query(q => q.whereIn('reactions.entity_id', [forAll.id, closed.id]))).fetch()
+      expect(reactions.map(r => String(r.get('entity_id')))).to.deep.equal([String(forAll.id)])
+    })
+
+    it('stop being for all of 7BP when the only circle is gone, and only event posts can be for all', async () => {
+      const gone = await new Group({ slug: 'gone-circle', name: 'Gone', active: true }).save()
+      await steward.joinGroup(gone)
+      const post = await make(steward, { name: 'In a circle that goes away', agoraForAll: true, group_ids: [gone.id] })
+      expect(await Post.isVisibleToUser(post.id, kenji.id)).to.equal(true)
+      await bookshelf.knex('groups').where('id', gone.id).update({ active: false })
+      expect(await Post.isVisibleToUser(post.id, kenji.id)).to.equal(false)
+      const visible = await postFilter(kenji.id, false)(Post.collection().query(q => q.where('posts.id', post.id))).fetch()
+      expect(visible.length).to.equal(0)
+      const items = await Calendar.itemsFor(outsider.id, { from: new Date(Date.now() - DAY), to: new Date(Date.now() + 30 * DAY) })
+      expect(items.map(i => i.title)).not.to.include('In a circle that goes away')
+
+      const note = await createPost(steward.id, { name: 'A note', type: Post.Type.DISCUSSION, group_ids: [main.id] })
+      expect(await failsWith(() => bookshelf.knex('posts').where('id', note.id).update({ agora_for_all: true }))).to.contain('posts_agora_for_all_check')
     })
   })
 
@@ -495,6 +569,19 @@ describe('Agora meetings and events', () => {
         } finally {
           await bookshelf.knex('users').where('id', outsider.id).update({ active: true })
         }
+      })
+
+      it('answers only <secret>.ics, and keeps every secret under /noo/agora/calendar/ out of logs', async () => {
+        const url = (await callCalendar('renewFeed', { user: amara })).body.url
+        const token = tokenOf(url)
+        expect((await callCalendar('feed', { params: { file: token }, headers: {} })).statusCode).to.equal(404)
+        expect((await feed(token)).statusCode).to.equal(undefined)
+        expect(hideCalendarSecret(`/noo/agora/calendar/${token}.ics`)).to.equal('/noo/agora/calendar/(hidden)')
+        expect(hideCalendarSecret(`/noo/agora/calendar/${token}`)).to.equal('/noo/agora/calendar/(hidden)')
+        expect(hideCalendarSecret(`https://x.test/noo/agora/calendar/${token}?a=1`)).to.equal('https://x.test/noo/agora/calendar/(hidden)?a=1')
+        expect(hideCalendarSecret('/noo/agora/calendar/api/items?from=1')).to.equal('/noo/agora/calendar/api/items?from=1')
+        expect(hideCalendarSecret('/noo/graphql')).to.equal('/noo/graphql')
+        await callCalendar('revokeFeed', { user: amara })
       })
 
       it('needs a login for everything but the feed itself', async () => {

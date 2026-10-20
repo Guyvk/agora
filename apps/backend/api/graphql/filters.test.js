@@ -154,7 +154,8 @@ describe('model filters', () => {
         and ("groups_posts"."group_id" in
           ${myGroupIdsSqlFragment(myId)}
           or "posts"."is_public" = true
-          or "posts"."agora_for_all" = true
+          or ("posts"."agora_for_all" = true and "posts"."type" = 'event'
+            and "groups_posts"."group_id" in (select "groups"."id" from "groups" where "groups"."active" = true))
         )
         and "posts"."user_id" not in ${blockedUserSqlFragment(myId)}`) // Agora: posts for all of 7BP
     })

@@ -946,7 +946,7 @@ module.exports = bookshelf.Model.extend(Object.assign({
     const post = await Post.find(postId)
     if (!post) return false
     if (post.isPublic()) return true
-    if (post.get('agora_for_all')) return true // Agora: for all of 7BP, see lib/agora/eventKinds.js
+    if (await require('../../lib/agora/eventKinds').isForAll(post)) return true // Agora: for all of 7BP, see lib/agora/eventKinds.js
 
     const postGroupIds = await PostMembership.query()
       .where({ post_id: postId }).pluck('group_id')

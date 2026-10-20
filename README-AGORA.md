@@ -86,6 +86,10 @@ The server decides, whatever a web page, an app or the API sends: an event post 
 
 The main 7BP circle is the circle whose slug (the name in its web address) is in `AGORA_MAIN_GROUP_SLUG`, by default `7bp` (the demo's main circle). On the server, `agora/vps/server-env.mjs` writes it; set `AGORA_MAIN_GROUP_SLUG` before running it to use another circle.
 
+**Who may change a post.** Only the person who made it, or someone with the Manage Content or Administration responsibility in one of the circles it is in now. Hylo itself did not check this on the server (its pages only show Edit to the author), so before, anyone logged in could change any post through the API. The same rule now covers changing a proposal's options.
+
+**Search** still only finds posts of your own circles (and public ones); Meetings and Events for all of 7BP reach everyone through the Calendar, the calendar link and their own page, where every member can also comment and react.
+
 **After updating to this version.** The database update (`yarn migrate`, which `agora/vps/update.sh` runs) marks every existing event as a Meeting. They already have their meeting room, so nothing else changes. To make one an Event, open it, choose Edit and pick **Event**.
 
 ### The meeting room
@@ -169,7 +173,7 @@ Keep the link to yourself: whoever has it can read your calendar without logging
 How it works, for whoever looks after Agora:
 
 - The feed is made live by the server at `/noo/agora/calendar/<secret>.ics` each time a calendar app asks, so it is never out of date and no file is written. (Hylo's own calendar files per circle and for your replies, made by the worker, still exist next to it.)
-- The secret is 32 random bytes (43 letters and digits), one per person, kept in the table `agora_calendar_feeds`. The server's request log hides it.
+- The secret is 32 random bytes (43 letters and digits), one per person, kept in the table `agora_calendar_feeds`. Only an address that ends in `.ics` works. The server's request log and its error reports hide whatever follows `/noo/agora/calendar/`.
 - It holds what ended up to 90 days ago and what starts up to two years ahead. Calendar apps are asked to fetch it every hour; Google decides for itself.
 - Nothing from a circle you are not in goes into your calendar or feed, unless it is for all of 7BP. Being public does not put an Event in anyone's calendar.
 

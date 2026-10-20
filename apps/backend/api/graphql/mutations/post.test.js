@@ -87,6 +87,7 @@ describe('ProposalVote', () => {
     return Promise.join(user.save(), post.save(), g1.save())
       .then(() => user.joinGroup(g1))
       .then(() => post.groups().attach(g1.id))
+      .then(() => post.save({ user_id: user.id }, { patch: true })) // Agora: only the author (or a steward) may change a proposal's options
       .then(async () => {
         option1 = { post_id: post.id, text: 'option1' }
         option2 = { post_id: post.id, text: 'option2' }

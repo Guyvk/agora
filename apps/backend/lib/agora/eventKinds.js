@@ -58,6 +58,28 @@ export function isMeeting (post) {
   return kindOf(post) === MEETING
 }
 
+/**
+ * For Hylo's filters (api/graphql/filters.js): adds "or this is a Meeting or
+ * Event for all of 7BP, in a circle that still exists" to a query that has
+ * `posts` and `groups_posts` joined. Only event posts can be for all of 7BP.
+ */
+export function orForAll (q, groupIdColumn = 'groups_posts.group_id') {
+  return q.orWhere(q2 => q2
+    .where('posts.agora_for_all', true)
+    .where('posts.type', 'event')
+    .whereIn(groupIdColumn, bookshelf.knex('groups').where('groups.active', true).select('groups.id')))
+}
+
+/** True when a post (a Post model) is a Meeting or Event for all of 7BP in a circle that still exists. */
+export async function isForAll (post) {
+  if (!post || post.get('type') !== 'event' || !post.get('agora_for_all')) return false
+  const group = await bookshelf.knex('groups_posts')
+    .join('groups', 'groups.id', 'groups_posts.group_id')
+    .where({ 'groups_posts.post_id': post.id, 'groups.active': true })
+    .first('groups.id')
+  return Boolean(group)
+}
+
 /** True when the person is an active member of the main 7BP circle with the Administration responsibility. */
 export async function canMarkForAll (userId) {
   if (!userId) return false

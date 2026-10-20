@@ -64,9 +64,10 @@ module.exports = {
     res.set('Cache-Control', 'private, no-store')
     res.set('Referrer-Policy', 'no-referrer')
     res.set('X-Robots-Tag', 'noindex')
+    // Only <secret>.ics is a calendar link; anything else gets the same 404
     const file = String(req.param('file') || '')
-    const token = file.endsWith('.ics') ? file.slice(0, -4) : file
-    const userId = await Calendar.userForToken(token)
+    const token = file.endsWith('.ics') ? file.slice(0, -4) : null
+    const userId = token ? await Calendar.userForToken(token) : null
     if (!userId) return res.status(404).type('text/plain').send('This calendar link does not work (any more). Make a new one on the Calendar page in Agora.')
     const ics = await Calendar.feedFor(userId)
     res.set('Content-Disposition', 'inline; filename="agora.ics"')

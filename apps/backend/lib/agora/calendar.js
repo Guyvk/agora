@@ -80,7 +80,13 @@ export async function itemsFor (userId, { from, to, limit = MAX_ITEMS } = {}) {
     .where('posts.start_time', '<', to)
     .where(q => q.where('posts.end_time', '>=', from).orWhere(q2 => q2.whereNull('posts.end_time').where('posts.start_time', '>=', from)))
     .where(q => q
-      .where('posts.agora_for_all', true)
+      .where(q2 => q2.where('posts.agora_for_all', true).whereExists(function () {
+        // for all of 7BP, while one of its circles still exists
+        this.select(1).from('groups_posts')
+          .join('groups', 'groups.id', 'groups_posts.group_id')
+          .whereRaw('groups_posts.post_id = posts.id')
+          .where('groups.active', true)
+      }))
       .orWhereExists(function () {
         this.select(1).from('groups_posts')
           .whereRaw('groups_posts.post_id = posts.id')
@@ -263,12 +269,17 @@ export async function feedFor (userId) {
 export async function inviteEveryone ({ postId, inviterId, sendEmail } = {}) {
   const post = await Post.find(postId)
   if (!post || post.get('type') !== 'event' || !post.get('agora_for_all')) return 0
-  await post.load(['groups', 'user'])
-  const group = post.relations.groups.first()
+  await post.load(['user'])
   const kind = kindOf(post)
   const inviter = inviterId ? await User.find(inviterId) : post.relations.user
   const inviterName = inviter ? inviter.get('name') : 'Agora'
-  const cal = await post.createCalInvite({ userId: inviterId, eventInvitation: null, eventChanges: null, groupName: group })
+  // Hylo's calendar invitation data (createCalInvite), but with the plain /post/<id>
+  // address that every member can open, not the circle's address
+  const calEvent = await post.getCalEventData({ eventInvitation: null, forUserId: inviterId, eventChanges: null, url: appUrl(`/post/${post.id}`) })
+  const cal = ical()
+  cal.method(calEvent.method)
+  cal.createEvent(calEvent).uid(calEvent.uid)
+  cal.scale('gregorian')
   const file = { id: 'invite.ics', data: Buffer.from(cal.toString(), 'utf8').toString('base64') }
 
   const people = await knex()('users')

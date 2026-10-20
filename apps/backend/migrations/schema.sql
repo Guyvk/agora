@@ -7627,6 +7627,9 @@ ALTER TABLE ONLY public.posts
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_agora_kind_check CHECK (((agora_kind IS NULL) OR ((agora_kind)::text = ANY ((ARRAY['meeting'::character varying, 'event'::character varying])::text[]))));
 
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_agora_for_all_check CHECK (((NOT agora_for_all) OR ((type)::text = 'event'::text)));
+
 CREATE INDEX posts_agora_for_all_index ON public.posts USING btree (start_time) WHERE agora_for_all;
 
 CREATE TABLE public.agora_calendar_feeds (

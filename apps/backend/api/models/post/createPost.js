@@ -45,8 +45,10 @@ export default async function createPost (userId, params) {
       if (post.get('type') === Post.Type.CHAT && !params.silent) {
         Queue.classMethod('Post', 'upsertChatActivityNotice', { postId: post.id }, 0)
       }
-      agoraAfterCreate(post, params, userId) // Agora: calendar invitations for all of 7BP, when asked
-      return post
+      // Agora: calendar invitations for all of 7BP, when asked. A queue problem never fails the post
+      return Promise.resolve().then(() => agoraAfterCreate(post, params, userId))
+        .catch(err => console.error(`Agora: could not queue the calendar invitations for post ${post.id}:`, err && err.message))
+        .then(() => post)
     })
 }
 

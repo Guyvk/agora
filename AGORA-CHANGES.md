@@ -110,14 +110,17 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.js` | The "choose a password" step is a real form with the email as a hidden username and both password fields marked as new password, so password managers offer to save it |
 | `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js` | Email and new password fields are a real form (username, new-password); after a password is saved, a same-page history step tells the browser it worked, so it offers to save the new password. The "Set a new password" link from the reset email lands here |
 | `apps/backend/api/models/post/createPost.js` (meetings and events) | A new event post is a Meeting or an Event, and "for all of 7BP" is checked (`lib/agora/eventKinds.js`). When asked, everyone gets a calendar invitation |
-| `apps/backend/api/models/post/updatePost.js` (meetings and events) | A change keeps or switches the kind, and only stewards of the main 7BP circle may switch "for all of 7BP" |
+| `apps/backend/api/models/post/updatePost.js` (meetings and events) | A change keeps or switches the kind, and only stewards of the main 7BP circle may switch "for all of 7BP". Only the post's author, or someone with Manage Content or Administration in one of its circles, may change a post at all (`lib/agora/postEditing.js`; Hylo checked nothing) |
+| `apps/backend/api/graphql/mutations/post.js` | Changing a proposal's options needs the same right as changing the post |
+| `apps/backend/api/graphql/mutations/post.test.js` | Its proposal is made by the person who changes its options, as that rule now needs |
 | `apps/backend/api/models/Post.js` (meetings and events) | A post for all of 7BP is visible to every logged-in member (`isVisibleToUser`), and emails know whether a post is a Meeting or an Event |
-| `apps/backend/api/graphql/filters.js` | Posts for all of 7BP are readable by every logged-in member |
+| `apps/backend/api/graphql/filters.js` | Meetings and Events for all of 7BP, with their comments and reactions, are readable by every logged-in member while one of their circles exists |
 | `apps/backend/api/graphql/filters.test.js` | Its expected post query includes the clause for posts for all of 7BP |
 | `apps/backend/api/graphql/makeModels.js` | A post tells its kind (`agoraKind`) and whether it is for all of 7BP (`agoraForAll`) |
 | `apps/backend/api/graphql/schema.graphql` (meetings and events) | The fields `agoraKind` and `agoraForAll` on posts, and `agoraKind`, `agoraForAll`, `agoraInviteEveryone` when making or changing one |
 | `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (calendar) | The addresses of the calendar page's server part (login needed) and of the calendar feed (no login, its secret is the key) |
-| `apps/backend/config/http.js` | The request log hides the secret of a calendar link |
+| `apps/backend/config/http.js` | The request log hides whatever follows `/noo/agora/calendar/` (the secret of a calendar link), except the page's own `api` calls |
+| `apps/backend/lib/sentry.js` | Error reports hide the secret of a calendar link too |
 | `apps/backend/migrations/schema.sql` (meetings and events) | The two new columns of posts and the table of calendar links |
 | `apps/backend/.env.example` (meetings and events) | `AGORA_MAIN_GROUP_SLUG`, the main 7BP circle |
 | `apps/backend/package.json` (calendar) | Told the style checker about the `AgoraCalendar` service |
@@ -178,5 +181,6 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
 - `apps/web/src/agora/help/HelpGuide.jsx` (the Guide in the Help window), `apps/web/src/agora/help/openHelp.js` (opens Help on a given view from any page), `apps/backend/lib/agora/helpGuideText.js` (the guide as text for Claude in Help; `helpGuide.md` now holds only extra notes)
 - `apps/backend/migrations/20261019180000_add_agora_meetings_and_events.js`, `apps/backend/lib/agora/eventKinds.js`, `apps/backend/lib/agora/calendar.js`, `apps/backend/api/controllers/AgoraCalendarController.js`, `apps/backend/api/services/AgoraCalendar.js`, `apps/backend/test/unit/agora/meetingsAndEvents.test.js` (Meetings and Events, the calendar and its feed; the invitation email text is in `lib/agora/mailer.js`)
+- `apps/backend/lib/agora/hideSecrets.js` (keeps calendar link secrets out of logs and error reports), `apps/backend/lib/agora/postEditing.js` (who may change a post)
 - `apps/web/src/agora/calendar/api.js`, `CalendarPage.jsx`, `AgoraEventKindFields.jsx`, `AgoraKindLabel.jsx`, `CalendarPage.test.js`, `AgoraEventKindFields.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

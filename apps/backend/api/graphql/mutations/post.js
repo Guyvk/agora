@@ -8,6 +8,7 @@ import {
   notifyAuthorOfModeratorFulfillment
 } from '../../models/post/postFulfillmentPermissions'
 import { deletePostDraftForCreate } from './draft'
+import { canEditPost } from '../../../lib/agora/postEditing' // Agora: who may change a post
 
 export async function completePost (userId, postId, completionResponse) {
   const post = await Post.find(postId)
@@ -115,7 +116,7 @@ export async function removeProposalVote ({ userId, postId, optionId }) {
 
 export async function setProposalOptions ({ userId, postId, options }) {
   if (!userId || !postId || !options) throw new GraphQLError(`Missing required parameters: ${JSON.stringify({ userId, postId, options })}`)
-  const authorized = await Post.isVisibleToUser(postId, userId)
+  const authorized = await Post.isVisibleToUser(postId, userId) && await canEditPost(userId, postId) // Agora: only who may change the post
   if (!authorized) throw new GraphQLError("You don't have permission to modify this post")
   return Post.find(postId)
     .then(post => {
@@ -128,7 +129,7 @@ export async function setProposalOptions ({ userId, postId, options }) {
 
 export async function updateProposalOptions ({ userId, postId, options }) {
   if (!userId || !postId || !options) throw new GraphQLError(`Missing required parameters: ${JSON.stringify({ userId, postId, options })}`)
-  const authorized = await Post.isVisibleToUser(postId, userId)
+  const authorized = await Post.isVisibleToUser(postId, userId) && await canEditPost(userId, postId) // Agora: only who may change the post
   if (!authorized) throw new GraphQLError("You don't have permission to modify this post")
   return Post.find(postId)
     .then(post => {
