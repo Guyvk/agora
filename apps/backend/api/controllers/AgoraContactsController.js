@@ -10,6 +10,7 @@
  * cannot add to a request made with someone's login.
  */
 import Contacts from '../../lib/agora/contacts'
+import Claims from '../../lib/agora/claims'
 
 function webUrl (pathname) {
   return `${process.env.PROTOCOL}://${process.env.DOMAIN}${pathname}`
@@ -53,7 +54,11 @@ module.exports = {
   }),
 
   meta: memberAction(async (req, res, userId) => {
-    res.ok({ ...(await Contacts.meta()), dueCount: await Contacts.dueCount(userId) })
+    res.ok({
+      ...(await Contacts.meta()),
+      dueCount: await Contacts.dueCount(userId),
+      canMakeClaimLinks: await Claims.canManage(userId)
+    })
   }),
 
   dueCount: memberAction(async (req, res, userId) => {
@@ -83,6 +88,19 @@ module.exports = {
 
   destroy: memberAction(async (req, res, userId) => {
     await Contacts.remove(userId, req.param('contactId'))
+    res.ok({ ok: true })
+  }, { change: true }),
+
+  // Claim links for profiles (lib/agora/claims.js): stewards only
+  createClaimLink: memberAction(async (req, res, userId) => {
+    if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can make claim links.' })
+    const { link } = await Claims.createLink({ contactId: req.param('contactId'), userId })
+    res.ok({ link })
+  }, { change: true }),
+
+  withdrawClaimLink: memberAction(async (req, res, userId) => {
+    if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can withdraw claim links.' })
+    await Claims.withdrawLink({ contactId: req.param('contactId'), userId })
     res.ok({ ok: true })
   }, { change: true })
 }

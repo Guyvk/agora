@@ -8,6 +8,9 @@
  *     was sent to, so a forwarded link cannot make accounts for others.
  *   - a circle's join link (its access code). Anyone who has it may make an
  *     account, with any address, until a steward makes a new link.
+ *   - a claim link for a profile made from someone's sheet (lib/agora/claims.js).
+ *     Like a join link it has no address; it works until the profile is
+ *     claimed or the link is withdrawn. It is not an invitation to a circle.
  * People who already have an account log in as before.
  *
  * The setting is AGORA_INVITE_ONLY in apps/backend/.env:
@@ -70,14 +73,14 @@ function clean (value) {
   return trimmed && trimmed.length <= 255 ? trimmed : undefined
 }
 
-/** The invitation someone holds, from what they sent: { invitationToken, accessCode }. */
-function invitation ({ invitationToken, accessCode } = {}) {
-  return { invitationToken: clean(invitationToken), accessCode: clean(accessCode) }
+/** The invitation someone holds, from what they sent: { invitationToken, accessCode, claimToken }. */
+function invitation ({ invitationToken, accessCode, claimToken } = {}) {
+  return { invitationToken: clean(invitationToken), accessCode: clean(accessCode), claimToken: clean(claimToken) }
 }
 
 function hasInvitation (held) {
-  const { invitationToken, accessCode } = invitation(held)
-  return Boolean(invitationToken || accessCode)
+  const { invitationToken, accessCode, claimToken } = invitation(held)
+  return Boolean(invitationToken || accessCode || claimToken)
 }
 
 async function isActiveGroup (groupId) {
@@ -95,7 +98,7 @@ async function isActiveGroup (groupId) {
  */
 async function isValidInvitation (held, email) {
   const InvitationService = require('../../api/services/InvitationService')
-  const { invitationToken, accessCode } = invitation(held)
+  const { invitationToken, accessCode, claimToken } = invitation(held)
   if (invitationToken) {
     const result = await InvitationService.check(invitationToken, null)
     if (result?.valid && sameAddress(email, result.email) && await isActiveGroup(result.groupId)) return true
@@ -104,6 +107,8 @@ async function isValidInvitation (held, email) {
     const result = await InvitationService.check(null, accessCode)
     if (result?.valid && await isActiveGroup(result.groupId)) return true
   }
+  // A claim link for a profile: any address, until the profile is claimed (lib/agora/claims.js)
+  if (claimToken && await require('./claims').isValidToken(claimToken)) return true
   return false
 }
 
@@ -147,6 +152,7 @@ async function mayCreateAccount (held, email) {
  */
 function invitationFromRequest (req) {
   const param = name => (typeof req?.param === 'function' ? req.param(name) : undefined) ?? req?.body?.[name]
+  // A claim link is left out on purpose: it is only for signing up with an email address
   return invitation({ invitationToken: param('invitationToken'), accessCode: param('accessCode') })
 }
 

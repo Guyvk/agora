@@ -121,6 +121,12 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/update':     'AgoraContactsController.update',
   'POST   /noo/agora/contacts/api/:contactId/notes':      'AgoraContactsController.addNote',
   'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
+  'POST   /noo/agora/contacts/api/:contactId/claim-link': 'AgoraContactsController.createClaimLink',
+  'POST   /noo/agora/contacts/api/:contactId/claim-link/withdraw': 'AgoraContactsController.withdrawClaimLink',
+
+  // Agora: claiming a profile made from someone's sheet (lib/agora/claims.js)
+  'GET    /noo/agora/claim/api/:token':                   'AgoraClaimController.show',
+  'POST   /noo/agora/claim/api/:token/claim':             'AgoraClaimController.claim',
 
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
