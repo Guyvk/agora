@@ -150,7 +150,75 @@ function invitationFromRequest (req) {
   return invitation({ invitationToken: param('invitationToken'), accessCode: param('accessCode') })
 }
 
+/**
+ * Joining the circle of the invitation someone signed up with.
+ *
+ * Someone who opens a circle's join link or an invitation email while they
+ * have no account goes through: sign-up page (email address), a code or link
+ * in an email, a name and password, the welcome steps. Hylo itself never makes
+ * them a member on the way: it only remembers in the browser to show the
+ * circle's About page at the end, where they still have to click Join. When
+ * the email link opens in another browser or app, that memory is gone, and
+ * someone who does not click Join is not a member either. Both leave a new
+ * account outside the circle it was invited to.
+ *
+ * So the server remembers the invitation with the new account when the email
+ * is sent (rememberInvitation), and makes the person a member as soon as the
+ * account is finished (joinRememberedCircle), the same way the Join button
+ * does. The link itself is the steward's permission. The invitation is
+ * checked again at that moment: a join link that was replaced or an invitation
+ * that was withdrawn in between does nothing.
+ */
+const REMEMBERED_INVITATION = 'agora_signup_invitation'
+
+/** Keeps the invitation with an account that is not finished yet. Accounts that already exist are left alone. */
+async function rememberInvitation (user, held) {
+  if (!user || user.get('active')) return
+  const { invitationToken, accessCode } = invitation(held)
+  if (!invitationToken && !accessCode) return
+  const remembered = invitationToken ? { invitationToken } : { accessCode }
+  const settings = { ...(user.get('settings') || {}), [REMEMBERED_INVITATION]: remembered }
+  await user.save({ settings }, { patch: true })
+}
+
+/**
+ * Makes the user a member of the circle of this invitation, with Hylo's own
+ * join (the one behind the Join button), when the invitation can be used now.
+ * Returns the membership, or null. Never throws: a sign-up must not fail
+ * because joining did not work.
+ */
+async function joinInvitedCircle (user, held) {
+  try {
+    const { invitationToken, accessCode } = invitation(held)
+    if (!user || (!invitationToken && !accessCode)) return null
+    const InvitationService = require('../../api/services/InvitationService')
+    const check = await InvitationService.check(invitationToken, accessCode)
+    if (!check?.valid || !(await isActiveGroup(check.groupId))) return null
+    // A space invitation joins its parent circle and the space together
+    const groupId = (check.isSpace && check.parentGroupId) ? check.parentGroupId : check.groupId
+    const { joinGroup } = require('../../api/graphql/mutations/group')
+    return await joinGroup(groupId, user.id, [], accessCode, invitationToken, false, {})
+  } catch (error) {
+    console.warn(`Agora: could not add user ${user?.id} to the circle of their invitation: ${error.message}`)
+    return null
+  }
+}
+
+/** Joins the circle of the invitation kept by rememberInvitation, once, and forgets it. */
+async function joinRememberedCircle (user) {
+  const remembered = user && typeof user.getSetting === 'function' ? user.getSetting(REMEMBERED_INVITATION) : null
+  if (!remembered) return null
+  const settings = { ...(user.get('settings') || {}) }
+  delete settings[REMEMBERED_INVITATION]
+  await user.save({ settings }, { patch: true })
+  return joinInvitedCircle(user, remembered)
+}
+
 module.exports = {
+  REMEMBERED_INVITATION,
+  rememberInvitation,
+  joinInvitedCircle,
+  joinRememberedCircle,
   INVITE_ONLY_ERROR,
   INVITATION_INVALID_ERROR,
   INVITATION_OTHER_ACCOUNT_ERROR,

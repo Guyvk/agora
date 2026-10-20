@@ -114,6 +114,8 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
 
       const newUser = await User.create(attrs)
       await Analytics.trackSignup(newUser.id, req)
+      // Agora: a new account made with a join link or invitation joins that circle (lib/agora/signup.js)
+      await AgoraSignup.joinInvitedCircle(newUser, AgoraSignup.invitationFromRequest(req))
       if (tokenAuth) {
         await recordTokenLogin(newUser)
       } else {
