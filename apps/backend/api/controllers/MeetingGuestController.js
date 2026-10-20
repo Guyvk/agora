@@ -5,6 +5,7 @@ import {
   rateLimiter, LIMITS, FAILED_LIMIT, FAILED_WINDOW_MS, MAX_GUESTS_PER_MEETING, NAME_MAX,
   checkLink, cleanName, guestLabel, addGuest, countGuests, findGuest
 } from '../../lib/agora/meetingGuests'
+import { isMeeting } from '../../lib/agora/eventKinds'
 
 /**
  * Agora: the meeting room for guests, people without an Agora account.
@@ -69,7 +70,7 @@ async function loadLink (req, res) {
     return null
   }
   const post = await Post.find(postId, { withRelated: ['groups'] })
-  if (!post || post.get('type') !== Post.Type.EVENT || !post.get('active')) {
+  if (!post || post.get('type') !== Post.Type.EVENT || !isMeeting(post) || !post.get('active')) { // only Meetings have a meeting room
     res.status(404).send({ error: REASONS.invalid })
     return null
   }
@@ -124,7 +125,7 @@ module.exports = {
       return sendLinkProblem(res, reason === 'invalid' ? 404 : 410, REASONS[reason])
     }
     const post = await Post.find(postId, { withRelated: ['groups'] })
-    if (!post || post.get('type') !== Post.Type.EVENT || !post.get('active')) {
+    if (!post || post.get('type') !== Post.Type.EVENT || !isMeeting(post) || !post.get('active')) { // only Meetings have a meeting room
       return sendLinkProblem(res, 404, REASONS.invalid)
     }
 

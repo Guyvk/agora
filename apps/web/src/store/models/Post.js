@@ -108,6 +108,8 @@ Post.fields = {
   linkPreviewFeatured: attr(),
   location: attr(),
   meetingLink: attr(),
+  agoraKind: attr(), // Agora: 'meeting' or 'event'
+  agoraForAll: attr(), // Agora: for all of 7BP
   // Plain data, not a relation: the flag badge tooltip reads reasons off it
   moderationActions: attr(),
   peopleReactedTotal: attr(),

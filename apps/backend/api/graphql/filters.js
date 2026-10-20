@@ -1,4 +1,5 @@
 import DataLoader from 'dataloader'
+import { orForAll } from '../../lib/agora/eventKinds' // Agora: for all of 7BP
 
 export const commentFilter = userId => relation => relation.query(q => {
   q.distinct()
@@ -25,6 +26,7 @@ export const commentFilter = userId => relation => relation.query(q => {
     q2.whereIn('comments.post_id', followedPostIds)
       .orWhereIn('groups_posts.group_id', Group.selectIdsForMember(userId))
       .orWhere('posts.is_public', true)
+    orForAll(q2) // Agora: comments on meetings and events for all of 7BP
   })
   q.groupBy('comments.id')
 })
@@ -373,6 +375,7 @@ export const postFilter = (userId, isAdmin) => relation => {
       q.where(q3 => {
         const selectIdsForMember = Group.selectIdsForMember(userId)
         q3.whereIn('groups_posts.group_id', selectIdsForMember).orWhere('posts.is_public', true)
+        orForAll(q3) // Agora: meetings and events for all of 7BP, see lib/agora/eventKinds.js
       })
 
       // Don't show posts from blocked users
@@ -398,6 +401,7 @@ export const reactionFilter = userId => relation => {
       const selectIdsForMember = Group.selectIdsForMember(userId)
       q2.whereIn('groups_posts.group_id', selectIdsForMember)
         .orWhere('posts.is_public', true)
+      orForAll(q2) // Agora: reactions on meetings and events for all of 7BP
     })
   })
 }

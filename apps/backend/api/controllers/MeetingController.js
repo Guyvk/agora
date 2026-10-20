@@ -2,11 +2,13 @@ import {
   renderRoom, meetDomain, webUrl, setRoomHeaders, fromAgoraPage, receiveSegment
 } from '../../lib/agora/meetingRoom'
 import { canManageGuestLink, createLink, revokeLink, findLink, guestLabel, defaultExpiry } from '../../lib/agora/meetingGuests'
+import { isMeeting } from '../../lib/agora/eventKinds'
 
 /**
  * Agora meetings.
  *
- * Every event gets a meeting room at /noo/meeting/<event id>/room. People join
+ * Every Meeting gets a meeting room at /noo/meeting/<event id>/room. Events
+ * (talks, stands, gatherings with a place) have none, see lib/agora/eventKinds.js. People join
  * the call there, and while they speak their own browser sends short pieces of
  * their speech to be turned into text. When the meeting ends, the assistant
  * writes the minutes and posts them in the event's group.
@@ -24,8 +26,9 @@ async function loadEvent (req, res) {
     return null
   }
   const post = await Post.find(postId, { withRelated: ['groups'] })
-  if (!post || post.get('type') !== Post.Type.EVENT) {
-    res.status(404).send({ error: 'This event does not exist.' })
+  // Agora: only Meetings have a meeting room; an Event (a talk, a stand) never does
+  if (!post || post.get('type') !== Post.Type.EVENT || !isMeeting(post)) {
+    res.status(404).send({ error: 'This meeting does not exist.' })
     return null
   }
   const allowed = await Post.isVisibleToUser(post.id, req.session.userId)
@@ -236,13 +239,13 @@ module.exports = {
     const post = await loadEvent(req, res)
     if (!post) return
     if (!(await canManageGuestLink(req.session.userId, post))) {
-      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+      return res.status(403).send({ error: 'Only the person who made this meeting and the stewards of its circle can invite guests.' })
     }
     if (!meetDomain()) {
       return res.status(503).send({ error: 'Guest links need the call inside Agora, which is not switched on here (AGORA_MEET_DOMAIN).' })
     }
     if (defaultExpiry(post).getTime() <= Date.now()) {
-      return res.status(409).send({ error: 'This event ended more than two hours ago, so a guest link would not work any more.' })
+      return res.status(409).send({ error: 'This meeting ended more than two hours ago, so a guest link would not work any more.' })
     }
     const { secret } = await createLink({ post, userId: req.session.userId })
     res.set('Cache-Control', 'no-store')
@@ -260,7 +263,7 @@ module.exports = {
     const post = await loadEvent(req, res)
     if (!post) return
     if (!(await canManageGuestLink(req.session.userId, post))) {
-      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+      return res.status(403).send({ error: 'Only the person who made this meeting and the stewards of its circle can invite guests.' })
     }
     await revokeLink(post.id)
     res.ok({ link: null })

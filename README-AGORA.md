@@ -10,7 +10,8 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 
 | Addition | What it does | Where the code lives |
 | --- | --- | --- |
-| Meetings that write their own minutes | Every event has a meeting room, and video calls always go through it (no Zoom or other links). While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group. People without an account can join through a guest link | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/controllers/MeetingGuestController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `scripts/agora-meeting-links.js` |
+| Meetings that write their own minutes | Every Meeting has a meeting room, and video calls always go through it (no Zoom or other links). Events (talks, stands) have a place instead. While people speak, their own browser turns their speech into text. When the meeting ends, the assistant posts the minutes in the group. People without an account can join a Meeting through a guest link | `apps/backend/agora/meeting-room.html`, `api/controllers/MeetingController.js`, `api/controllers/MeetingGuestController.js`, `api/models/Meeting*.js`, `api/services/Transcription.js`, `api/services/MeetingMinutes.js`, `lib/agora/meetingLink.js`, `lib/agora/eventKinds.js` (Meetings and Events), `scripts/agora-meeting-links.js` |
+| One calendar for each person | All Meetings and Events of your circles and of all 7BP on one page, and a private calendar link for Google Calendar, Apple Calendar or Outlook | `apps/backend/lib/agora/calendar.js`, `api/controllers/AgoraCalendarController.js`, `apps/web/src/agora/calendar/` |
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
@@ -66,19 +67,44 @@ Claude can work on Agora in Anthropic's cloud while Guy's laptop is off. A cloud
 
 It installs PostgreSQL 17 with PostGIS, Redis and Node 24, creates the databases `agora` (demo data) and `agora_test` (for tests), and writes settings with fresh made-up secrets. The rules for such a session are in `AGORA-CLOUD.md`: draft pull requests on `Guyvk/agora` only, demo data only, no keys.
 
-## Meetings
+## Meetings and Events
 
-Open any event and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
+Agora has two kinds of things with a date and a time. Underneath they are the same Hylo event post, with a mark that says which kind it is.
 
-Video calls in Agora always go through the event's own meeting room. There is no field for a video call link on an event: Agora gives every event its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The event form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as an event's location. When `AGORA_MEET_DOMAIN` is empty there is no call server, so events have no video call link at all.
+| | Meeting | Event |
+| --- | --- | --- |
+| What it is | For the team: a circle meeting, a working session | A gathering: a talk, an info evening, a festival stand, a demonstration, a public launch |
+| Video call | Always its own Agora meeting room, with minutes | Never. It has a place instead |
+| Public | Never | May be public, when its circle allows public posts, so it can be shared outside Agora |
+| Replies | People are invited | People say Going, Interested or Not going |
 
-**Older events.** Events made before this can still have a Zoom link, or no link. One command, in `apps/backend` (on the server: `/srv/agora/apps/backend`, as the `agora` user), shows what it would change and saves nothing:
+In the **+** (create) menu they are two separate choices, **Meeting** and **Event**. In the form you can still switch between the two. Cards, the post page and the calendars say "Meeting" or "Event"; lists that hold both say "Meetings and events".
+
+The server decides, whatever a web page, an app or the API sends: an event post without a kind is a Meeting; a Meeting is never public; only a Meeting gets a meeting room. Changing the kind later is allowed. A Meeting that becomes an Event loses its meeting room. An Event that becomes a Meeting gets one and stops being public, and the people who replied get Hylo's usual "changed" email with the new place (the meeting room). The meeting room of an Event does not open (it says the meeting does not exist).
+
+**For all of 7BP.** Stewards of the main 7BP circle (people with the Administration responsibility there) see one more box when they make a Meeting or an Event: **For all of 7BP**. It then shows in the calendar and calendar feed of every Agora member, not only of the circle's members, and every logged-in member can open it, comment and reply. Only these stewards may switch the mark on or off; the server checks it. When making it, a second box, **Also send everyone a calendar invitation by email**, sends every active Agora member an email with the calendar file attached. That happens once, when it is made, never again on a change. Emails only go out when the server can send email (`AGORA_EMAIL_TRANSPORT`); on a Mac they are written to the log.
+
+The main 7BP circle is the circle whose slug (the name in its web address) is in `AGORA_MAIN_GROUP_SLUG`, by default `7bp` (the demo's main circle). On the server, `agora/vps/server-env.mjs` writes it; set `AGORA_MAIN_GROUP_SLUG` before running it to use another circle.
+
+**Who may change a post.** Only the person who made it, or someone with the Manage Content or Administration responsibility in one of the circles it is in now. Hylo itself did not check this on the server (its pages only show Edit to the author), so before, anyone logged in could change any post through the API. The same rule now covers changing a proposal's options.
+
+**Search** still only finds posts of your own circles (and public ones); Meetings and Events for all of 7BP reach everyone through the Calendar, the calendar link and their own page, where every member can also comment and react.
+
+**After updating to this version.** The database update (`yarn migrate`, which `agora/vps/update.sh` runs) marks every existing event as a Meeting. They already have their meeting room, so nothing else changes. To make one an Event, open it, choose Edit and pick **Event**.
+
+### The meeting room
+
+Open any Meeting and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
+
+Video calls in Agora always go through a Meeting's own meeting room. There is no field for a video call link: Agora gives every Meeting its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. Events have no video call link at all. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as the location of a Meeting or an Event. When `AGORA_MEET_DOMAIN` is empty there is no call server, so nothing has a video call link.
+
+**Older meetings.** Meetings made before this can still have a Zoom link, or no link, and an Event could have an old link. One command, in `apps/backend` (on the server: `/srv/agora/apps/backend`, as the `agora` user), shows what it would change and saves nothing:
 
 ```
 node scripts/agora-meeting-links.js
 ```
 
-Then the same with `--apply` makes the changes: every event gets its meeting room as its link, and an event whose location is only a video call link gets an empty location. A location with more in it (an address and a Zoom link) is listed, for a steward to change by hand. Nobody gets an email; calendars show the meeting room once the worker has made the calendar files again. Running it a second time changes nothing.
+Then the same with `--apply` makes the changes: every Meeting gets its meeting room as its link, every Event loses any link, and a location that is only a video call link gets emptied. A location with more in it (an address and a Zoom link) is listed, for a steward to change by hand. Nobody gets an email; calendars show the meeting room once the worker has made the calendar files again. Running it a second time changes nothing.
 
 How it works:
 
@@ -93,7 +119,8 @@ Three settings in `apps/backend/.env` switch this on:
 | --- | --- |
 | `AGORA_TRANSCRIPTION_URL` and `AGORA_TRANSCRIPTION_KEY` | The address and key of a speech-to-text service. Any service that follows the OpenAI format works, for example Infomaniak AI Tools (Whisper, hosted in Switzerland) |
 | `ANTHROPIC_API_KEY` | A key from a Claude developer account, for writing the minutes |
-| `AGORA_MEET_DOMAIN` | The Jitsi server for the call: `kmeet.infomaniak.com` (kMeet by Infomaniak). Every call runs here. If the call cannot be shown inside the room, the room offers the same kMeet room in a second window. Leave empty only to have no video calls at all: then events have no video call link, and the room only writes notes for people sitting together |
+| `AGORA_MEET_DOMAIN` | The Jitsi server for the call: `kmeet.infomaniak.com` (kMeet by Infomaniak). Every call runs here. If the call cannot be shown inside the room, the room offers the same kMeet room in a second window. Leave empty only to have no video calls at all: then Meetings have no video call link, and the room only writes notes for people sitting together |
+| `AGORA_MAIN_GROUP_SLUG` | The slug of the main 7BP circle, default `7bp`. Its stewards may mark a Meeting or an Event for all of 7BP |
 
 Without the first, meetings work but no notes are written. Without the second, you get the transcript without a summary.
 
@@ -108,7 +135,9 @@ Things to know:
 
 Members can invite people who have no Agora account into a meeting, so the call still happens in Agora.
 
-**Making a link.** Open the event. The person who made the event and the stewards of its circle (anyone with Administration or Manage Content there) see a box "Guests from outside Agora" under the event. **Make a guest link** shows the link with a **Copy** button. Send it to the guests by email or chat. Other members do not see the box.
+Guest links are for Meetings only: an Event has no meeting room, so it has no guest link either (the server refuses one, and the box is not shown).
+
+**Making a link.** Open the meeting. The person who made the meeting and the stewards of its circle (anyone with Administration or Manage Content there) see a box "Guests from outside Agora" under the event. **Make a guest link** shows the link with a **Copy** button. Send it to the guests by email or chat. Other members do not see the box.
 
 - Agora keeps only a fingerprint (a sha256 hash) of the link, never the link itself. So the link is shown only once, right after it is made. If it is lost, make a new one: the old one stops working at once, and guests who came in through it are sent out within seconds.
 - The link works until two hours after the event ends (an event without an end time counts as one hour long). Change the event's time before making the link, or make a new link after changing it.
@@ -128,6 +157,27 @@ Members can invite people who have no Agora account into a meeting, so the call 
 - Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
 - The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
 - The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
+
+## Calendar
+
+Everyone has one calendar in Agora: the **Calendar** button in the left bar, at `/calendar`. It shows every Meeting and Event of every circle you are an active member of (spaces too), and everything marked for all of 7BP. Meetings have a dashed outline, Events a solid one, and items for all of 7BP say "All of 7BP". Below the month there is a list of what is coming up in the next 60 days, with the meeting room of each Meeting and the place of each Event. Click an item to open it.
+
+**In your own calendar app.** Under the list, **Make my calendar link** gives you a private link (an iCalendar feed). Your calendar app fetches it by itself and shows exactly what your Agora calendar shows: Meetings with their meeting room, Events with their place. It updates when something changes in Agora.
+
+- **Google Calendar:** on a computer, click **+** next to "Other calendars", choose **From URL**, paste the link and click **Add calendar**. Google can take up to a day to show changes.
+- **Apple Calendar:** on a Mac choose **File**, then **New Calendar Subscription**, and paste the link. On an iPhone: Settings, Calendar, Accounts, Add Account, Other, Add Subscribed Calendar.
+- **Outlook:** in Outlook on the web, choose **Add calendar**, then **Subscribe from web**, paste the link and click **Import**.
+
+Keep the link to yourself: whoever has it can read your calendar without logging in. **Make a new link** replaces it (the old one stops working at once), and **Switch the link off** stops it altogether. A link also stops working when its account is deactivated.
+
+How it works, for whoever looks after Agora:
+
+- The feed is made live by the server at `/noo/agora/calendar/<secret>.ics` each time a calendar app asks, so it is never out of date and no file is written. (Hylo's own calendar files per circle and for your replies, made by the worker, still exist next to it.)
+- The secret is 32 random bytes (43 letters and digits), one per person, kept in the table `agora_calendar_feeds`. Only an address that ends in `.ics` works. The server's request log and its error reports hide whatever follows `/noo/agora/calendar/`.
+- It holds what ended up to 90 days ago and what starts up to two years ahead. Calendar apps are asked to fetch it every hour; Google decides for itself.
+- Nothing from a circle you are not in goes into your calendar or feed, unless it is for all of 7BP. Being public does not put an Event in anyone's calendar.
+
+The code is in `apps/backend/lib/agora/calendar.js`, `api/controllers/AgoraCalendarController.js` and `apps/web/src/agora/calendar/`.
 
 ## Google Drive
 

@@ -430,6 +430,7 @@ module.exports = bookshelf.Model.extend(Object.assign({
 
     return {
       id: parseInt(this.id),
+      agora_kind: this.get('agora_kind'), // Agora: meeting or event, for the email texts
       announcement: this.get('announcement'),
       comments: [],
       day: type !== 'oneline' && this.get('start_time') && DateTimeHelpers.getDayFromDate(this.get('start_time'), this.get('timezone')),
@@ -945,6 +946,7 @@ module.exports = bookshelf.Model.extend(Object.assign({
     const post = await Post.find(postId)
     if (!post) return false
     if (post.isPublic()) return true
+    if (await require('../../lib/agora/eventKinds').isForAll(post)) return true // Agora: for all of 7BP, see lib/agora/eventKinds.js
 
     const postGroupIds = await PostMembership.query()
       .where({ post_id: postId }).pluck('group_id')

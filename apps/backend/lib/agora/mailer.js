@@ -320,36 +320,38 @@ const TEMPLATES = {
     })
   },
 
-  // A member invites you to an event
+  // A member invites you to a meeting or an event
   tem_8pt9FjFkxRGQ7XYhRRW3BBrK: (data, options) => {
     const post = data.post || {}
     const inviter = personName(options.sender && options.sender.name) || (post.user && post.user.name) || 'Someone'
+    // Agora splits Hylo's events into Meetings and Events (lib/agora/eventKinds.js)
+    const what = post.agora_kind === 'event' ? 'event' : 'meeting'
     return compose({
       subject: `${inviter} invites you to ${post.title}`,
       lines: [
         data.group_name
-          ? `${inviter} invites you to an event in ${data.group_name}.`
-          : `${inviter} invites you to an event.`,
+          ? `${inviter} invites you to a${what === 'event' ? 'n' : ''} ${what} in ${data.group_name}.`
+          : `${inviter} invites you to a${what === 'event' ? 'n' : ''} ${what}.`,
         ...postLines(post)
       ],
-      button: { label: 'See the event and reply', url: post.url },
+      button: { label: `See the ${what} and reply`, url: post.url },
       footer: settingsFooter(data)
     })
   },
 
-  // You said whether you are going to an event. The calendar file is attached.
+  // You said whether you are going to a meeting or event. The calendar file is attached.
   tem_93YXdBV6bg4WmD8w3krpGP7H: data => compose({
     subject: `Your reply: ${data.event_name}`,
     lines: [
       data.user_name ? `Hi ${data.user_name},` : null,
       `${RSVP_ANSWERS[data.response] || 'You replied to'} ${data.event_name}.`,
       ...eventLines(data),
-      'The calendar file attached to this email adds the event to your calendar.'
+      'The calendar file attached to this email adds it to your calendar.'
     ],
-    button: { label: 'See the event', url: data.event_url }
+    button: { label: `See it in ${APP_NAME}`, url: data.event_url }
   }),
 
-  // An event you replied to has changed. The new calendar file is attached.
+  // A meeting or event you replied to has changed. The new calendar file is attached.
   tem_77XY6QJTVYKKFhDtkVgW3W93: data => compose({
     subject: `Changed: ${data.event_name}`,
     lines: [
@@ -358,12 +360,12 @@ const TEMPLATES = {
       data.newDate ? `New time: ${data.newDate}` : null,
       data.newLocation ? `New place: ${data.newLocation}` : null,
       ...eventLines({ ...data, date: data.newDate ? null : data.date, event_location: data.newLocation ? null : data.event_location }),
-      'The calendar file attached to this email updates the event in your calendar.'
+      'The calendar file attached to this email updates it in your calendar.'
     ],
-    button: { label: 'See the event', url: data.event_url }
+    button: { label: `See it in ${APP_NAME}`, url: data.event_url }
   }),
 
-  // An event you replied to is cancelled. The calendar file removes it.
+  // A meeting or event you replied to is cancelled. The calendar file removes it.
   tem_YCTQy4pJywkRDw6pfhShDg9H: data => compose({
     subject: `Cancelled: ${data.event_name}`,
     lines: [
@@ -371,7 +373,7 @@ const TEMPLATES = {
       data.date
         ? `${data.event_name} on ${data.date} is cancelled.`
         : `${data.event_name} is cancelled.`,
-      'The calendar file attached to this email takes the event out of your calendar.'
+      'The calendar file attached to this email takes it out of your calendar.'
     ]
   }),
 
@@ -390,6 +392,27 @@ const TEMPLATES = {
       sections: digestSections(data),
       button: { label: groupName ? `Go to ${groupName}` : `Open ${APP_NAME}`, url: data.group_url },
       footer: settingsFooter(data)
+    })
+  },
+
+  // A steward invites everyone to a Meeting or Event for all of 7BP (lib/agora/calendar.js).
+  // The calendar file is attached.
+  agora_calendar_invite: data => {
+    const what = data.kind === 'event' ? 'event' : 'meeting'
+    return compose({
+      subject: `Invitation for all of 7BP: ${data.title}`,
+      lines: [
+        data.recipient_name ? `Hi ${data.recipient_name},` : null,
+        `${data.inviter_name || 'A steward'} invites everyone in 7BP to this ${what}:`,
+        data.title,
+        data.when ? `When: ${data.when}` : null,
+        data.room_url ? `Meeting room: ${data.room_url}` : null,
+        data.location ? `Where: ${data.location}` : null,
+        plainText(data.details, 400),
+        'The calendar file attached to this email adds it to your calendar.'
+      ],
+      button: data.url ? { label: `See the ${what} in ${APP_NAME}`, url: data.url } : null,
+      footer: `You get this email because a steward of 7BP sent this ${what} to everyone in ${APP_NAME}.`
     })
   },
 
@@ -423,7 +446,7 @@ function postLines (post) {
   ]
 }
 
-/** Time, place and description of an event in the reply emails. */
+/** Time, place and description of a meeting or event in the reply emails. */
 function eventLines (data) {
   return [
     data.date ? `When: ${data.date}` : null,
@@ -456,7 +479,7 @@ function digestSections (data) {
   return [
     list('Coming up', 'upcoming', post => post.start_time),
     list('Ending soon', 'ending', post => post.end_time),
-    list('New events', 'events', post => [post.when, by(post)].filter(Boolean).join(', ')),
+    list('New meetings and events', 'events', post => [post.when, by(post)].filter(Boolean).join(', ')),
     list('New proposals', 'proposals'),
     list('New discussions', 'discussions'),
     list('Requests', 'requests'),

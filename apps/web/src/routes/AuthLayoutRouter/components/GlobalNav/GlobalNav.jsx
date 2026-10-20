@@ -1,6 +1,6 @@
 import { cn } from 'util/index'
 import { get } from 'lodash/fp'
-import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, Gauge /* Agora: admin area */ } from 'lucide-react'
+import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, CalendarDays /* Agora: Calendar */, Gauge /* Agora: admin area */ } from 'lucide-react'
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTour, { driveTour, isTourTestMode } from 'tours/useTour'
@@ -67,6 +67,7 @@ import logout from 'store/actions/logout'
 import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHomeLandingUrl } from '@hylo/navigation'
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
+import { CALENDAR_URL } from '@/agora/calendar/api' // Agora: my calendar
 import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
 import { ADMIN_URL, useAgoraAdmin } from '@/agora/admin/api' // Agora: the admin area
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
@@ -1121,6 +1122,20 @@ export default function GlobalNav (props) {
             dataTour='agora-contacts'
           >
             <BookUser />
+          </GlobalNavItem>
+        )}
+
+        {/* Agora: my calendar, with every Meeting and Event of my circles and of all 7BP */}
+        {!isSandboxMode() && (
+          <GlobalNavItem
+            darkTile
+            tooltip={t('Calendar')}
+            url={CALENDAR_URL}
+            className={isVisible(3)}
+            showTooltip={showLabels}
+            dataTour='agora-calendar'
+          >
+            <CalendarDays />
           </GlobalNavItem>
         )}
 

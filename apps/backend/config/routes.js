@@ -122,6 +122,14 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/notes':      'AgoraContactsController.addNote',
   'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
 
+  // Agora calendar: the calendar page, and the calendar feed (no login, the secret is the key)
+  'GET    /noo/agora/calendar/api/me':                    'AgoraCalendarController.me',
+  'GET    /noo/agora/calendar/api/items':                 'AgoraCalendarController.items',
+  'GET    /noo/agora/calendar/api/feed':                  'AgoraCalendarController.myFeed',
+  'POST   /noo/agora/calendar/api/feed/renew':            'AgoraCalendarController.renewFeed',
+  'POST   /noo/agora/calendar/api/feed/revoke':           'AgoraCalendarController.revokeFeed',
+  'GET    /noo/agora/calendar/:file':                     'AgoraCalendarController.feed',
+
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
 
