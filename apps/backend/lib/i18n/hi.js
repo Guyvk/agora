@@ -1,11 +1,12 @@
 exports.hi = {
-  apiInviteMessageContent: (name) => `${name} आपको Hylo पर हमारे समुदाय में शामिल होने के लिए आमंत्रित करते हुए खुश हैं।`,
-  apiInviteMessageSubject: (name) => `Hylo पर ${name} में मेरे साथ जुड़ें!`,
-  clientInviteSubjectDefault: (name) => `आपको Hylo पर ${name} में शामिल होने के लिए आमंत्रित किया गया है`,
-  clientInviteMessageDefault: ({ userName, groupName }) => `नमस्ते ${userName}, <br><br> हम आपको अपने समुदाय में स्वागत करते हुए प्रसन्न हैं। Hylo पर ${groupName} में शामिल होने के लिए नीचे क्लिक करें।`,
+  // Agora: invitation texts say Agora instead of Hylo
+  apiInviteMessageContent: (name) => `${name} आपको Agora पर हमारे समुदाय में शामिल होने के लिए आमंत्रित करते हुए खुश हैं।`,
+  apiInviteMessageSubject: (name) => `Agora पर ${name} में मेरे साथ जुड़ें!`,
+  clientInviteSubjectDefault: (name) => `आपको Agora पर ${name} में शामिल होने के लिए आमंत्रित किया गया है`,
+  clientInviteMessageDefault: ({ userName, groupName }) => `नमस्ते ${userName}, <br><br> हम आपको अपने समुदाय में स्वागत करते हुए प्रसन्न हैं। Agora पर ${groupName} में शामिल होने के लिए नीचे क्लिक करें।`,
   CreatorEmail: () => 'निर्माता ईमेल',
-  createInvitationSubject: (name) => `Hylo पर ${name} में मेरे साथ जुड़ें!`,
-  createInvitationMessage: (name) => `हाय!\n\nमैं आपको Hylo पर ${name} से जुड़ने के लिए आमंत्रित कर रहा हूँ।\n\n${name} हमारी ऑनलाइन समुदाय के लिए Hylo का उपयोग कर रहा है: यह संचार और सहयोग के लिए हमारी समर्पित जगह है।`,
+  createInvitationSubject: (name, inviterName) => inviterName ? `${inviterName} आपको Agora में ${name} के लिए आमंत्रित करते हैं` : `Agora में ${name} का निमंत्रण`,
+  createInvitationMessage: (name) => `नमस्ते!\n\nमैं आपको Agora में ${name} से जुड़ने के लिए आमंत्रित कर रहा हूँ, जो 7 Billion Presidents का अपना ऑनलाइन घर है।`,
   CreatorName: () => 'निर्माता का नाम',
   CreatorURL: () => 'निर्माता URL',
   Group: () => 'समूह',

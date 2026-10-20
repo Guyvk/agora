@@ -11,6 +11,9 @@ import { getSignupComplete } from 'store/selectors/getSignupState'
 import checkInvitation from 'store/actions/checkInvitation'
 import joinSpace from 'store/actions/joinSpace'
 import Loading from 'components/Loading'
+import getMe from 'store/selectors/getMe'
+import { isInvitationForOtherAccount } from '@/agora/signup'
+import AgoraInvitationForOtherAccount from '@/agora/AgoraInvitationForOtherAccount'
 
 export const SIGNUP_PATH = '/signup'
 
@@ -58,6 +61,9 @@ export default function JoinGroup (props) {
   const signupComplete = useSelector(getSignupComplete)
   const myMemberships = useSelector(getMyMemberships)
   const [redirectTo, setRedirectTo] = useState()
+  // Agora: an invitation email for another address than the one logged in
+  const me = useSelector(getMe)
+  const [otherAccount, setOtherAccount] = useState()
   const { t } = useTranslation()
   const routeParams = useParams()
   const location = useLocation()
@@ -78,6 +84,12 @@ export default function JoinGroup (props) {
 
         if (!checkResult?.valid) {
           throw new Error(t('Invalid invitation'))
+        }
+
+        // Agora: do not use an invitation sent to another address; say so instead
+        if (isInvitationForOtherAccount({ invitationToken, invitationEmail: checkResult.email, myEmail: me?.email })) {
+          setOtherAccount({ invitationToken, invitationEmail: checkResult.email })
+          return
         }
 
         const { groupId, groupSlug, isSpace, parentGroupSlug } = checkResult
@@ -121,6 +133,10 @@ export default function JoinGroup (props) {
       }
     })()
   }, [])
+
+  if (otherAccount) {
+    return <AgoraInvitationForOtherAccount {...otherAccount} myName={me?.name} myEmail={me?.email} />
+  }
 
   if (redirectTo) return <Navigate to={redirectTo} replace />
 

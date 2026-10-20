@@ -14,13 +14,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice |
 | `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
 | `apps/backend/api/models/post/updatePost.js` | An event keeps its meeting room as its video call link, whatever a change sends, and invitees are never told about a link that was ignored. A link to another video call platform is refused as its location |
-| `apps/backend/config/routes.js` | Added the addresses of the meeting room, the circle Files pages (with adding files and folders) and the Contacts page |
-| `apps/backend/config/policies.js` | Added who may use the meeting room, the circle Files pages and the Contacts page |
+| `apps/backend/config/routes.js` | Added the addresses of the meeting room (with guest links and the guest's room), the circle Files pages (with adding files and folders) and the Contacts page |
+| `apps/backend/config/policies.js` | Added who may use the meeting room, the guest's room (no login, the guest link is checked instead), the circle Files pages and the Contacts page |
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
-| `apps/backend/migrations/schema.sql` | Added the three meeting tables, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
+| `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest), the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |
@@ -34,6 +34,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message |
 | `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform |
 | `apps/web/public/locales/*.json (meeting room only)` | The texts of the video call link field are gone, and one new text says a video call link cannot be the location, in every language (Hindi in English for now) |
+| `apps/web/src/components/PostCard/EventBody/EventBody.js` | On the event's own page, the box where the event's maker and the circle's stewards make a guest link for people without an account |
+| `apps/web/public/locales/*.json (guest links)` | Twelve new texts for the guest link box, in every language |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |
 | `apps/web/src/routes/AuthLayoutRouter/components/Drawer/Drawer.js` | No Public section (it only led to The Commons) while The Commons is off |
@@ -75,7 +77,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/util.js` | The message when a sign-up without an invitation is refused |
 | `apps/web/public/locales/*.json (sign-up)` | Four new texts about signing up by invitation, in every language |
 | `apps/web/src/routes/WelcomeWizardRouter/WelcomeExplore/WelcomeExplore.js`, `WelcomeExplore.test.js` | The last page of the sign-up wizard starts with a card for the Agora guide, and the test checks it |
-| `apps/web/public/locales/*.json (guide)` | The texts of the guide and the welcome steps: all in English, the short ones also in the other languages |
+| `apps/web/public/locales/*.json (guide)` | The texts of the guide and the welcome steps, and the words of the Guide in the Help window: all in English, the short ones also in the other languages. The server reads the guide's English texts from `en.json` for Claude in Help |
 | `apps/web/src/routes/RootRouter/RootRouter.js` | The pages `/terms` and `/privacy` (Agora's own Terms of use and Privacy notice), for everyone, logged in or not |
 | `apps/web/src/routes/NonAuthLayoutRouter/NonAuthLayoutRouter.js`, `apps/web/src/routes/OAuth/OAuthLayoutRouter.js`, `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/TopNav/TopNav.jsx` | The Terms and Privacy links go to Agora's own `/terms` and `/privacy` instead of hylo.com (NonAuthLayoutRouter also has the 7BP mark, see above) |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Agreements/Agreements.js`, `apps/web/src/store/constants.js` | The agreement links of the sign-up page and of reporting content go to Agora's Terms of use instead of hylo.com |
@@ -88,7 +90,25 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (admin) | The admin area at `/admin`, with the Help desk as its tab at `/admin/help-desk`; the old `/help-desk` addresses lead there |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
+| `apps/backend/lib/i18n/en.js`, `de.js`, `es.js`, `fr.js`, `hi.js`, `pt.js` | The default invitation subject and text say Agora instead of Hylo ("Guy invites you to Governance in Agora", "Hi! I'm inviting you to join Governance in Agora, 7 Billion Presidents' own online home."), in every language |
+| `apps/backend/api/graphql/mutations/invitation.js` | Gives the inviter's name to the invitation subject |
+| `apps/backend/api/models/Invitation.js` | An email invitation can only be used by the account with the address it was sent to, while sign-up is by invitation only (`lib/agora/signup.js`) |
+| `apps/backend/api/graphql/mutations/group.js`, `apps/backend/api/graphql/mutations/spaces.js` | Joining a circle or space with an email invitation sent to another address counts as joining without an invitation, and does not use it up |
+| `apps/web/src/routes/JoinGroup/JoinGroup.js` | Someone logged in who opens an invitation email sent to another address gets a page that says so, with "Log out and continue", instead of the circle |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
+| `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/web/src/routes/ChatRoom/ChatRoom.js` | The chat list is Agora's own `AgoraMessageList` instead of Hylo's paid `@virtuoso.dev/message-list`, which needs a licence key and without one showed only a red licence notice and no messages. Same props, no licence wrapper |
+| `apps/web/src/routes/ChatRoom/ChatRoom.module.scss` | The phone rule for the chat scroller points at the new list |
+| `apps/web/src/routes/ChatRoom/ChatRoom.test.js` | No longer pretends the paid list is there |
+| `apps/web/package.json`, `yarn.lock` (chat) | `@virtuoso.dev/message-list` (and its helper `@virtuoso.dev/gurx`) removed |
+| `apps/web/vite.config.js` | A comment only: the old note about the Virtuoso licence watermark no longer applies |
+| `apps/web/src/routes/NonAuthLayoutRouter/Login/Login.js` | A real form: email marked as username, password as current password, the button submits it, so password managers fill and save the login |
+| `apps/web/src/routes/OAuth/Login/Login.js` | Same username and current-password marks |
+| `apps/web/src/routes/NonAuthLayoutRouter/PasswordReset/PasswordReset.js` | A real form, the email field marked as username |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` | The email field is marked as username (it said "no autofill") |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.js` | The "choose a password" step is a real form with the email as a hidden username and both password fields marked as new password, so password managers offer to save it |
+| `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js` | Email and new password fields are a real form (username, new-password); after a password is saved, a same-page history step tells the browser it worked, so it offers to save the new password. The "Set a new password" link from the reset email lands here |
 | `apps/backend/api/models/post/createPost.js` (meetings and events) | A new event post is a Meeting or an Event, and "for all of 7BP" is checked (`lib/agora/eventKinds.js`). When asked, everyone gets a calendar invitation |
 | `apps/backend/api/models/post/updatePost.js` (meetings and events) | A change keeps or switches the kind, and only stewards of the main 7BP circle may switch "for all of 7BP" |
 | `apps/backend/api/models/Post.js` (meetings and events) | A post for all of 7BP is visible to every logged-in member (`isVisibleToUser`), and emails know whether a post is a Meeting or an Event |
@@ -105,7 +125,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostEditor/PostEditor.js` (meetings and events) | Choosing Meeting or Event, "for all of 7BP" for stewards of the main circle, no public switch for a Meeting |
 | `apps/web/src/components/PostCard/PostHeader/PostHeader.js` | The card says "Meeting" or "Event" (and "All of 7BP") instead of "Event" |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` (meetings and events) | Only a Meeting shows its meeting room |
-| `apps/web/src/components/PostCard/EventBody/EventBody.js` | "Meeting ended" or "Event ended" |
+| `apps/web/src/components/PostCard/EventBody/EventBody.js` (meetings and events) | "Meeting ended" or "Event ended", and the guest link box only on a Meeting |
+| `apps/web/src/components/PostCard/EventBody/EventBody.test.js` | Checks that an Event never asks for a guest link |
 | `apps/web/src/routes/PostDetail/PostDetail.js` (meetings and events) | The page title says Meeting or Event; "Join online" only for a Meeting |
 | `apps/web/src/components/Calendar/calendar.tsx`, `calendar.module.scss` | Meetings have their own look (dashed) in every calendar view |
 | `apps/web/src/graphql/fragments/postFieldsFragment.js`, `postCardFieldsFragment.js`, `apps/web/src/graphql/mutations/createPostMutation.js`, `updatePostMutation.js`, `apps/web/src/store/actions/createPost.js`, `updatePost.js`, `apps/web/src/store/models/Post.js` | Carry the kind and "for all of 7BP" to and from the server |
@@ -118,6 +139,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 ## Files that are new
 
 - `README-AGORA.md`, `AGORA-CHANGES.md`
+- `apps/web/src/agora/chat/AgoraMessageList.jsx`, `apps/web/src/agora/chat/AgoraMessageList.test.js` (the chat list), `apps/web/src/agora/passwordForms.test.js` (password manager marks on the login, reset, sign-up and account forms)
 - `agora/setup-mac.sh`, `agora/setup-cloud.sh`, `AGORA-CLOUD.md`, `agora/start.sh`, `agora/tools.sh`, `agora/make-env.mjs`
 - `agora/vps/setup-server.sh`, `agora/vps/server-env.mjs`, `agora/vps/update.sh`, `agora/vps/backup.sh` (the server at Infomaniak)
 - `agora/vps/offsite-backup.sh`, `agora/vps/offsite-backup.conf.example` (an encrypted copy of the backups in object storage), `.github/workflows/agora-uptime.yml` (a warning when Agora is down)
@@ -126,6 +148,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
+- `apps/web/src/agora/AgoraInvitationForOtherAccount.js`, `apps/web/src/agora/invitationAccount.test.js`, `apps/backend/test/unit/agora/inviteEmail.test.js` (an invitation email for another address, the invitation text, clean links in emails)
 - `apps/backend/migrations/20261017120000_add_agora_drive_folders.js`
 - `apps/backend/test/unit/agora/driveUpload.test.js`
 - `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`
@@ -136,13 +159,15 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/mailer.js`, `apps/backend/lib/agora/meetingLink.js`, `apps/backend/lib/agora/drive.js`, `apps/backend/lib/agora/driveLinks.js`, `apps/backend/lib/agora/contacts.js`
 - `apps/web/src/agora/AgoraLogo.js`, `AgoraCookieNotice.js`, `AgoraCookieNotice.test.js`
 - `apps/backend/migrations/20261011220000_add_agora_meetings.js`
+- `apps/backend/migrations/20261019120000_add_agora_meeting_guests.js`, `apps/backend/lib/agora/meetingGuests.js`, `apps/backend/lib/agora/meetingRoom.js`, `apps/backend/api/controllers/MeetingGuestController.js`, `apps/backend/test/unit/agora/meetingGuests.test.js` (guests in a meeting)
+- `apps/web/src/agora/meeting/GuestLinkPanel.jsx`, `apps/web/src/agora/meeting/GuestLinkPanel.test.js`
 - `apps/backend/scripts/agora-demo.js`
 - `apps/backend/scripts/agora-meeting-links.js` (gives older events their meeting room as their video call link)
 - `apps/web/src/agora/config.js`, `apps/web/src/agora/useDueFollowUps.js`
 - `apps/web/src/agora/contacts/ContactsPage.jsx`, `apps/web/src/agora/contacts/api.js`, `apps/web/src/agora/contacts/ContactsPage.test.js`
 - `apps/web/public/agora-7bp-logo.png`
 - `apps/backend/migrations/20261018120000_add_agora_playbook.js`, `apps/backend/api/models/AgoraPlaybookChapter.js`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/playbook.graphql`, `apps/backend/api/graphql/agora/playbook.js`, `apps/backend/test/unit/agora/playbook.test.js`
-- `apps/web/src/agora/guide/GuidePage.jsx`, `WelcomeSteps.jsx`, `useAgoraSeen.js`, `useMyCircle.js`, `guideUrl.js`, `GuidePage.test.js`, `WelcomeSteps.test.js` (the guide and the welcome steps)
+- `apps/web/src/agora/guide/GuidePage.jsx`, `guideParts.json` (the parts of the guide, shared by the page, the Help window and Claude), `guideParts.jsx`, `WelcomeSteps.jsx`, `useAgoraSeen.js`, `useMyCircle.js`, `guideUrl.js`, `GuidePage.test.js`, `WelcomeSteps.test.js` (the guide and the welcome steps)
 - `apps/web/src/agora/playbook/PlaybookPage.jsx`, `apps/web/src/agora/playbook/PlaybookMenuLink.jsx`, `apps/web/src/agora/playbook/api.js`, `apps/web/src/agora/playbook/PlaybookPage.test.js`
 - `apps/backend/migrations/20261012010000_add_agora_contacts.js`, `apps/backend/migrations/20261012020000_agora_meetings_deferrable.js`
 - `apps/backend/lib/agora/diskUploads.js`, `apps/backend/test/unit/agora/diskUploads.test.js`, `apps/web/src/agora/directUpload.js`, `apps/web/src/agora/directUpload.test.js` (uploads on Agora's own disk)
@@ -151,6 +176,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/admins.js` (who is an Agora admin or Help desk admin), `apps/backend/lib/agora/adminDashboard.js`, `apps/backend/lib/agora/allowSignup.js` (the code of `scripts/agora-allow-signup.js`, also used by the admin area), `apps/backend/api/controllers/AgoraAdminController.js`, `apps/backend/test/unit/agora/adminDashboard.test.js` (the admin area; `lib/agora/help.js` asks `admins.js` who runs the Help desk, and `agora/vps/offsite-backup.sh` leaves a mark after each copy that worked)
 - `apps/web/src/agora/admin/AdminPage.jsx`, `apps/web/src/agora/admin/api.js`, `apps/web/src/agora/admin/AdminPage.test.js` (the admin area page; the Help desk page `HelpDeskPage.jsx` is now its Help desk tab)
 - `apps/web/src/agora/help/HelpWindow.jsx`, `apps/web/src/agora/help/HelpDeskPage.jsx`, `apps/web/src/agora/help/api.js`, `apps/web/src/agora/help/HelpWindow.test.js`, `apps/web/src/agora/help/HelpDeskPage.test.js`
+- `apps/web/src/agora/help/HelpGuide.jsx` (the Guide in the Help window), `apps/web/src/agora/help/openHelp.js` (opens Help on a given view from any page), `apps/backend/lib/agora/helpGuideText.js` (the guide as text for Claude in Help; `helpGuide.md` now holds only extra notes)
 - `apps/backend/migrations/20261019180000_add_agora_meetings_and_events.js`, `apps/backend/lib/agora/eventKinds.js`, `apps/backend/lib/agora/calendar.js`, `apps/backend/api/controllers/AgoraCalendarController.js`, `apps/backend/api/services/AgoraCalendar.js`, `apps/backend/test/unit/agora/meetingsAndEvents.test.js` (Meetings and Events, the calendar and its feed; the invitation email text is in `lib/agora/mailer.js`)
 - `apps/web/src/agora/calendar/api.js`, `CalendarPage.jsx`, `AgoraEventKindFields.jsx`, `AgoraKindLabel.jsx`, `CalendarPage.test.js`, `AgoraEventKindFields.test.js`
 - `apps/backend/test/unit/agora/agora.test.js`, `apps/backend/test/unit/agora/meetingLink.test.js`, `apps/backend/test/unit/agora/drive.test.js`, `apps/backend/test/unit/agora/meetingRoom.test.js`, `apps/backend/test/unit/agora/contacts.test.js`

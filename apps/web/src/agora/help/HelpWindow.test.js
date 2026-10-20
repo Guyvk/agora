@@ -1,8 +1,9 @@
 // Agora: the Help window, with a pretend server.
-import React from 'react'
+import React, { act } from 'react'
 import { useLocation } from 'react-router-dom'
-import { AllTheProviders, render, screen, fireEvent, waitFor } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import HelpWindow from './HelpWindow'
+import { openHelp } from './openHelp'
 
 const baseStatus = {
   claude: false,
@@ -39,14 +40,92 @@ async function openWindow () {
   fireEvent.click(await screen.findByTestId('agora-help-button'))
 }
 
+// The window opens on the Guide; "Still stuck? Tell us" leads to the form or the chat
+async function openRequest () {
+  await openWindow()
+  fireEvent.click(screen.getByRole('button', { name: 'Still stuck? Tell us' }))
+}
+
 describe('HelpWindow', () => {
   const originalFetch = global.fetch
   afterEach(() => { global.fetch = originalFetch })
 
-  it('sends the plain form with the page, browser and screen, when there is no Claude key', async () => {
+  it('opens on the guide, with its parts in order, a search and the way to the form', async () => {
     fakeServer()
     renderWindow()
     await openWindow()
+    const list = screen.getByRole('list', { name: 'Agora guide' })
+    expect(within(list).getAllByRole('button').map(b => b.textContent.trim())).toEqual([
+      'What Agora is',
+      'Circles',
+      'Posts, discussions and proposals',
+      'Events and meetings',
+      'Files',
+      'Playbook',
+      'Contacts',
+      'Notifications and email',
+      'Your profile',
+      'Getting help',
+      'Rules and privacy'
+    ])
+    expect(screen.queryByLabelText('What happened?')).not.toBeInTheDocument()
+
+    // The search looks in the titles and in what the parts say
+    fireEvent.change(screen.getByLabelText('Search the guide'), { target: { value: 'headphones' } })
+    expect(within(screen.getByRole('list', { name: 'Agora guide' })).getAllByRole('button').map(b => b.textContent.trim())).toEqual(['Events and meetings'])
+    fireEvent.change(screen.getByLabelText('Search the guide'), { target: { value: 'spaceship' } })
+    expect(screen.getByText(/Nothing in the guide matches/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Search the guide'), { target: { value: 'meeting' } })
+
+    // A part shows its text in the window, with a link to the full guide
+    fireEvent.click(screen.getByRole('button', { name: 'Events and meetings' }))
+    const part = screen.getByTestId('help-guide-part')
+    expect(within(part).getByText(/Meet in Agora, with minutes/)).toBeInTheDocument()
+    expect(within(part).getByText(/A guest link/)).toBeInTheDocument()
+    expect(within(part).getByRole('link', { name: 'Open the full guide' })).toHaveAttribute('href', '/guide#events')
+    fireEvent.click(screen.getByRole('button', { name: /Back to the guide/ }))
+    expect(screen.getByRole('list', { name: 'Agora guide' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Still stuck? Tell us' }))
+    expect(screen.getByLabelText('What happened?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Guide/ }))
+    expect(screen.getByLabelText('Search the guide')).toBeInTheDocument()
+  })
+
+  it('opens from other pages with openHelp, on a part of the guide or on the form', async () => {
+    fakeServer()
+    renderWindow()
+    await screen.findByTestId('agora-help-button')
+    act(() => openHelp({ view: 'guide', part: 'contacts' }))
+    expect(within(screen.getByTestId('help-guide-part')).getByRole('heading')).toHaveTextContent('Contacts')
+    expect(screen.getByRole('link', { name: 'Open the full guide' })).toHaveAttribute('href', '/guide#contacts')
+
+    act(() => openHelp({ view: 'new' }))
+    expect(screen.getByLabelText('What happened?')).toBeInTheDocument()
+
+    // "Open Help" in the guide's Getting help part goes to the form
+    act(() => openHelp({ view: 'guide', part: 'help' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Help' }))
+    expect(screen.getByLabelText('What happened?')).toBeInTheDocument()
+
+    act(() => openHelp({ view: 'mine' }))
+    expect(await screen.findByText('Save fails')).toBeInTheDocument()
+  })
+
+  it('closes when a link in the guide is followed', async () => {
+    fakeServer()
+    renderWindow()
+    await openWindow()
+    fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Open Contacts' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('agora-help-button')).toBeInTheDocument()
+  })
+
+  it('sends the plain form with the page, browser and screen, when there is no Claude key', async () => {
+    fakeServer()
+    renderWindow()
+    await openRequest()
     expect(screen.queryByText(/go to Claude/)).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('What happened?'), { target: { value: 'The save button does nothing' } })
     fireEvent.change(screen.getByLabelText('How urgent is it?'), { target: { value: 'urgent' } })
@@ -65,7 +144,7 @@ describe('HelpWindow', () => {
   it('asks for a description before sending', async () => {
     fakeServer()
     renderWindow()
-    await openWindow()
+    await openRequest()
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Please describe what happened')
     expect(calls.find(c => c.url.endsWith('/create'))).toBeUndefined()
@@ -74,7 +153,7 @@ describe('HelpWindow', () => {
   it('with a Claude key, says the messages go to Claude and offers the plain form', async () => {
     fakeServer({ status: { claude: true }, chat: [{ chatId: '3', reply: 'Ask a steward for an invitation.', filed: null }] })
     renderWindow()
-    await openWindow()
+    await openRequest()
     expect(screen.getByText('Your messages go to Claude (Anthropic) to be answered.')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Your message'), { target: { value: 'How do I join a circle?' } })
@@ -89,7 +168,7 @@ describe('HelpWindow', () => {
   it('falls back to the plain form, with what was written, when Claude cannot answer', async () => {
     fakeServer({ status: { claude: true }, chat: [{ fallback: true, reason: 'error' }] })
     renderWindow()
-    await openWindow()
+    await openRequest()
     fireEvent.change(screen.getByLabelText('Your message'), { target: { value: 'Saving fails' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(await screen.findByText(/Claude could not answer just now/)).toBeInTheDocument()
@@ -99,7 +178,7 @@ describe('HelpWindow', () => {
   it('shows when Claude filed the request', async () => {
     fakeServer({ status: { claude: true }, chat: [{ chatId: '3', reply: 'I passed it on.', filed: { id: '7', title: 'Save fails' } }] })
     renderWindow()
-    await openWindow()
+    await openRequest()
     fireEvent.change(screen.getByLabelText('Your message'), { target: { value: 'Saving fails' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(await screen.findByText('Sent to the team as a request: Save fails')).toBeInTheDocument()

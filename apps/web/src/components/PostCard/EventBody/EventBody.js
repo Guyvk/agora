@@ -12,6 +12,7 @@ import PostContent from '../PostContent'
 import PeopleInfo from 'components/PostCard/PeopleInfo'
 import { RESPONSES } from '@hylo/presenters/EventInvitationPresenter'
 import classes from '../PostBody/PostBody.module.scss'
+import GuestLinkPanel from '@/agora/meeting/GuestLinkPanel' // Agora: guests in a meeting
 
 function EventBody (props) {
   const [showInviteDialog, setShowInviteDialog] = useState(false)
@@ -98,6 +99,9 @@ function EventBody (props) {
             </div>
           )}
         </div>
+        {/* Agora: on the event's own page, a guest link for people without an account */}
+        {/* Agora: guest links only for a Meeting; an Event has no meeting room */}
+        {expanded && currentUser && event.agoraKind !== 'event' && <GuestLinkPanel postId={id} />}
         {showInviteDialog && (
           <EventInviteDialog
             eventId={id}

@@ -15,6 +15,8 @@ import updatePost from '../../../api/models/post/updatePost'
 import { createRequestHandler } from '../../../api/graphql'
 import { postFilter } from '../../../api/graphql/filters'
 import MeetingController from '../../../api/controllers/MeetingController'
+import MeetingGuestController from '../../../api/controllers/MeetingGuestController'
+import { createLink } from '../../../lib/agora/meetingGuests'
 import AgoraCalendarController from '../../../api/controllers/AgoraCalendarController'
 import { meetingRoomUrl, bringPostsIntoLine } from '../../../lib/agora/meetingLink'
 import { kindOf, canMarkForAll, mainGroupSlug } from '../../../lib/agora/eventKinds'
@@ -208,6 +210,47 @@ describe('Agora meetings and events', () => {
       expect(ok.body).to.contain('"eventId"')
       const refused = await call(gathering)
       expect(refused.statusCode).to.equal(404)
+    })
+
+    it('makes guest links for a Meeting only, and an old guest link stops when it becomes an Event', async () => {
+      const res = () => {
+        const r = factories.mock.response()
+        r.headers = {}
+        r.set = (key, value) => { r.headers[key] = value; return r }
+        r.type = () => r
+        return r
+      }
+      const memberCall = async (action, post) => {
+        const req = factories.mock.request()
+        req.params = { postId: String(post.id) }
+        req.headers = { 'x-agora': '1' }
+        req.login(amara.id)
+        const r = res()
+        await MeetingController[action](req, r)
+        return r
+      }
+      const gathering = await make(amara, { agoraKind: 'event', location: 'Town hall' })
+      expect((await memberCall('createGuestLink', gathering)).statusCode).to.equal(404)
+      expect((await memberCall('guestLink', gathering)).statusCode).to.equal(404)
+
+      const meeting = await make(amara)
+      const made = await memberCall('createGuestLink', meeting)
+      expect(made.statusCode).to.equal(undefined)
+      expect(made.body.url).to.contain(`/noo/meeting/${meeting.id}/guest/`)
+
+      const { secret } = await createLink({ post: await reload(meeting.id), userId: amara.id })
+      const guestPage = async () => {
+        const req = factories.mock.request()
+        req.params = { postId: String(meeting.id), token: secret }
+        req.headers = {}
+        req.ip = '10.9.9.' + Math.floor(Math.random() * 200 + 1)
+        const r = res()
+        await MeetingGuestController.page(req, r)
+        return r
+      }
+      expect((await guestPage()).statusCode).to.equal(undefined)
+      await change(amara, await reload(meeting.id), { agoraKind: 'event', location: 'Town hall' })
+      expect((await guestPage()).statusCode).to.equal(404)
     })
 
     it('lets the repair script take a link off an Event and give a Meeting its room', async () => {

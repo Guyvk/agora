@@ -1,11 +1,12 @@
 exports.pt = {
-  apiInviteMessageContent: (name) => `${name} tem o prazer de convidar você a entrar na nossa comunidade no Hylo.`,
-  apiInviteMessageSubject: (name) => `Junte-se a mim em ${name} no Hylo!`,
-  clientInviteSubjectDefault: (name) => `Você foi convidado a entrar em ${name} no Hylo`,
-  clientInviteMessageDefault: ({ userName, groupName }) => `Olá, ${userName}, <br><br> Estamos felizes em recebê-lo na nossa comunidade. Clique abaixo para entrar em ${groupName} no Hylo.`,
+  // Agora: invitation texts say Agora instead of Hylo
+  apiInviteMessageContent: (name) => `${name} tem o prazer de convidar você a entrar na nossa comunidade no Agora.`,
+  apiInviteMessageSubject: (name) => `Junte-se a mim em ${name} no Agora!`,
+  clientInviteSubjectDefault: (name) => `Você foi convidado a entrar em ${name} no Agora`,
+  clientInviteMessageDefault: ({ userName, groupName }) => `Olá, ${userName}, <br><br> Estamos felizes em recebê-lo na nossa comunidade. Clique abaixo para entrar em ${groupName} no Agora.`,
   CreatorEmail: () => 'E-mail de quem criou',
-  createInvitationSubject: (name) => `Junte-se a mim em ${name} no Hylo!`,
-  createInvitationMessage: (name) => `Olá!\n\nEstou convidando você a se juntar a ${name} no Hylo.\n\n${name} está usando o Hylo para nossa comunidade online: este é nosso espaço dedicado à comunicação e à colaboração.`,
+  createInvitationSubject: (name, inviterName) => inviterName ? `${inviterName} convida você para ${name} no Agora` : `Convite para ${name} no Agora`,
+  createInvitationMessage: (name) => `Olá!\n\nEstou convidando você a se juntar a ${name} no Agora, a casa online da 7 Billion Presidents.`,
   CreatorName: () => 'Nome de quem criou',
   CreatorURL: () => 'URL de quem criou',
   Group: () => 'Grupo',

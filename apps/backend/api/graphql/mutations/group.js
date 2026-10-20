@@ -100,6 +100,10 @@ export async function joinGroup (groupId, userId, questionAnswers, accessCode, i
   let inviteCheck = null
   if (accessCode || invitationToken) {
     inviteCheck = await InvitationService.check(invitationToken, accessCode)
+    // Agora: an email invitation sent to another address does not let this person in (lib/agora/signup.js)
+    if (inviteCheck?.email && !require('../../../lib/agora/signup').invitationFitsUser(inviteCheck.email, user.get('email'))) {
+      inviteCheck = null
+    }
   }
   const inviteIsForThisGroup = !!(inviteCheck?.valid && inviteCheck.groupSlug === group.get('slug'))
   const inviteIsForChildSpace = !!(inviteCheck?.valid && inviteCheck.parentGroupSlug === group.get('slug'))

@@ -104,7 +104,7 @@ module.exports = {
    * Asks Claude for the minutes.
    * @returns {Promise<object>} summary, topics, decisions, actions, open_questions
    */
-  summarise: async function ({ title, date, attendees, lines, startedAt }) {
+  summarise: async function ({ title, date, attendees, guests = [], lines, startedAt }) {
     let transcript = transcriptAsText(lines, startedAt)
     let cut = false
     if (transcript.length > MAX_TRANSCRIPT_CHARS) {
@@ -116,6 +116,7 @@ module.exports = {
       `Meeting: ${title}`,
       `Date: ${date}`,
       `Present: ${attendees.join(', ') || 'unknown'}`,
+      guests.length ? `Guests (people from outside, not members): ${guests.join(', ')}` : null,
       cut ? 'Note: the transcript was too long and has been cut off at the end.' : null,
       '',
       'Transcript:',
@@ -161,7 +162,7 @@ module.exports = {
    * Lays the minutes out as the body of a post. Everything that came from the
    * assistant or from speech recognition is escaped.
    */
-  renderHtml: function ({ minutes, attendees, lines, startedAt, error }) {
+  renderHtml: function ({ minutes, attendees, guests = [], lines, startedAt, error }) {
     const parts = []
 
     if (minutes) {
@@ -202,7 +203,10 @@ module.exports = {
         : '<p><em>The assistant is not connected yet, so here is the transcript as it was heard.</em></p>')
     }
 
-    parts.push(`<h3>Who was there</h3><p>${attendees.map(escapeHtml).join(', ') || 'Nobody was recorded as present.'}</p>`)
+    parts.push(`<h3>Who was there</h3><p>${attendees.map(escapeHtml).join(', ') || (guests.length ? 'No members were recorded as present.' : 'Nobody was recorded as present.')}</p>`)
+    if (guests.length) {
+      parts.push(`<p><strong>Guests</strong> (joined through the guest link, not members of Agora): ${guests.map(escapeHtml).join(', ')}</p>`)
+    }
 
     parts.push('<h3>Transcript</h3>')
     const merged = mergeLines(lines)

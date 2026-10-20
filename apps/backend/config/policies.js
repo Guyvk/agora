@@ -48,6 +48,17 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora: guests in a meeting have no login. Each call checks the guest link's
+  // secret and the guest's own secret instead (lib/agora/meetingGuests.js).
+  // These are the only actions; there is none to read the notes or end the meeting.
+  MeetingGuestController: {
+    page: true,
+    join: true,
+    segment: true,
+    status: true,
+    end: true
+  },
+
   // Agora files: for anyone logged in. The page sends people to the login page itself.
   // Adding files also checks that the person is a member of the circle.
   AgoraFilesController: {

@@ -18,6 +18,11 @@
        them to Agora to be turned into text. It skips silence.
     4. Shows the notes as they grow, and ends the meeting when someone asks.
 
+  Agora: the same page is the room for guests, people without an Agora
+  account who came through an event's guest link (BOOT.guest is true). A guest
+  gives a name and chooses about the notes; the notice says who handles their
+  speech. Guests never see the notes, cannot end the meeting, and only leave.
+
   The server fills in the BOOT value below with the details of this event.
 -->
 <style>
@@ -113,6 +118,12 @@
   .meter { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
   .meter span { display: block; height: 100%; width: 0; background: var(--live); transition: width 80ms linear; }
   .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 16px; }
+  .field label { font-weight: 600; font-size: 14px; }
+  .field input { font: inherit; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-width: 360px; }
+  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .about-notes { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 12px; font-size: 14px; }
+  .about-notes p:last-child { margin-bottom: 0; }
 
   @media (max-width: 820px) {
     #room { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 55%) minmax(0, 1fr); }
@@ -133,6 +144,7 @@
     <span class="pill" id="micPill" data-state="idle" hidden><span class="dot"></span><span id="micText"></span></span>
     <button id="pauseBtn" hidden>Pause my notes</button>
     <button id="endBtn" hidden>End meeting</button>
+    <button id="leaveBtn" hidden>Leave the meeting</button>
     <a id="backLink" href="#">Back to the meeting</a>
   </div>
 </header>
@@ -148,6 +160,17 @@
         <li>The sound is deleted as soon as it has become text. Only the text is kept.</li>
         <li>You can pause your notes at any moment, for something off the record.</li>
       </ul>
+      <div id="guestIntro" hidden>
+        <div class="field">
+          <label for="guestName">Your name, as the others will see it</label>
+          <input id="guestName" type="text" autocomplete="name" required>
+        </div>
+        <div class="about-notes" id="aboutNotes">
+          <p><strong>About the notes.</strong> <span id="aboutNotesText"></span></p>
+          <p id="aboutNotesNo">If you join without the notes, Agora never records your microphone: what you say only goes to the call.</p>
+        </div>
+        <p id="aboutCall"></p>
+      </div>
       <p class="notice" id="notReady" hidden></p>
       <div class="choices">
         <button class="primary" id="joinWithNotes">Join the meeting</button>
@@ -223,19 +246,37 @@ let pollTimer = null;
 
 /* ---------- Talking to Agora ---------- */
 
+/* A guest proves who they are with the id and secret they got on joining. */
+function guestHeaders() {
+  return state.guestKey ? { 'X-Agora-Guest-Id': state.guestId, 'X-Agora-Guest-Key': state.guestKey } : {};
+}
+
 async function send(path, body) {
   const response = await fetch(BOOT.api + path, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', 'X-Agora': '1' },
+    headers: { 'Content-Type': 'application/json', 'X-Agora': '1', ...guestHeaders() },
     body: JSON.stringify(body || {})
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Agora could not be reached. Please try again.');
+  if (!response.ok) {
+    const error = new Error(data.error || 'Agora could not be reached. Please try again.');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
   return data;
 }
 
 async function fetchNotes() {
+  if (BOOT.guest) {
+    // Guests only learn whether the meeting is still going, never the notes.
+    const response = await fetch(BOOT.api + '/status', { credentials: 'same-origin', headers: guestHeaders() });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 403 || response.status === 404 || response.status === 410) return { status: 'gone', error: data.error };
+    if (!response.ok) throw new Error('Could not reach Agora.');
+    return data;
+  }
   const params = new URLSearchParams();
   if (state.sessionId) params.set('sessionId', state.sessionId);
   if (state.lastLineId) params.set('afterId', state.lastLineId);
@@ -259,7 +300,7 @@ function flushOutbox() {
           const response = await fetch(BOOT.api + '/segment?' + params, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': piece.blob.type || 'audio/webm', 'X-Agora': '1' },
+            headers: { 'Content-Type': piece.blob.type || 'audio/webm', 'X-Agora': '1', ...guestHeaders() },
             body: piece.blob
           });
           if (response.ok || (response.status >= 400 && response.status < 500) || response.status === 503) {
@@ -414,7 +455,7 @@ async function startCall() {
         parentNode: stage,
         width: '100%',
         height: '100%',
-        userInfo: { displayName: BOOT.me.name },
+        userInfo: { displayName: state.displayName || (BOOT.me && BOOT.me.name) || '' },
         configOverwrite: { prejoinConfig: { enabled: false }, prejoinPageEnabled: false, disableDeepLinking: true, subject: BOOT.title }
       });
       call.addEventListener('videoConferenceJoined', async () => {
@@ -543,9 +584,25 @@ function meetingEnded(data) {
     $('micPill').hidden = true;
     $('pauseBtn').hidden = true;
     $('endBtn').hidden = true;
+    $('leaveBtn').hidden = true;
     show('ended');
     clearInterval(pollTimer);
     pollTimer = setInterval(poll, POLL_EVERY);
+  }
+  if (BOOT.guest) {
+    // Guests do not get the minutes, so there is nothing more to wait for.
+    clearInterval(pollTimer);
+    $('minutesLink').hidden = true;
+    if (data && data.status === 'left') {
+      $('endedTitle').textContent = 'You have left the meeting';
+      $('endedText').textContent = 'Thank you for joining. You can close this page.';
+    } else if (data && data.status === 'gone') {
+      $('endedTitle').textContent = 'You are no longer in the meeting';
+      $('endedText').textContent = data.error || 'This guest link no longer works.';
+    } else {
+      $('endedText').textContent = 'Thank you for joining. The minutes go to the members of the circle. You can close this page.';
+    }
+    return;
   }
   if (!BOOT.transcriptionReady && !(data && data.minutesUrl)) {
     // Nothing can be turned into text, so there is nothing to wait for.
@@ -565,18 +622,39 @@ function meetingEnded(data) {
   }
 }
 
+let waitTimer = null;
+
 async function join(withNotes) {
   $('lobbyError').hidden = true;
+  clearTimeout(waitTimer);
+  let body = { notes: withNotes };
+  if (BOOT.guest) {
+    const name = $('guestName').value.replace(/\s+/g, ' ').trim();
+    if (!name || name.length > BOOT.nameMax) {
+      $('lobbyError').textContent = 'Please give your name (at most ' + BOOT.nameMax + ' characters).';
+      $('lobbyError').hidden = false;
+      $('guestName').focus();
+      return;
+    }
+    body = { name, notes: withNotes };
+  }
   $('joinWithNotes').disabled = $('joinWithoutNotes').disabled = true;
   try {
-    const data = await send('/join', { notes: withNotes });
+    const data = await send('/join', body);
     state.sessionId = data.sessionId;
     state.roomName = data.roomName;
     state.startedAt = data.startedAt;
     state.notes = withNotes;
+    if (BOOT.guest) {
+      state.guestId = data.guestId;
+      state.guestKey = data.guestKey;
+      state.displayName = data.displayName;
+      $('leaveBtn').hidden = false;
+    } else {
+      $('endBtn').hidden = false;
+      $('backLink').textContent = 'Leave';
+    }
     show('room');
-    $('endBtn').hidden = false;
-    $('backLink').textContent = 'Leave';
 
     if (withNotes) {
       recorder = createRecorder({
@@ -604,6 +682,12 @@ async function join(withNotes) {
     $('lobbyError').textContent = e.message;
     $('lobbyError').hidden = false;
     $('joinWithNotes').disabled = $('joinWithoutNotes').disabled = false;
+    // A guest who comes early waits until a member has opened the meeting.
+    if (BOOT.guest && e.status === 409 && e.data && e.data.status === 'waiting') {
+      $('joinWithNotes').disabled = $('joinWithoutNotes').disabled = true;
+      $('lobbyError').textContent = 'The meeting has not started yet. This page tries again every 15 seconds, so you can leave it open.';
+      waitTimer = setTimeout(() => join(withNotes), 15000);
+    }
   }
 }
 
@@ -612,8 +696,28 @@ async function join(withNotes) {
 document.title = BOOT.title + ' · Agora meeting';
 $('title').textContent = BOOT.title;
 $('groupName').textContent = BOOT.groupName ? ' · ' + BOOT.groupName : '';
-$('backLink').href = BOOT.eventUrl;
-$('endedBack').href = BOOT.eventUrl;
+if (BOOT.guest) {
+  // A guest has no event page to go back to, and no notes to read.
+  $('backLink').hidden = true;
+  $('endedBack').hidden = true;
+  $('guestIntro').hidden = false;
+  $('guestName').maxLength = BOOT.nameMax;
+  $('lobbyTitle').textContent = 'You are invited to a meeting in Agora';
+  $('lobbyIntro').textContent = 'This meeting is held in Agora, the online home of 7 Billion Presidents (7BP). You join as a guest: you do not need an account, and you only see the call.';
+  $('lobbyPromises').hidden = true;
+  $('aboutNotesText').textContent = BOOT.assistantReady
+    ? 'If you agree, what you say while you are unmuted is turned into text by Infomaniak, in Switzerland. When the meeting ends, Claude, an AI made by Anthropic in the United States, writes the minutes from that text. The minutes and the full transcript are posted inside the circle in Agora, where its members can read them, with your name followed by "(guest)". The sound itself is deleted as soon as it has become text.'
+    : 'If you agree, what you say while you are unmuted is turned into text by Infomaniak, in Switzerland. When the meeting ends, the transcript is posted inside the circle in Agora, where its members can read it, with your name followed by "(guest)". The sound itself is deleted as soon as it has become text.';
+  $('aboutCall').textContent = 'The call runs on kMeet by Infomaniak, in Switzerland. If you are in the notes, you can pause them at any moment.';
+  $('joinWithNotes').textContent = 'Join, and agree to be in the notes';
+  $('joinWithoutNotes').textContent = 'Join without being in the notes';
+  document.querySelector('#notes .head h2').textContent = 'Notes';
+  $('notesHint').textContent = 'Guests do not see the notes. The minutes go to the members of the circle.';
+  $('linesEmpty').textContent = 'The notes are only shown to members.';
+} else {
+  $('backLink').href = BOOT.eventUrl;
+  $('endedBack').href = BOOT.eventUrl;
+}
 
 if (!BOOT.transcriptionReady) {
   // Without speech to text nothing is recorded at all: the room is just the call.
@@ -621,6 +725,10 @@ if (!BOOT.transcriptionReady) {
   $('lobbyIntro').hidden = true;
   $('lobbyPromises').hidden = true;
   $('joinWithoutNotes').hidden = true;
+  if (BOOT.guest) {
+    $('aboutNotes').hidden = true;
+    $('joinWithNotes').textContent = 'Join the meeting';
+  }
   $('notesHint').textContent = 'Notes are off: speech to text is not connected.';
   $('linesEmpty').textContent = 'No notes are written in this meeting.';
   $('endQuestion').textContent = 'End the meeting for everyone?';
@@ -636,6 +744,14 @@ if (!window.MediaRecorder || !navigator.mediaDevices) {
 }
 
 $('joinWithNotes').addEventListener('click', () => join(BOOT.transcriptionReady));
+$('leaveBtn').addEventListener('click', async () => {
+  $('leaveBtn').disabled = true;
+  if (recorder) recorder.stop();
+  await new Promise(resolve => setTimeout(resolve, 400));   // let the last piece of speech reach the outbox
+  await Promise.race([flushOutbox(), new Promise(resolve => setTimeout(resolve, 8000))]);
+  try { await send('/end'); } catch (e) { /* leaving works anyway */ }
+  meetingEnded({ status: 'left' });
+});
 $('joinWithoutNotes').addEventListener('click', () => join(false));
 $('pauseBtn').addEventListener('click', () => { state.paused = !state.paused; sync(); });
 $('endBtn').addEventListener('click', () => { $('endConfirm').hidden = false; $('endYes').focus(); });
@@ -656,7 +772,7 @@ $('endYes').addEventListener('click', async () => {
 });
 
 /* If this meeting has already ended, show how it went instead of the lobby. */
-const startFresh = new URLSearchParams(location.search).has('new');
+const startFresh = BOOT.guest || new URLSearchParams(location.search).has('new');
 if (!startFresh) fetchNotes().then(data => {
   if (data.status === 'closing' || data.status === 'closed') {
     state.sessionId = data.sessionId;
