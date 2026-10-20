@@ -1,5 +1,5 @@
 import { isString, isNumber, isEmpty } from 'lodash'
-import { homeRouteHostsPostOverlay } from '@hylo/navigation'
+import { homeRouteHostsPostOverlay, personPathSegment } from '@hylo/navigation'
 import { format } from 'util'
 
 /*
@@ -46,6 +46,13 @@ const getModelId = function (model) {
   }
 
   return id
+}
+
+// Agora: the name of a user model or object, for a readable profile link (/members/5-mariam)
+const getModelName = function (model) {
+  if (!model || isString(model) || isNumber(model)) return undefined
+  if (typeof model.get === 'function') return model.get('name')
+  return model.name
 }
 
 const getSlug = function (group) {
@@ -200,9 +207,9 @@ module.exports = {
 
     profile: function (user, group) {
       if (group) {
-        return url(`/groups/${getSlug(group)}/members/${getModelId(user)}`)
+        return url(`/groups/${getSlug(group)}/members/${personPathSegment(getModelId(user), getModelName(user))}`)
       }
-      return url(`/members/${getModelId(user)}`)
+      return url(`/members/${personPathSegment(getModelId(user), getModelName(user))}`)
     },
 
     /**

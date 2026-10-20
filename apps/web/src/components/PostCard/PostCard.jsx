@@ -146,7 +146,7 @@ export default function PostCard (props) {
 
   const showCreator = useCallback((event) => {
     event.stopPropagation()
-    navigate(personUrl(post.creator?.id, group?.slug))
+    navigate(personUrl(post.creator?.id, group?.slug, post.creator?.name))
   }, [post.creator?.id, group?.slug, navigate])
 
   // Copy link function for chat mode

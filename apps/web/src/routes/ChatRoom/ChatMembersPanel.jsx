@@ -189,7 +189,7 @@ export default function ChatMembersPanel ({ group, latestPost }) {
 
   const openProfile = useCallback((person) => {
     close()
-    navigate(personUrl(person.id, routeParams.groupSlug))
+    navigate(personUrl(person.id, routeParams.groupSlug, person.name))
   }, [close, navigate, routeParams.groupSlug])
 
   const openDM = useCallback((e, person) => {

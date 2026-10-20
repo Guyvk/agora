@@ -7,6 +7,7 @@ import MemberProfile from 'routes/MemberProfile'
 import checkIsPersonPublic from 'store/actions/checkIsPersonPublic'
 import PublicPageHeader from './PublicPageHeader'
 import { CENTER_COLUMN_ID } from 'util/scrolling'
+import { personIdFromParam } from '@hylo/navigation'
 
 /**
  * Public member profile page for non-authenticated users.
@@ -18,7 +19,7 @@ export default function PublicMemberProfile (props) {
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(true)
-  const personId = routeParams?.personId
+  const personId = personIdFromParam(routeParams?.personId) // Agora: /members/5-mariam -> 5
 
   useEffect(() => {
     (async () => {

@@ -57,7 +57,7 @@ export function groupViewUrl (groupSlug, view) {
     case 'group':
       return view.linkedGroup?.slug ? groupUrl(view.linkedGroup.slug) : groupUrl(groupSlug)
     case 'member':
-      return view.viewUser?.id ? personUrl(view.viewUser.id, groupSlug) : groupUrl(groupSlug)
+      return view.viewUser?.id ? personUrl(view.viewUser.id, groupSlug, view.viewUser.name) : groupUrl(groupSlug)
     case 'all':
       return groupUrl(groupSlug, 'all')
     case 'chat':

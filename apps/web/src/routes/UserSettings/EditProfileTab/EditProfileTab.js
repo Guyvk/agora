@@ -214,8 +214,8 @@ function EditProfileTab ({
 
   const locationObject = currentUser.locationObject
   const publicProfileUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${personUrl(currentUser.id)}`
-    : personUrl(currentUser.id)
+    ? `${window.location.origin}${personUrl(currentUser.id, undefined, currentUser.name)}`
+    : personUrl(currentUser.id, undefined, currentUser.name)
 
   return (
     <div className='max-w-3xl mx-auto px-4 py-6'>

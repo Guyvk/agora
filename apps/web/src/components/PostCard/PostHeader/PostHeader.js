@@ -305,7 +305,7 @@ function PostHeader (props) {
     navigator.clipboard.writeText(`${window.location.protocol}//${window.location.host}${postUrl}`)
   }
 
-  const creatorUrl = personUrl(creator.id, routeParams.groupSlug)
+  const creatorUrl = personUrl(creator.id, routeParams.groupSlug, creator.name)
   const flagPostData = {
     slug: groupSlug,
     id,

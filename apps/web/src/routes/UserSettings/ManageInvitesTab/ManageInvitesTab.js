@@ -206,7 +206,7 @@ function GroupInvite ({ acceptInvite, declineInvite, invite }) {
       <div className='flex flex-col gap-4'>
         <div className='flex flex-col gap-2'>
           <div className='flex items-center gap-2'>
-            <Link to={personUrl(creator.id)} className='text-accent hover:text-accent/80 transition-colors font-medium'>
+            <Link to={personUrl(creator.id, undefined, creator.name)} className='text-accent hover:text-accent/80 transition-colors font-medium'>
               {creator.name}
             </Link>
             <span className='text-foreground/70'>{t('invited you to join')}</span>

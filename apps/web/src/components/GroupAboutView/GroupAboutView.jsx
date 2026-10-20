@@ -155,7 +155,7 @@ function AboutPanel ({ group, parentGroup, isSpace, membership, onLeave, onOpenM
             {stewards.map(steward => (
               <Link
                 key={steward.id}
-                to={personUrl(steward.id, profileGroupSlug)}
+                to={personUrl(steward.id, profileGroupSlug, steward.name)}
                 onClick={onBeforeNavigate}
                 className='flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full border border-foreground/15 bg-background/40 hover:border-foreground/30 hover:bg-foreground/5 no-underline hover:no-underline text-inherit'
               >

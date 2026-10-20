@@ -146,8 +146,8 @@ export default function ProfileCardDialog ({ personId, children, className }) {
 
   const handleViewProfile = useCallback(() => {
     setOpen(false)
-    navigate(personUrl(personId))
-  }, [personId, navigate])
+    navigate(personUrl(personId, undefined, person?.name))
+  }, [personId, person?.name, navigate])
 
   const handleMessage = useCallback(() => {
     setOpen(false)

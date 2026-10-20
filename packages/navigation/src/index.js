@@ -2,6 +2,9 @@ import get from 'lodash/fp/get.js'
 import isEmpty from 'lodash/fp/isEmpty.js'
 import isNumber from 'lodash/fp/isNumber.js'
 import omitBy from 'lodash/fp/omitBy.js'
+// Agora: readable profile links (/members/5-mariam)
+import { personPathSegment } from './agoraPersonSlug.js'
+export { personNameSlug, personPathSegment, personIdFromParam } from './agoraPersonSlug.js'
 
 // https://regex101.com/r/0M6mbp/1
 export const HYLO_URL_REGEX = /^(https?:\/?\/?)?(www\.|staging\.)?(hylo\.com|localhost)(:?\d{0,6})(.*)/gi
@@ -91,6 +94,7 @@ export function baseUrl ({
   fundingRoundId,
   groupSlug,
   memberId, personId, // TODO: switch to one of these?
+  memberName, // Agora: optional, for a readable profile link
   spaceSlug,
   tab,
   topicName,
@@ -101,8 +105,8 @@ export function baseUrl ({
   const spaceBase = spaceSlug && groupSlug ? spaceUrl(groupSlug, spaceSlug) : null
 
   if (safeMemberId) {
-    if (spaceBase) return `${spaceBase}/members/${safeMemberId}`
-    return personUrl(safeMemberId, groupSlug)
+    if (spaceBase) return `${spaceBase}/members/${personPathSegment(safeMemberId, memberName)}`
+    return personUrl(safeMemberId, groupSlug, memberName)
   } else if (topicName) {
     return topicUrl(topicName, { context, groupSlug, spaceSlug })
   } else if (trackId) {
@@ -466,11 +470,12 @@ export function currentUserSettingsUrl (view = 'edit-profile') {
   return '/my' + (view ? '/' + view : '')
 }
 
-export function personUrl (id, groupSlug) {
+// Agora: optional name, for a readable link like /members/5-mariam
+export function personUrl (id, groupSlug, name) {
   if (!id) return '/'
   const base = baseUrl({ groupSlug })
 
-  return `${base}/members/${id}`
+  return `${base}/members/${personPathSegment(id, name)}`
 }
 
 // Topics URLs

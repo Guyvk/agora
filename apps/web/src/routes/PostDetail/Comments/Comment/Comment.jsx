@@ -141,7 +141,7 @@ function Comment ({
   const timestamp = DateTimeHelpers.humanDate(createdAt)
   const editedTimestamp = (editedAt || edited) ? t('edited') + ' ' + DateTimeHelpers.humanDate(editedAt) : false
   const isCreator = currentUser && (comment.creator.id === currentUser.id)
-  const profileUrl = personUrl(creator.id, slug)
+  const profileUrl = personUrl(creator.id, slug, creator.name)
   const dropdownItems = filter(item => isFunction(item.onClick), [
     {},
     { icon: <Pencil className='w-5 h-5 text-foreground' />, label: 'Edit', onClick: isCreator && handleEditComment },

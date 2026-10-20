@@ -312,7 +312,7 @@ function SettingsMenu ({ currentUser, triggerClassName, contentSide = 'right', c
   }
 
   const handleViewProfile = () => {
-    navigate(personUrl(currentUser?.id))
+    navigate(personUrl(currentUser?.id, undefined, currentUser?.name))
   }
 
   const handleEditProfile = () => {

@@ -91,7 +91,7 @@ function SubmissionCard ({ currentPhase, post, canManageRound, canVote, round, l
   ], item => isFunction(item.onClick)), [post.id, post.creator.id, routeParams, querystringParams, flagPostFunc, currentUser?.id, deletePostWithConfirm, canManageRound, removePostWithConfirm, navigate, t])
 
   const { createdTimestamp, creator, exactCreatedTimestamp } = post
-  const creatorUrl = useMemo(() => personUrl(creator.id, routeParams.groupSlug), [creator.id, routeParams.groupSlug])
+  const creatorUrl = useMemo(() => personUrl(creator.id, routeParams.groupSlug, creator.name), [creator.id, creator.name, routeParams.groupSlug])
 
   const validateVoteAmount = useCallback((value) => {
     // Check if self-voting is allowed

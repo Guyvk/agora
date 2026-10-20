@@ -556,7 +556,7 @@ function RoleList ({
           {membersForRole.map(m =>
             <RemovableListItem
               item={m}
-              url={personUrl(m.id, slug)}
+              url={personUrl(m.id, slug, m.name)}
               removeItem={handleRemoveRoleFromMember}
               key={m.id}
             />)}

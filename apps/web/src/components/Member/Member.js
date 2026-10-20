@@ -110,8 +110,8 @@ function Member ({
   const roles = useSelector(state =>
     getRolesForGroup(state, { person: member.id, groupId: roleGroupId }))
 
-  const goToPerson = useCallback((id, slug) => () => {
-    dispatch(push(personUrl(id, slug)))
+  const goToPerson = useCallback((id, slug, name) => () => {
+    dispatch(push(personUrl(id, slug, name)))
   }, [dispatch])
 
   const { id, name, location, tagline, avatarUrl, bannerUrl, enrolledAt, lastActiveAt } = member
@@ -242,7 +242,7 @@ function Member ({
           }}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
-          onClick={goToPerson(id, group?.slug)}
+          onClick={goToPerson(id, group?.slug, name)}
           data-testid='member-card'
         >
           {onPhoto && (
@@ -354,7 +354,7 @@ function Member ({
   if (layout === 'row') {
     return (
       <div className={cn('flex flex-col border-b border-foreground/10 last:border-b-0', className)} data-testid='member-card'>
-        <div onClick={goToPerson(id, group?.slug)} className='flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors min-w-0'>
+        <div onClick={goToPerson(id, group?.slug, name)} className='flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors min-w-0'>
           <div className='relative shrink-0'>
             <div className='w-8 h-8 rounded-full bg-cover bg-center' style={bgImageStyle(avatarUrl)} />
             <ActiveDot lastActiveAt={lastActiveAt} className='bottom-0 right-0 w-2.5 h-2.5' />
@@ -406,7 +406,7 @@ function Member ({
   return (
     <div
       className={cn('relative flex flex-col overflow-hidden rounded-xl bg-card border border-foreground/20 hover:border-foreground/60 hover:-translate-y-px transition-all cursor-pointer', className)}
-      onClick={goToPerson(id, group?.slug)}
+      onClick={goToPerson(id, group?.slug, name)}
       data-testid='member-card'
     >
       {/* Header: the member's own banner behind avatar, name and message — or a

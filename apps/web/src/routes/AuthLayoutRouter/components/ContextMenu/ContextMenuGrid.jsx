@@ -701,7 +701,7 @@ export default function ContextMenuGrid ({ group = null, spaceGroup = null, cont
 
   const visibleViews = useMemo(() => {
     if (isContextMode) {
-      const profileUrl = personUrl(currentUser?.id)
+      const profileUrl = personUrl(currentUser?.id, undefined, currentUser?.name)
       return getStaticMenuViews({
         isPublicContext: context === 'public',
         isMyContext: context === 'my' || context === 'all',

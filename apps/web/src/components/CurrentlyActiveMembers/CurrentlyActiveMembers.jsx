@@ -68,7 +68,7 @@ export default function CurrentlyActiveMembers ({
   const handlePersonClick = (person) => {
     if (!interactive || !person?.id) return
     dispatch(toggleNavMenu(false))
-    navigate(personUrl(person.id, countSlug))
+    navigate(personUrl(person.id, countSlug, person.name))
   }
 
   /**

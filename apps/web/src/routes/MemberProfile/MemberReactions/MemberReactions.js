@@ -2,6 +2,7 @@ import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector, useDispatch } from 'react-redux'
 import { useParams } from 'react-router-dom'
+import { personIdFromParam } from '@hylo/navigation'
 import Loading from 'components/Loading'
 import PostCard from 'components/PostCard'
 import ProfileListFooter from '../ProfileListFooter'
@@ -16,7 +17,7 @@ const MemberReactions = ({ routeParams: routeParamsProp, loading: loadingProp })
   const dispatch = useDispatch()
   const params = useParams()
   const routeParams = routeParamsProp?.personId ? routeParamsProp : params
-  const personId = routeParams.personId
+  const personId = personIdFromParam(routeParams.personId) // Agora: /members/5-mariam -> 5
   const requestPage = useCallback(offset => {
     return dispatch(fetchMemberReactions(personId, 'desc', PAGE_SIZE, offset))
   }, [dispatch, personId])

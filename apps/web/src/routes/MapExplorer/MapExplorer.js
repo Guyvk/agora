@@ -419,7 +419,7 @@ function MapExplorer (props) {
     navigate(spaceHomeUrl(parentSlug, space))
   }, [group?.id, groupSlug, navigate])
 
-  const gotoMember = useCallback((memberId) => navigate(personUrl(memberId, groupSlug)), [dispatch, groupSlug, navigate])
+  const gotoMember = useCallback((memberId, name) => navigate(personUrl(memberId, groupSlug, name)), [dispatch, groupSlug, navigate])
 
   const toggleDrawer = useCallback(() => {
     dispatch(changeQuerystringParam(location, 'hideDrawer', !hideDrawer))
@@ -505,7 +505,7 @@ function MapExplorer (props) {
     } else {
       // setSelectedObject(info.object)
       if (info.object.type === 'member') {
-        gotoMember(info.object.id)
+        gotoMember(info.object.id, info.object.name)
       } else if (info.object.type === 'space') {
         showSpace(info.object)
       } else if (info.object.type === 'group') {

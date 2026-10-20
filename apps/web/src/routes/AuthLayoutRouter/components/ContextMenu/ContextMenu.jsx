@@ -654,7 +654,7 @@ export default function ContextMenu (props) {
     currentUser?.settings?.groupNavStyle,
     group?.settings?.layout
   )
-  const profileUrl = personUrl(currentUser?.id, groupSlug)
+  const profileUrl = personUrl(currentUser?.id, groupSlug, currentUser?.name)
 
   // Guided first-visit tours, offered via a floating invitation: the creator
   // of a brand-new group (sole member, administers) gets the steward tour;

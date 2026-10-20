@@ -23,6 +23,7 @@ import { Label } from 'components/ui/label'
 import Loading from 'components/Loading'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
 import { cn } from 'util/index'
+import { personUrl } from '@hylo/navigation'
 import { formatMoment, helpLabels, HELP_DESK_URL } from '@/agora/help/api'
 import { fieldClasses } from '@/agora/help/HelpWindow'
 import HelpDeskPage from '@/agora/help/HelpDeskPage'
@@ -427,7 +428,7 @@ function AccountRow ({ account: a, onChanged }) {
     <li className='py-3 border-b border-border last:border-b-0 flex flex-col gap-1'>
       <div className='flex flex-wrap items-baseline justify-between gap-2'>
         <span className='font-semibold text-foreground'>
-          {a.name ? <Link className='hover:underline' to={`/members/${a.id}`}>{a.name}</Link> : <span className='text-muted-foreground'>{t('(no name yet)')}</span>}
+          {a.name ? <Link className='hover:underline' to={personUrl(a.id, undefined, a.name)}>{a.name}</Link> : <span className='text-muted-foreground'>{t('(no name yet)')}</span>}
           {a.isAgoraAdmin && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Agora admin')}</span>}
         </span>
         <span className={cn('rounded-full border px-2 py-0.5 text-xs', a.state === 'active' ? 'border-foreground/20' : 'border-destructive/40')}>{labels[a.state]}</span>

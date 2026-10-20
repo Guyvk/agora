@@ -51,7 +51,7 @@ export default function MemberSkillsGraph ({ members, loading, slug, onSkillClic
   const handlersRef = useRef({})
   handlersRef.current = {
     onSkillClick,
-    onPersonClick: node => navigate(personUrl(node.personId, slug))
+    onPersonClick: node => navigate(personUrl(node.personId, slug, node.name))
   }
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { filter, isFunction } from 'lodash'
 import { Pencil, Trash2, X } from 'lucide-react'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import CopyToClipboard from 'react-copy-to-clipboard'
 import { Helmet } from 'react-helmet'
@@ -58,7 +58,9 @@ import {
   currentUserSettingsUrl,
   messagePersonUrl,
   messagesUrl,
-  gotoExternalUrl
+  gotoExternalUrl,
+  personIdFromParam, // Agora: readable profile links
+  personPathSegment
 } from '@hylo/navigation'
 
 import styles from './MemberProfile.module.scss'
@@ -74,20 +76,27 @@ const MESSAGES = {
 const MemberProfile = ({ currentTab = 'Overview', blockConfirmMessage, isSingleColumn, context }) => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const routeParams = useParams()
+  const rawRouteParams = useParams()
   const { t } = useTranslation()
   const [container, setContainer] = useState(null)
   const isPublicView = context === 'public'
 
   const location = useLocation()
   const { groupSlug: routeGroupSlug } = useRouteParams()
-  const personId = routeParams.personId
+  // Agora: the link may read /members/5-mariam; only the leading digits are the id.
+  const rawPersonId = rawRouteParams.personId
+  const personId = personIdFromParam(rawPersonId)
+  const person = useSelector(state => getPresentedPerson(state, { ...rawRouteParams, personId }))
+  const personName = person?.name
+  // memberName keeps the readable link when a post is opened from the profile.
+  const routeParams = useMemo(
+    () => ({ ...rawRouteParams, personId, memberName: personName }),
+    [rawRouteParams, personId, personName])
   // History index of the page this profile was opened from. Header back returns
   // there, including after posts opened from the profile have been closed.
   const entryHistoryIndexRef = useRef(null)
   const trackedPersonIdRef = useRef(null)
   const error = !Number.isSafeInteger(Number(personId)) ? MESSAGES.invalid : null
-  const person = useSelector(state => getPresentedPerson(state, routeParams))
   const contentLoading = useSelector(state => isPendingFor([
     FETCH_RECENT_ACTIVITY,
     FETCH_MEMBER_POSTS,
@@ -169,6 +178,18 @@ const MemberProfile = ({ currentTab = 'Overview', blockConfirmMessage, isSingleC
     setShowExpandEventsButton(false)
     checkGroupsHeight()
   }, [personId])
+
+  // Agora: a link with an old or wrong name (/members/5-old-name) is quietly
+  // corrected to the current one. Plain /members/5 links are left as they are.
+  useEffect(() => {
+    if (!personName || !rawPersonId || !String(rawPersonId).includes('-')) return
+    const canonical = personPathSegment(personId, personName)
+    if (canonical === rawPersonId) return
+    const from = `/members/${rawPersonId}`
+    if (!location.pathname.includes(from)) return
+    const pathname = location.pathname.replace(from, `/members/${canonical}`)
+    navigate(`${pathname}${location.search}${location.hash}`, { replace: true, state: location.state })
+  }, [rawPersonId, personId, personName, location.pathname])
 
   useEffect(() => {
     checkGroupsHeight()

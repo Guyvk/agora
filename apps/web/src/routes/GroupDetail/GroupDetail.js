@@ -86,7 +86,7 @@ function StewardWithRoles ({ personId, name, avatarUrl, groupId, groupSlug }) {
 
   return (
     <div className={g.steward}>
-      <Link to={personUrl(personId, groupSlug)} className={g.stewardMain}>
+      <Link to={personUrl(personId, groupSlug, name)} className={g.stewardMain}>
         <Avatar avatarUrl={avatarUrl} medium className='shrink-0' />
         <span className='text-foreground'>{name}</span>
       </Link>

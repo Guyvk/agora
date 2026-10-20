@@ -156,6 +156,7 @@ describe('AdminPage', () => {
     fakeServer()
     renderAt('accounts')
     expect(await screen.findByText('Amara')).toBeInTheDocument()
+    expect(screen.getByText('Amara').closest('a').getAttribute('href')).toBe('/all/members/2-amara')
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'newcomer@agora.test' } })
     fireEvent.click(screen.getByText('Make the link'))
     expect(await screen.findByText(responses['/accounts/let-in'].link)).toBeInTheDocument()

@@ -1,4 +1,5 @@
 import DataLoader from 'dataloader'
+import AgoraAdmins from '../../lib/agora/admins' // Agora: admins see every profile
 
 export const commentFilter = userId => relation => relation.query(q => {
   q.distinct()
@@ -347,11 +348,17 @@ export const personFilter = userId => relation => relation.query(q => {
     ucq.select('other_user_id')
     ucq.where('user_connections.user_id', userId)
   })
-  q.where(inner =>
+  // Agora: an Agora admin (AGORA_ADMINS) may open every person's profile, also
+  // of someone who is in no circle yet. Blocks still apply. What the profile
+  // then shows (circles, posts) keeps its own limits.
+  const agoraAdmin = AgoraAdmins.agoraAdminQuery(userId)
+  q.where(inner => {
     inner.where('users.id', User.AXOLOTL_ID)
       .orWhereIn('users.id', sharedMemberships.query())
       .orWhereIn('users.id', sharedConnections.query())
-      .orWhere('users.is_profile_public', true))
+      .orWhere('users.is_profile_public', true)
+    if (agoraAdmin) inner.orWhereExists(agoraAdmin)
+  })
 })
 
 export const postFilter = (userId, isAdmin) => relation => {

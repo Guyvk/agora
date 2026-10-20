@@ -324,7 +324,7 @@ export function urlForNotification ({ id, activity: { action, actor, post, comme
       return primaryPostUrl(post, postOpts)
     }
     case ACTION_MEMBER_JOINED_GROUP:
-      return personUrl(actor.id, groupSlug)
+      return personUrl(actor.id, groupSlug, actor.name)
     case ACTION_TAG: {
       return primaryPostUrl(post, postOpts)
     }

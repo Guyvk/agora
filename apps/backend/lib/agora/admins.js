@@ -47,6 +47,33 @@ function isAgoraAdmin (userId) {
   return isListed(userId, agoraAdminList())
 }
 
+/**
+ * The same check as isAgoraAdmin, as a database query that can sit inside
+ * another query (for example "where exists (...)"), for places that build a
+ * query without waiting for an answer, such as the GraphQL person filter.
+ * It finds one row when this user is an Agora admin and none otherwise.
+ * Returns null when nobody can be an admin for this user id, so callers can
+ * leave the condition out.
+ */
+function agoraAdminQuery (userId) {
+  const list = agoraAdminList()
+  if (!userId || list.length === 0) return null
+  if (!/^\d+$/.test(String(userId))) return null
+  const ids = list.filter(entry => /^\d+$/.test(entry))
+  const emails = list.filter(entry => !/^\d+$/.test(entry))
+  return knex()('users as agora_admin')
+    .select(knex().raw('1'))
+    .where('agora_admin.id', userId)
+    .where('agora_admin.active', true)
+    .where(q => {
+      q.whereRaw('false')
+      if (ids.length > 0) q.orWhereIn('agora_admin.id', ids)
+      if (emails.length > 0) {
+        q.orWhere(q2 => q2.where('agora_admin.email_validated', true).whereIn(knex().raw('lower(agora_admin.email)'), emails))
+      }
+    })
+}
+
 /** A Help desk admin: in AGORA_HELPDESK_ADMINS or in AGORA_ADMINS. */
 function isHelpDeskAdmin (userId) {
   return isListed(userId, helpDeskAdminList())
@@ -57,5 +84,6 @@ module.exports = {
   agoraAdminList,
   helpDeskAdminList,
   isAgoraAdmin,
+  agoraAdminQuery,
   isHelpDeskAdmin
 }

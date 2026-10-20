@@ -26,7 +26,12 @@ import {
   spaceHomeUrl,
   localSpaceSlug,
   storedSpaceSlug,
-  tagSearchUrl
+  tagSearchUrl,
+  personUrl,
+  baseUrl,
+  personNameSlug,
+  personPathSegment,
+  personIdFromParam
 } from './index'
 
 describe('postUrl', () => {
@@ -425,5 +430,57 @@ describe('tagSearchUrl', () => {
   it('returns /search when the tag is empty', () => {
     expect(tagSearchUrl('')).toEqual('/search')
     expect(tagSearchUrl('#')).toEqual('/search')
+  })
+})
+
+// Agora: readable profile links
+describe('readable profile links', () => {
+  it('makes the name part of a link', () => {
+    expect(personNameSlug('Mariam:)')).toBe('mariam')
+    expect(personNameSlug('José Núñez-García')).toBe('jose-nunez-garcia')
+    expect(personNameSlug('  Anne  &  Bob!! ')).toBe('anne-bob')
+    expect(personNameSlug('مريم')).toBe('')
+    expect(personNameSlug(':)')).toBe('')
+    expect(personNameSlug(undefined)).toBe('')
+    const long = personNameSlug('Alexandra Konstantinopoulou van der Westhuizen-Smith')
+    expect(long.length).toBeLessThanOrEqual(40)
+    expect(long.endsWith('-')).toBe(false)
+  })
+
+  it('puts the name after the id, or only the id without a usable name', () => {
+    expect(personPathSegment('5', 'Mariam:)')).toBe('5-mariam')
+    expect(personPathSegment(5, '')).toBe('5')
+    expect(personPathSegment('5', '???')).toBe('5')
+    expect(personPathSegment('5')).toBe('5')
+    expect(personPathSegment(undefined, 'Mariam')).toBe('')
+  })
+
+  it('reads the id from a link with or without a name', () => {
+    expect(personIdFromParam('5-mariam')).toBe('5')
+    expect(personIdFromParam('5')).toBe('5')
+    expect(personIdFromParam('5-old-name')).toBe('5')
+    expect(personIdFromParam('123-jose-nunez')).toBe('123')
+    expect(personIdFromParam('abc')).toBe('abc')
+    expect(personIdFromParam('5abc')).toBe('5abc')
+    expect(personIdFromParam(undefined)).toBe(undefined)
+  })
+
+  it('builds profile links with the name when it is known', () => {
+    expect(personUrl('5', undefined, 'Mariam:)')).toBe('/all/members/5-mariam')
+    expect(personUrl('5', 'governance', 'Mariam')).toBe('/groups/governance/members/5-mariam')
+    expect(personUrl('5', 'governance')).toBe('/groups/governance/members/5')
+    expect(personUrl('5')).toBe('/all/members/5')
+    expect(baseUrl({ personId: '5', memberName: 'Mariam', groupSlug: 'governance' })).toBe('/groups/governance/members/5-mariam')
+    expect(baseUrl({ personId: '5', memberName: 'Mariam', groupSlug: 'governance', spaceSlug: 'media' }))
+      .toBe('/groups/governance/spaces/media/members/5-mariam')
+  })
+
+  it('keeps the name when a post opens from a profile', () => {
+    expect(postUrl('9', { personId: '5', memberName: 'Mariam', groupSlug: 'governance' }))
+      .toBe('/groups/governance/members/5-mariam/post/9')
+  })
+
+  it('lets a profile with a name host a post on top', () => {
+    expect(homeRouteHostsPostOverlay('/members/42-mariam')).toBe(true)
   })
 })

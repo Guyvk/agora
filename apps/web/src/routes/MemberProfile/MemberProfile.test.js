@@ -195,6 +195,39 @@ describe('MemberProfile', () => {
     })
   })
 
+  // Agora: readable profile links (/members/46816-rich-churcher)
+  describe('readable profile links', () => {
+    afterEach(() => {
+      jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ personId: '46816' })
+      jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/members/46816', search: '' })
+      jest.spyOn(require('react-router-dom'), 'useNavigate').mockRestore()
+    })
+
+    it('opens the person from a link with a name after the id, and leaves a correct link alone', async () => {
+      const navigate = jest.fn()
+      jest.spyOn(require('react-router-dom'), 'useNavigate').mockReturnValue(navigate)
+      jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ personId: '46816-rich-churcher' })
+      jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/members/46816-rich-churcher', search: '' })
+      render(<MemberProfile />, { wrapper: testWrapper() })
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: denormalized.data.person.name })).toBeInTheDocument()
+      })
+      expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining('/members/'), expect.anything())
+    })
+
+    it('corrects an old name in the link to the current one', async () => {
+      const navigate = jest.fn()
+      jest.spyOn(require('react-router-dom'), 'useNavigate').mockReturnValue(navigate)
+      jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ personId: '46816-old-name' })
+      jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/groups/wombats/members/46816-old-name', search: '?tab=1', hash: '' })
+      render(<MemberProfile />, { wrapper: testWrapper() })
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: denormalized.data.person.name })).toBeInTheDocument()
+      })
+      expect(navigate).toHaveBeenCalledWith('/groups/wombats/members/46816-rich-churcher?tab=1', expect.objectContaining({ replace: true }))
+    })
+  })
+
   describe('remove member action', () => {
     beforeEach(() => {
       jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ personId: '46816' })
