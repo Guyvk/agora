@@ -15,7 +15,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
-| Contacts | One shared list of the people and organisations 7BP works with outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
+| Contacts | One shared list of the people and organisations 7BP works with, team members as well as people outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
@@ -187,7 +187,7 @@ If Agora ever says Google refused its login, for example after the account's pas
 
 ## Contacts
 
-The Contacts button in the bar on the left opens the Contacts page (`/contacts`), part of Agora like Messages: one shared list of the people and organisations 7BP works with outside Agora: partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
+The Contacts button in the bar on the left opens the Contacts page (`/contacts`), part of Agora like Messages: one shared list of the people and organisations 7BP works with: team members (their profiles from the activist week are to be added later), and people outside Agora such as partners, press, funders and people who are interested. The number on the button is how many of your follow-ups are due.
 
 - For each contact: name, organisation, kind, email, phone, website, status, the circle that mainly deals with them, where their details came from, and whether they agreed to be contacted.
 - Notes keep what was said or done, with who wrote them and when.
@@ -202,6 +202,12 @@ Agora is by invitation. Only someone who holds an invitation to a circle can mak
 
 - the link in an invitation email that a steward of a circle sent. It only makes an account for the email address it was sent to, so a forwarded link does not let anyone else in. It stops working once the person has joined the circle with it, or when the steward withdraws it. Or:
 - a circle's join link. Anyone who has it can make an account, with any email address, as many times as they like, until a steward makes a new link or the circle is deleted. Share it only with people you would invite anyway.
+
+**Opening an invitation email.** The link in an invitation email belongs to the address it was sent to:
+
+- Not logged in: the sign-up page fills in that address and does not let it be changed. The person clicks "Create account" and goes on with the code, as always.
+- Logged in with that address: the invitation is accepted, as in Hylo.
+- Logged in with another account (for example the steward who sent it, trying it out): the invitation is not used. A page says "This invitation is for guyvankool@gmail.com. You are logged in as Guy van Koolwijk (info@guyvankoolwijk.nl). Log out to accept it as guyvankool@gmail.com." The button "Log out and continue" logs out and opens the invitation link again. The server refuses such a use too, so it cannot be skipped. A circle's join link has no address and works for everyone.
 
 Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. A first login with Google, Facebook or LinkedIn is always refused while sign-up is by invitation (Agora does not show those buttons). People who already have an account are not affected and log in as before.
 
@@ -346,7 +352,16 @@ On your own computer no email is sent. Every email is printed in the Terminal in
 
 To send real email, set `AGORA_EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY` and `EMAIL_SENDER` in `apps/backend/.env`. Sending through Brevo has been written but not yet tried against a real account.
 
-Emails that Agora has no text for yet, such as event invitations and digests, are not sent. A line in the log says so. Notification emails stay off while `EMAIL_NOTIFICATIONS_ENABLED=false`.
+To send through any mail server (for example Infomaniak's), set `AGORA_EMAIL_TRANSPORT=smtp` and the `AGORA_SMTP_...` settings; see `apps/backend/lib/agora/mailer.js`.
+
+Emails that Agora has no text for yet are not sent. A line in the log says so. Notification emails stay off while `EMAIL_NOTIFICATIONS_ENABLED=false`.
+
+**What every email looks like.** Agora writes its emails itself, in `lib/agora/mailer.js`, and checks these things for all of them:
+
+- They say Agora, never Hylo, also in the sender name ("Guy van Koolwijk (via Agora)", or just "Agora").
+- Text from Hylo's database that is HTML, like the text of an invitation or a post, is turned into plain paragraphs and then made safe, so no HTML and no `&lt;p&gt;` codes show up.
+- Links are short and clean. Hylo adds click counting to its links (`?ctt=post_email&cti=1&ctcn=Governance`); Agora takes that out. The link to change your email settings is simply `https://<Agora's address>/my/notifications`: whoever is not logged in logs in first and lands there. Hylo's own link held a login token of about 600 characters, your name and your user id. Agora sets no `List-Unsubscribe` header (Hylo does not either).
+- The links in the email to set a new password and to confirm your address for sign-up still carry a long code. They log you in, so the code has to be in them. Making those short needs a change to how logging in works.
 
 ## Uploads
 

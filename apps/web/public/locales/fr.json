@@ -941,7 +941,7 @@
   "Hi {{firstName}}, click here to create a resource": "Salut {{firstName}}, cliquez ici pour créer une ressource",
   "Hi {{firstName}}, click here to create an event": "Salut {{firstName}}, cliquez ici pour créer un événement",
   "Hi {{firstName}}, click here to create an offer": "Salut {{firstName}}, cliquez ici pour créer une offre",
-  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Salut !\n\nJe vous invite à rejoindre {{name}} sur Hylo.\n\n{{name}} utilise Hylo pour notre communauté en ligne : c'est notre espace dédié à la communication et à la collaboration.",
+  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "Salut !\n\nJe vous invite à rejoindre {{name}} dans Agora, la maison en ligne de 7 Billion Presidents.",
   "Hidden": "Masqué",
   "Hidden from menu": "Masqué du menu",
   "Hide": "Cacher",
@@ -3186,5 +3186,11 @@
   "Selected space": "Espace sélectionné",
   "Incorrect email or password.": "Adresse e-mail ou mot de passe incorrect.",
   "If you signed up with Google, log in with Google instead.": "Si vous vous êtes inscrit avec Google, connectez-vous plutôt avec Google.",
-  "Too many attempts. Please wait a few minutes and try again.": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer."
+  "Too many attempts. Please wait a few minutes and try again.": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
+  "This invitation is for {{email}}.": "Cette invitation est pour {{email}}.",
+  "You are logged in as {{name}} ({{email}}).": "Vous êtes connecté·e en tant que {{name}} ({{email}}).",
+  "Log out to accept it as {{email}}.": "Déconnectez-vous pour l'accepter en tant que {{email}}.",
+  "Log out and continue": "Se déconnecter et continuer",
+  "Stay logged in as {{name}}": "Rester connecté·e en tant que {{name}}",
+  "Your invitation was sent to this address.": "Votre invitation a été envoyée à cette adresse."
 }

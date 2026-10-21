@@ -90,6 +90,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (admin) | The admin area at `/admin`, with the Help desk as its tab at `/admin/help-desk`; the old `/help-desk` addresses lead there |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
 | `apps/web/public/locales/en.json` (help) | The texts of Help and the Help desk, in English only for now; other languages show the English |
+| `apps/backend/lib/i18n/en.js`, `de.js`, `es.js`, `fr.js`, `hi.js`, `pt.js` | The default invitation subject and text say Agora instead of Hylo ("Guy invites you to Governance in Agora", "Hi! I'm inviting you to join Governance in Agora, 7 Billion Presidents' own online home."), in every language |
+| `apps/backend/api/graphql/mutations/invitation.js` | Gives the inviter's name to the invitation subject |
+| `apps/backend/api/models/Invitation.js` | An email invitation can only be used by the account with the address it was sent to, while sign-up is by invitation only (`lib/agora/signup.js`) |
+| `apps/backend/api/graphql/mutations/group.js`, `apps/backend/api/graphql/mutations/spaces.js` | Joining a circle or space with an email invitation sent to another address counts as joining without an invitation, and does not use it up |
+| `apps/web/src/routes/JoinGroup/JoinGroup.js` | Someone logged in who opens an invitation email sent to another address gets a page that says so, with "Log out and continue", instead of the circle |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
+| `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
 | `apps/web/src/routes/ChatRoom/ChatRoom.js` | The chat list is Agora's own `AgoraMessageList` instead of Hylo's paid `@virtuoso.dev/message-list`, which needs a licence key and without one showed only a red licence notice and no messages. Same props, no licence wrapper |
 | `apps/web/src/routes/ChatRoom/ChatRoom.module.scss` | The phone rule for the chat scroller points at the new list |
@@ -117,6 +124,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
+- `apps/web/src/agora/AgoraInvitationForOtherAccount.js`, `apps/web/src/agora/invitationAccount.test.js`, `apps/backend/test/unit/agora/inviteEmail.test.js` (an invitation email for another address, the invitation text, clean links in emails)
 - `apps/backend/migrations/20261017120000_add_agora_drive_folders.js`
 - `apps/backend/test/unit/agora/driveUpload.test.js`
 - `apps/backend/agora/meeting-room.html`, `apps/backend/agora/files.html`

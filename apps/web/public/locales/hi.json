@@ -942,7 +942,7 @@
   "Hi {{firstName}}, click here to create a resource": "हाय {{firstName}}, एक संसाधन बनाने के लिए यहाँ क्लिक करें",
   "Hi {{firstName}}, click here to create an event": "हाय {{firstName}}, एक आयोजन बनाने के लिए यहाँ क्लिक करें",
   "Hi {{firstName}}, click here to create an offer": "हाय {{firstName}}, एक ऑफ़र बनाने के लिए यहाँ क्लिक करें",
-  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "हाय!\n\nमैं आपको Hylo पर {{name}} से जुड़ने के लिए आमंत्रित कर रहा हूँ।\n\n{{name}} हमारी ऑनलाइन समुदाय के लिए Hylo का उपयोग कर रहा है: यह संचार और सहयोग के लिए हमारी समर्पित जगह है।",
+  "Hi!\n\nI'm inviting you to join {{name}} on Hylo.\n\n{{name}} is using Hylo for our online community: this is our dedicated space for communication & collaboration.": "नमस्ते!\n\nमैं आपको Agora में {{name}} से जुड़ने के लिए आमंत्रित कर रहा हूँ, जो 7 Billion Presidents का अपना ऑनलाइन घर है।",
   "Hidden": "छिपा",
   "Hidden from menu": "मेनू से छिपा हुआ",
   "Hide": "छिपाएँ",
@@ -3187,5 +3187,11 @@
   "Selected space": "चयनित स्पेस",
   "Incorrect email or password.": "ईमेल या पासवर्ड गलत है।",
   "If you signed up with Google, log in with Google instead.": "अगर आपने Google से साइन अप किया था, तो Google से लॉग इन करें।",
-  "Too many attempts. Please wait a few minutes and try again.": "बहुत अधिक प्रयास। कृपया कुछ मिनट प्रतीक्षा करें और फिर से प्रयास करें।"
+  "Too many attempts. Please wait a few minutes and try again.": "बहुत अधिक प्रयास। कृपया कुछ मिनट प्रतीक्षा करें और फिर से प्रयास करें।",
+  "This invitation is for {{email}}.": "यह निमंत्रण {{email}} के लिए है।",
+  "You are logged in as {{name}} ({{email}}).": "आप {{name}} ({{email}}) के रूप में लॉग इन हैं।",
+  "Log out to accept it as {{email}}.": "इसे {{email}} के रूप में स्वीकार करने के लिए लॉग आउट करें।",
+  "Log out and continue": "लॉग आउट करें और आगे बढ़ें",
+  "Stay logged in as {{name}}": "{{name}} के रूप में लॉग इन रहें",
+  "Your invitation was sent to this address.": "आपका निमंत्रण इसी पते पर भेजा गया था।"
 }
