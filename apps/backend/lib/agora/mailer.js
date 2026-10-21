@@ -403,7 +403,28 @@ const TEMPLATES = {
     ],
     button: data.url ? { label: 'Open my request', url: data.url } : null,
     footer: `You get this email because you sent a request from the Help window of ${APP_NAME}.`
-  })
+  }),
+
+  // An Agora admin gave someone a role on the Accounts tab (lib/agora/adminDashboard.js)
+  agora_role_given: data => data.role === 'admin'
+    ? compose({
+      subject: `You are now an admin of ${APP_NAME}`,
+      lines: [
+        `You are now an admin of ${APP_NAME}.`,
+        'You can open the admin area from the gear menu in the bar on the left, under "Admin". There you find the overview, the Help desk, the invitations, the accounts, the system and the activity log.'
+      ],
+      button: data.url ? { label: 'Open the admin area', url: data.url } : null,
+      footer: `You get this email because an admin of ${APP_NAME} gave you this role.`
+    })
+    : compose({
+      subject: `You now help run the ${APP_NAME} Help desk`,
+      lines: [
+        `You can now answer the requests people send from the Help window of ${APP_NAME}.`,
+        'You find the Help desk in the gear menu in the bar on the left, under "Admin", and in your own Help window.'
+      ],
+      button: data.url ? { label: 'Open the Help desk', url: data.url } : null,
+      footer: `You get this email because an admin of ${APP_NAME} gave you this role.`
+    })
 }
 
 /** What a reply to an event invitation means, in Hylo's words and in ours. */

@@ -149,6 +149,7 @@ module.exports.routes = {
   'POST   /noo/agora/admin/api/accounts/let-in':          'AgoraAdminController.letIn',
   'POST   /noo/agora/admin/api/accounts/:accountId/deactivate': 'AgoraAdminController.deactivate',
   'POST   /noo/agora/admin/api/accounts/:accountId/reactivate': 'AgoraAdminController.reactivate',
+  'POST   /noo/agora/admin/api/accounts/:accountId/role':  'AgoraAdminController.setRole', // Agora: change someone's Agora role
   'GET    /noo/agora/admin/api/system':                   'AgoraAdminController.system',
   'GET    /noo/agora/admin/api/activity':                 'AgoraAdminController.activity',
 
