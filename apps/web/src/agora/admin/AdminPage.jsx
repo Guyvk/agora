@@ -510,8 +510,8 @@ function AccountRow ({ account: a, onChanged }) {
       <div className='flex flex-wrap items-baseline justify-between gap-2'>
         <span className='font-semibold text-foreground'>
           {a.name ? <Link className='hover:underline' to={`/members/${a.id}`}>{a.name}</Link> : <span className='text-muted-foreground'>{t('(no name yet)')}</span>}
-          {a.role === 'admin' && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Agora admin')}</span>}
-          {a.role === 'helpdesk' && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Help desk')}</span>}
+          {a.isAgoraAdmin && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Agora admin')}</span>}
+          {a.role === 'helpdesk' && a.state === 'active' && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Help desk')}</span>}
         </span>
         <span className={cn('rounded-full border px-2 py-0.5 text-xs', a.state === 'active' ? 'border-foreground/20' : 'border-destructive/40')}>{labels[a.state]}</span>
       </div>

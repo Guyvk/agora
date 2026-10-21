@@ -193,7 +193,7 @@ describe('Agora roles from the admin area', () => {
       expect(admin.text).to.include('https://agora.test/admin')
       const desk = mailer.TEMPLATES.agora_role_given({ role: 'helpdesk', url: 'https://agora.test/admin/help-desk' })
       expect(desk.subject).to.include('Help desk')
-      for (const email of [admin, desk]) expect(email.text + email.subject).not.to.include('—')
+      for (const email of [admin, desk]) expect(email.text + email.subject).not.to.include('\u2014')
     })
 
     it('answers the page with the same refusals', async () => {
