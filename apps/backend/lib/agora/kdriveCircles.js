@@ -56,8 +56,9 @@ function cleanName (value) {
     .normalize('NFC')
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
-    // Invisible and direction-changing characters, which can make a name look like another
-    .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
+    // Invisible and direction-changing characters, which can make a name look
+    // like another. U+200C and U+200D stay: Hindi and emoji need them.
+    .replace(/[\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
     .replace(/[/\\]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
@@ -116,7 +117,14 @@ async function agoraFolderId () {
 
 /** True for the name kept for the circle's minutes, in any capitals. */
 function isMinutesName (name) {
-  return String(cleanName(name) || '').toLowerCase() === MINUTES_FOLDER.toLowerCase()
+  return String(cleanName(name) || '').replace(/[\u200c\u200d]/g, '').toLowerCase() === MINUTES_FOLDER.toLowerCase()
+}
+
+/** Members add nothing to the folder Agora keeps the minutes in. */
+function refuseMinutesFolder (row, folder) {
+  if (row && row.minutes_folder_id && String(row.minutes_folder_id) === String(folder.id)) {
+    throw new KdriveError('not_allowed', 'The Minutes folder is only for the meeting minutes, which Agora saves there itself.')
+  }
 }
 
 async function folderRow (groupId) {
@@ -287,7 +295,9 @@ async function addFile (group, { folderId, userId, name, size, stream }) {
   if (!fileName) throw new KdriveError('bad_request', 'The file needs a name.')
   if (!Number.isSafeInteger(size) || size <= 0) throw new KdriveError('bad_request', 'The file is empty.')
   if (size > Kdrive.maxUploadBytes()) throw new KdriveError('too_large', `The file is larger than ${Math.round(Kdrive.maxUploadBytes() / 1048576)} MB.`)
-  const { folder } = await folderInCircle(group, folderId)
+  const { folder, isCircleFolder } = await folderInCircle(group, folderId)
+  if (isCircleFolder && isMinutesName(fileName)) throw minutesKept()
+  refuseMinutesFolder(await folderRow(group.id), folder)
   const file = await Kdrive.upload({ folderId: folder.id, name: fileName, size, stream })
   if (file && file.id) await remember(file.id, group, userId, 'file')
   const user = userId ? await User.find(userId) : null
@@ -299,6 +309,7 @@ async function makeFolder (group, { folderId, userId, name }) {
   if (!folderName) throw new KdriveError('bad_request', 'The folder needs a name.')
   const { folder, isCircleFolder } = await folderInCircle(group, folderId)
   if (isCircleFolder && isMinutesName(folderName)) throw minutesKept()
+  refuseMinutesFolder(await folderRow(group.id), folder)
   const made = await Kdrive.createDirectory(folder.id, folderName)
   await remember(made.id, group, userId, 'dir')
   const user = userId ? await User.find(userId) : null
@@ -335,7 +346,7 @@ async function renameItem (group, { itemId, userId, name }) {
   const newName = cleanName(name)
   if (!newName) throw new KdriveError('bad_request', 'The new name is empty.')
   const item = await changeable(group, itemId, userId)
-  if (item.atTop && item.type === 'dir' && isMinutesName(newName)) throw minutesKept()
+  if (item.atTop && isMinutesName(newName)) throw minutesKept()
   await Kdrive.rename(item.id, newName)
   dropInfo(item.id)
   return { id: String(item.id), name: newName }
@@ -368,7 +379,16 @@ async function minutesFolderId (group) {
       if (err.code !== 'not_found') throw err
     }
   }
-  const folder = await folderIn(circleFolder, MINUTES_FOLDER)
+  let folder
+  try {
+    folder = await folderIn(circleFolder, MINUTES_FOLDER)
+  } catch (err) {
+    // The name is taken by something that is not a folder (a file put there
+    // in kDrive itself): use a second name instead of failing every time.
+    if (err.code !== 'conflict') throw err
+    sails.log.warn(`Agora kDrive: "${MINUTES_FOLDER}" in the folder of group ${group.id} is not a folder; using "${MINUTES_FOLDER} (Agora)"`)
+    folder = await folderIn(circleFolder, `${MINUTES_FOLDER} (Agora)`)
+  }
   // A folder that was already there now belongs to the circle, not to the member who made it.
   await knex()('agora_kdrive_items').where({ file_id: folder.id }).del()
   await knex()('agora_kdrive_folders').where({ group_id: group.id }).update({ minutes_folder_id: folder.id, updated_at: new Date() })

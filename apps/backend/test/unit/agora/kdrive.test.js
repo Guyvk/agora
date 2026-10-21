@@ -462,10 +462,15 @@ describe('Agora files in kDrive', () => {
       expect(Object.values(state.tree).filter(f => f.name === 'Agora')).to.have.length(0)
     })
 
-    it('takes invisible and direction-changing characters out of names', () => {
+    it('takes invisible and direction-changing characters out of names, but keeps those Hindi and emoji need', () => {
       expect(Circles.cleanName('Plan\u202eexe.pdf')).to.equal('Planexe.pdf')
       expect(Circles.cleanName('Min\u200butes')).to.equal('Minutes')
-      expect(Circles.cleanName('\u2066\u200f')).to.equal(null)
+      expect(Circles.cleanName('\u2066\u200f\u200e\ufeff')).to.equal(null)
+      // Hindi with a zero-width non-joiner, and a family emoji joined by zero-width joiners
+      const hindi = '\u0915\u094d\u200c\u0937 \u0930\u093f\u092a\u094b\u0930\u094d\u091f.pdf'
+      const family = '\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67 photos.jpg'
+      expect(Circles.cleanName(hindi)).to.equal(hindi)
+      expect(Circles.cleanName(family)).to.equal(family)
     })
 
     it('checks again before adding to a folder that was moved out of the circle in kDrive', async () => {
@@ -696,6 +701,43 @@ describe('Agora files in kDrive', () => {
         // Deeper down the name is free
         const deeper = await call('createFolder', { userId: member.id, body: { name: 'Minutes', folder: other.body.item.id } })
         expect(deeper.body.item).to.include({ name: 'Minutes' })
+      })
+
+      it('lets nobody upload a file called Minutes at the top, or rename a file to it', async () => {
+        for (const name of ['Minutes', 'MINUTES', 'Min\u200cutes']) {
+          const res = await upload(member.id, { name })
+          expect(res.statusCode).to.equal(400)
+          expect(res.body.error).to.match(/kept for the meeting minutes/)
+        }
+        const file = await upload(member.id, { name: 'notes.txt' })
+        expect((await call('rename', { userId: member.id, body: { item: file.body.item.id, name: 'minutes' } })).statusCode).to.equal(400)
+        expect(state.tree[file.body.item.id].name).to.equal('notes.txt')
+      })
+
+      it('still saves the minutes when a file called Minutes is in the way', async () => {
+        await call('list', { userId: member.id })
+        const circle = await bookshelf.knex('agora_kdrive_folders').where({ group_id: group.id }).first()
+        state.tree[6000] = { name: 'Minutes', type: 'file', parent: Number(circle.folder_id), contents: 'in the way' }
+        expect(await KdriveMinutes.copy({ sessionId: 6, groupIds: [group.id], fileName: '2026-10-21 Call.md', markdown: 'x' })).to.deep.equal([])
+        const folder = Object.entries(state.tree).find(([, f]) => f.name === 'Minutes (Agora)')
+        expect(String(folder[1].parent)).to.equal(String(circle.folder_id))
+        expect(Object.values(state.tree).some(f => f.name === '2026-10-21 Call.md' && String(f.parent) === folder[0])).to.equal(true)
+        expect(queued).to.have.length(0)
+        // and the next time too
+        expect(await KdriveMinutes.copy({ sessionId: 7, groupIds: [group.id], fileName: '2026-10-22 Call.md', markdown: 'y' })).to.deep.equal([])
+      })
+
+      it('lets members add nothing to the Minutes folder', async () => {
+        await KdriveMinutes.copy({ sessionId: 8, groupIds: [group.id], fileName: '2026-10-21 Call.md', markdown: 'x' })
+        const row = await bookshelf.knex('agora_kdrive_folders').where({ group_id: group.id }).first()
+        const folder = String(row.minutes_folder_id)
+        for (const userId of [member.id, steward.id]) {
+          const added = await upload(userId, { folder })
+          expect(added.statusCode).to.equal(403)
+          expect(added.body.error).to.match(/only for the meeting minutes/)
+          expect((await call('createFolder', { userId, body: { name: 'Mine', folder } })).statusCode).to.equal(403)
+        }
+        expect(Object.values(state.tree).filter(f => String(f.parent) === folder).map(f => f.name)).to.deep.equal(['2026-10-21 Call.md'])
       })
 
       it('never throws when kDrive fails, and tries once more later', async () => {
