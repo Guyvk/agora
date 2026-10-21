@@ -13,9 +13,11 @@
 
 const TIMEOUT_MS = 180000
 const MAX_TRANSCRIPT_CHARS = 300000
+const MAX_CHAT_CHARS = 60000
 
 const SYSTEM_PROMPT = `You write the minutes of a meeting for a volunteer movement.
 You are given the transcript, made by speech recognition, so expect small mistakes in words and names.
+You may also be given the chat messages people typed during the meeting. Treat them as part of what was said, for example a link, a date or a name someone typed.
 
 Rules:
 - Use only what was said. Never invent a decision, an owner or a date.
@@ -77,6 +79,13 @@ function transcriptAsText (lines, startedAt) {
     .join('\n')
 }
 
+/** The chat of the meeting as text for the assistant, one line per message. */
+function chatAsText (chat, startedAt) {
+  return (chat || [])
+    .map(m => `[${clock(m.at, startedAt)}] ${m.name}: ${String(m.text).replace(/\n+/g, ' ')}`)
+    .join('\n')
+}
+
 function parseJson (text) {
   try {
     return JSON.parse(text)
@@ -99,16 +108,22 @@ module.exports = {
 
   mergeLines,
   transcriptAsText,
+  chatAsText,
 
   /**
    * Asks Claude for the minutes.
    * @returns {Promise<object>} summary, topics, decisions, actions, open_questions
    */
-  summarise: async function ({ title, date, attendees, guests = [], lines, startedAt }) {
+  summarise: async function ({ title, date, attendees, guests = [], lines, chat = [], startedAt }) {
     let transcript = transcriptAsText(lines, startedAt)
+    let chatText = chatAsText(chat, startedAt)
     let cut = false
     if (transcript.length > MAX_TRANSCRIPT_CHARS) {
       transcript = transcript.slice(0, MAX_TRANSCRIPT_CHARS)
+      cut = true
+    }
+    if (chatText.length > MAX_CHAT_CHARS) {
+      chatText = chatText.slice(0, MAX_CHAT_CHARS)
       cut = true
     }
 
@@ -117,10 +132,13 @@ module.exports = {
       `Date: ${date}`,
       `Present: ${attendees.join(', ') || 'unknown'}`,
       guests.length ? `Guests (people from outside, not members): ${guests.join(', ')}` : null,
-      cut ? 'Note: the transcript was too long and has been cut off at the end.' : null,
+      cut ? 'Note: the transcript or the chat was too long and has been cut off at the end.' : null,
       '',
       'Transcript:',
-      transcript
+      transcript || '(nothing was transcribed)',
+      chatText ? '' : null,
+      chatText ? 'Chat messages typed during the meeting:' : null,
+      chatText || null
     ].filter(x => x !== null).join('\n')
 
     const response = await fetch(process.env.AGORA_AI_URL || 'https://api.anthropic.com/v1/messages', {
@@ -162,7 +180,7 @@ module.exports = {
    * Lays the minutes out as the body of a post. Everything that came from the
    * assistant or from speech recognition is escaped.
    */
-  renderHtml: function ({ minutes, attendees, guests = [], lines, startedAt, error }) {
+  renderHtml: function ({ minutes, attendees, guests = [], lines, chat = [], startedAt, error }) {
     const parts = []
 
     if (minutes) {
@@ -213,6 +231,12 @@ module.exports = {
     parts.push(merged.length
       ? merged.map(l => `<p><strong>${escapeHtml(l.name)}</strong> <span>${clock(l.spokenAt, startedAt)}</span><br>${escapeHtml(l.text)}</p>`).join('')
       : '<p>Nothing was transcribed.</p>')
+
+    // Agora: what people typed in the chat next to the call
+    if (chat && chat.length) {
+      parts.push('<h3>Chat during the meeting</h3>')
+      parts.push(chat.map(m => `<p><strong>${escapeHtml(m.name)}</strong> <span>${clock(m.at, startedAt)}</span><br>${escapeHtml(m.text).replace(/\n/g, '<br>')}</p>`).join(''))
+    }
 
     return parts.join('')
   }

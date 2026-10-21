@@ -84,8 +84,11 @@ How it works:
 
 1. The call itself runs on a Jitsi server, shown inside the room. The server is set with `AGORA_MEET_DOMAIN`. The default is kMeet by Infomaniak.
 2. While you are unmuted, your browser records short pieces of your own speech and skips silence. Because each person records only their own microphone, Agora always knows who said what.
-3. Each piece is sent to a speech-to-text service and becomes a line in the notes. The sound is deleted as soon as it has become text.
-4. When someone ends the meeting, or when it has been quiet for 45 minutes, Claude reads the transcript and writes the minutes: a summary, decisions, actions and open questions. The assistant posts them in the group, with the full transcript underneath.
+3. Each piece is sent to a speech-to-text service and becomes a line in the notes. The sound is deleted as soon as it has become text. The notes are not shown during the meeting: a small line says "Notes are being taken for the minutes. They are not shown during the meeting." Each person sees their own status ("Notes on", "Your notes are paused", "You are muted") and a button to pause their own notes.
+4. Next to the call there is a chat for everyone in the meeting, guests included (shown as "Name (guest)"). Messages are plain text, at most 1000 characters. kMeet's own chat, recording, streaming and subtitles buttons are hidden, so everything goes through Agora.
+5. "Leave the call" only takes you out. "End meeting for everyone" ends it for all. After the call Agora shows its own end screen: title, date, length, who took part, whether notes were taken, how many chat messages, and a link to the minutes once they are posted. kMeet's own close page and feedback form are switched off.
+6. A meeting also ends by itself when nobody has been in the room for 10 minutes, or at the latest 2 hours after the event's end time (or 2 hours after it started, if it started later). The check runs every 10 minutes. To list or end meetings that were left open by hand: `node scripts/agora-end-open-meetings.js` (lists only), then `--apply` (ends them all) or `--apply --session <number>` (ends one).
+7. When the meeting ends, Claude reads the transcript and the chat and writes the minutes: a summary, decisions, actions and open questions. The assistant posts them as a post in the circle the event belongs to, with the full transcript and the chat ("Chat during the meeting") underneath. Only members of that circle can read them. A meeting with only chat also gets minutes.
 
 Three settings in `apps/backend/.env` switch this on:
 

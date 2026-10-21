@@ -14,13 +14,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice |
 | `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
 | `apps/backend/api/models/post/updatePost.js` | An event keeps its meeting room as its video call link, whatever a change sends, and invitees are never told about a link that was ignored. A link to another video call platform is refused as its location |
-| `apps/backend/config/routes.js` | Added the addresses of the meeting room (with guest links and the guest's room), the circle Files pages (with adding files and folders) and the Contacts page |
-| `apps/backend/config/policies.js` | Added who may use the meeting room, the guest's room (no login, the guest link is checked instead), the circle Files pages and the Contacts page |
+| `apps/backend/config/routes.js` | Added the addresses of the meeting room (with guest links, the guest's room, the meeting chat, "still here", leaving the call and the end screen), the circle Files pages (with adding files and folders) and the Contacts page |
+| `apps/backend/config/policies.js` | Added who may use the meeting room, the guest's room (no login, the guest link is checked instead; a guest may also use the chat and the end screen of their own meeting), the circle Files pages and the Contacts page |
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
-| `apps/backend/cron.js` | Ends meetings that have gone quiet, so their minutes get written |
-| `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest), the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
+| `apps/backend/cron.js` | Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written |
+| `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest; "still here" and "left" times per person), the meeting chat table, the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |

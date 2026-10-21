@@ -101,11 +101,11 @@ describe('Agora meeting guests: small parts', () => {
 
   it('gives guests no way to read the notes or end the meeting', () => {
     const guestRoutes = Object.keys(routes).filter(r => r.includes('/guest/'))
-    expect(guestRoutes.length).to.equal(5)
+    expect(guestRoutes.length).to.equal(7)
     for (const route of guestRoutes) {
       expect(routes[route]).to.match(/^MeetingGuestController\./)
     }
-    expect(Object.keys(MeetingGuestController).sort()).to.deep.equal(['end', 'join', 'page', 'segment', 'status'])
+    expect(Object.keys(MeetingGuestController).sort()).to.deep.equal(['chat', 'end', 'join', 'page', 'segment', 'status', 'summary'])
     // The member calls, the transcript among them, still need a login
     expect(policies.MeetingController['*']).to.equal('sessionAuth')
     expect(policies.MeetingController.transcript).to.equal(undefined)
@@ -372,9 +372,10 @@ describe('Agora meeting guests', () => {
       expect(res.body).not.to.have.property('lines')
     })
 
-    it('only learns whether the meeting goes on', async () => {
+    it('only learns whether the meeting goes on, and the chat', async () => {
       const res = await guestCall('status', { guest: link.zoe })
-      expect(res.body).to.deep.equal({ status: 'open' })
+      expect(res.body).to.deep.equal({ status: 'open', chat: [] })
+      expect(JSON.stringify(res.body)).not.to.contain('Hello from outside')
     })
 
     it('cannot end the meeting for everyone, only leave', async () => {
