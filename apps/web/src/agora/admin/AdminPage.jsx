@@ -8,7 +8,9 @@
  *   /admin/help-desk    the Help desk (src/agora/help/HelpDeskPage.jsx); the old
  *                       /help-desk addresses send people here
  *   /admin/invitations  every circle invitation, join links, join requests
- *   /admin/accounts     everyone with an account, and "Let someone in"
+ *   /admin/accounts     everyone with an account, "Let someone in", and each
+ *                       person's role (Member, Help desk, Admin), which an
+ *                       admin can change after a confirm step on the page
  *   /admin/system       version, services, backups (never a key)
  *   /admin/activity     the latest important events
  */
@@ -402,6 +404,86 @@ function LetIn ({ circles, onDone }) {
   )
 }
 
+function roleLabels (t) {
+  return { member: t('Member'), helpdesk: t('Help desk'), admin: t('Admin') }
+}
+
+function roleQuestion (t, role, name) {
+  if (role === 'admin') return t('Make {{name}} an admin? Admins can open the whole admin area: every account, the invitations and the Help desk. They can also switch accounts off and change roles.', { name })
+  if (role === 'helpdesk') return t('Let {{name}} run the Help desk? They can read and answer every Help request, but nothing else in the admin area.', { name })
+  return t('Take away the role of {{name}}? They become a member and can no longer open the admin area.', { name })
+}
+
+/**
+ * The role of one account: Member, Help desk or Admin. A change is asked
+ * again on the page itself before it is sent; the server checks the rules too.
+ * Roles from the server settings, and your own role, cannot be changed here.
+ */
+export function RoleControl ({ account: a, onChanged }) {
+  const { t } = useTranslation()
+  const labels = roleLabels(t)
+  const [choice, setChoice] = useState(a.role)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => { setChoice(a.role) }, [a.role])
+  const name = a.name || a.email
+  const selectId = `agora-admin-role-${a.id}`
+
+  if (a.roleSetOnServer) {
+    return (
+      <span className='text-sm'>
+        {t('Role')}: <strong>{a.role === 'admin' ? t('Admin (set on the server)') : t('Help desk (set on the server)')}</strong>
+      </span>
+    )
+  }
+  if (a.isMe) {
+    return <span className='text-sm'>{t('Role')}: <strong>{labels[a.role]}</strong> <span className='text-muted-foreground'>{t('(you cannot change your own role)')}</span></span>
+  }
+  // Only an account that is on can get a role; a switched off account can only lose one
+  const choices = a.state === 'active' ? ['member', 'helpdesk', 'admin'] : [...new Set([a.role, 'member'])]
+  if (choices.length === 1) return <span className='text-sm'>{t('Role')}: <strong>{labels[a.role]}</strong></span>
+
+  const asking = choice !== a.role
+  const confirm = async () => {
+    setBusy(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const result = await adminApi(`/accounts/${encodeURIComponent(a.id)}/role`, { role: choice })
+      setMessage(t('Done: {{name}} is now {{role}}.', { name, role: labels[result.role] || labels[choice] }))
+      onChanged()
+    } catch (e) {
+      setError(e.message)
+      setChoice(a.role)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className='flex flex-col gap-2'>
+      <div className='flex flex-wrap items-center gap-2'>
+        <Label htmlFor={selectId} className='text-sm text-muted-foreground'>{t('Role')}</Label>
+        <select id={selectId} className={cn(fieldClasses, 'h-9 w-auto')} value={choice} disabled={busy} onChange={e => { setChoice(e.target.value); setMessage(null); setError(null) }}>
+          {choices.map(r => <option key={r} value={r}>{labels[r]}</option>)}
+        </select>
+      </div>
+      {asking && (
+        <div role='group' aria-label={t('Confirm the new role')} className='flex flex-col gap-2 rounded-lg border border-accent/40 bg-accent/10 p-3'>
+          <p className='text-sm m-0'>{roleQuestion(t, choice, name)}</p>
+          <div className='flex flex-wrap gap-2'>
+            <Button size='sm' disabled={busy} onClick={confirm}>{t('Yes, make it {{role}}', { role: labels[choice] })}</Button>
+            <Button size='sm' variant='outline' disabled={busy} onClick={() => setChoice(a.role)}>{t('Cancel')}</Button>
+          </div>
+        </div>
+      )}
+      {message && <p role='status' className='text-sm m-0'>{message}</p>}
+      {error && <p role='alert' className='text-sm text-destructive m-0'>{error}</p>}
+    </div>
+  )
+}
+
 function AccountRow ({ account: a, onChanged }) {
   const { t } = useTranslation()
   const labels = accountStateLabels(t)
@@ -428,7 +510,8 @@ function AccountRow ({ account: a, onChanged }) {
       <div className='flex flex-wrap items-baseline justify-between gap-2'>
         <span className='font-semibold text-foreground'>
           {a.name ? <Link className='hover:underline' to={`/members/${a.id}`}>{a.name}</Link> : <span className='text-muted-foreground'>{t('(no name yet)')}</span>}
-          {a.isAgoraAdmin && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Agora admin')}</span>}
+          {a.role === 'admin' && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Agora admin')}</span>}
+          {a.role === 'helpdesk' && <span className='ml-2 text-xs rounded-full border border-accent/40 px-2 py-0.5'>{t('Help desk')}</span>}
         </span>
         <span className={cn('rounded-full border px-2 py-0.5 text-xs', a.state === 'active' ? 'border-foreground/20' : 'border-destructive/40')}>{labels[a.state]}</span>
       </div>
@@ -443,6 +526,7 @@ function AccountRow ({ account: a, onChanged }) {
         {a.state === 'deactivated' && <Button size='sm' variant='outline' disabled={busy} onClick={() => act('reactivate')}>{t('Switch on again')}</Button>}
         {message && <span role='alert' className='text-sm text-destructive'>{message}</span>}
       </div>
+      <RoleControl account={a} onChanged={onChanged} />
     </li>
   )
 }
@@ -572,6 +656,11 @@ function eventText (t, e) {
     case 'join_request': return t('{{person}} asked to join {{circle}}', { person, circle })
     case 'meeting_ended': return t('The meeting "{{title}}" ended', { title: (e.meeting && e.meeting.title) || t('without a name') })
     case 'help_request': return t('{{person}} asked the Help desk: {{title}}', { person, title: e.detail || '' })
+    case 'role_changed': {
+      const roles = roleLabels(t)
+      const role = e.role || {}
+      return t('{{person}} changed the role of {{target}} from {{from}} to {{to}}', { person, target: (e.target && e.target.name) || t('someone'), from: roles[role.from] || role.from, to: roles[role.to] || role.to })
+    }
     default: return e.kind
   }
 }
