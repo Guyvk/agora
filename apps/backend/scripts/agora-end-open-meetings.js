@@ -6,9 +6,12 @@
  *   node scripts/agora-end-open-meetings.js
  *        only shows the open meetings; nothing is changed
  *   node scripts/agora-end-open-meetings.js --apply
- *        ends every open meeting
+ *        ends every open meeting in which nobody is right now; a meeting
+ *        with someone still in it is skipped (the script says which)
+ *   node scripts/agora-end-open-meetings.js --apply --force
+ *        ends every open meeting, also ones with people still in them
  *   node scripts/agora-end-open-meetings.js --apply --session 12
- *        ends only meeting session 12
+ *        ends only meeting session 12, even with people in it
  *
  * Ending works exactly like pressing "End meeting for everyone" in the room:
  * the meeting is marked as ending and the worker writes the minutes and posts
@@ -16,8 +19,8 @@
  * agora-worker, must be running). A meeting in which nothing was said or
  * typed is closed without a post.
  *
- * Since this change, meetings also end by themselves (10 minutes after the
- * last person left, or at the latest 2 hours after the event's end time; see
+ * Meetings also end by themselves (10 minutes after the last person left,
+ * or as a safety cap 8 hours after they started; see
  * MeetingSession.closeStale). This script is for meetings that are open now
  * and should not wait, such as ones left open before that existed.
  * Safe to run again: a meeting that has ended is not touched.
@@ -29,8 +32,9 @@ function when (date) {
   return date ? new Date(date).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '(unknown)'
 }
 
-async function run ({ apply, only }) {
-  const { reasonToEnd, lastPresence } = require('../lib/agora/meetingChat')
+async function run ({ apply, only, force }) {
+  const { reasonToEnd, lastPresence, peopleHere } = require('../lib/agora/meetingChat')
+  const skipped = []
   const open = await MeetingSession.query(q => {
     q.where({ status: MeetingSession.Status.OPEN })
     if (only) q.where({ id: only })
@@ -51,15 +55,27 @@ async function run ({ apply, only }) {
     console.log(`  session ${session.id}, event post ${session.get('post_id')} "${post ? post.get('name') : '?'}"`)
     console.log(`    started ${when(session.get('started_at'))}, last person seen ${when(await lastPresence(session))}`)
     console.log(`    ${segments.count} transcribed lines, ${chat.count} chat messages`)
-    console.log(`    ${reason === 'empty' ? 'nobody is in it any more: it would end by itself on the next 10-minute run'
-      : reason === 'late' ? 'it is more than 2 hours past the event\'s end: it would end by itself on the next 10-minute run'
-      : 'someone may still be in it'}`)
-    if (apply) {
+    const here = await peopleHere(session.id)
+    let present = 'nobody is in it right now'
+    if (here === 1) present = '1 person is in it right now'
+    if (here > 1) present = `${here} people are in it right now`
+    let outlook = 'it goes on for now'
+    if (reason === 'empty') outlook = 'nobody has been in it for 10 minutes: it would end by itself on the next 10-minute run'
+    if (reason === 'too_long') outlook = 'it started more than 8 hours ago: it would end by itself on the next 10-minute run'
+    console.log(`    ${present}`)
+    console.log(`    ${outlook}`)
+    if (apply && here && !only && !force) {
+      skipped.push(session.id)
+      console.log('    SKIPPED: someone is still in it (add --force, or --session ' + session.id + ', to end it anyway)')
+    } else if (apply) {
       await MeetingSession.end({ sessionId: session.id })
       console.log('    ENDED: the worker now writes and posts the minutes')
     }
   }
 
+  if (skipped.length) {
+    console.log(`\nSkipped because someone is still in them: session ${skipped.join(', ')}`)
+  }
   if (!apply && open.length) {
     console.log('\nNothing was changed. To end these meetings: node scripts/agora-end-open-meetings.js --apply')
     console.log('To end only one: node scripts/agora-end-open-meetings.js --apply --session <number>')
@@ -75,7 +91,7 @@ skiff.lift({
       process.exitCode = 1
       return skiff.lower()
     }
-    run({ apply: Boolean(argv.apply), only })
+    run({ apply: Boolean(argv.apply), only, force: Boolean(argv.force) })
       .catch(err => {
         console.error(`\nCould not end the open meetings: ${err.message}\n`)
         process.exitCode = 1

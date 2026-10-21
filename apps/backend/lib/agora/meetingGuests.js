@@ -3,10 +3,14 @@ import crypto from 'crypto'
 /**
  * Agora: guests in a meeting, people without an Agora account.
  *
- * A member who may edit an event makes a guest link for it. The link carries
- * a long random secret. Agora keeps only its sha256 hash (in
- * meeting_guest_links), so even someone who reads the database cannot rebuild
- * a working link. A guest who joins gets a second secret of their own (its
+ * Any active member of the event's circle can see, copy and make the guest
+ * link (canUseGuestLink); only the person who made the event, the person who
+ * made the link and the circle's stewards can revoke it or replace it with a
+ * new one (canManageGuestLink). The link carries a long secret. Agora keeps
+ * only its sha256 hash (in meeting_guest_links). The secret is worked out
+ * from the link's row and a key that only the server has (linkSecret), so
+ * the server can show the link again to members, while someone who reads
+ * only the database still cannot rebuild a working link. A guest who joins gets a second secret of their own (its
  * hash is in meeting_guests), so one guest cannot send speech in another
  * guest's name.
  *
@@ -79,14 +83,32 @@ function defaultExpiry (post, now = new Date()) {
 }
 
 /**
- * Whether this person may make or revoke the guest link of this event: the
- * person who made the event, or a steward of one of its circles (someone
- * with Administration or Manage Content there, the same check Hylo uses for
- * moderating posts).
+ * Whether this person may see, copy and make the guest link of this event:
+ * an active member of one of the event's circles (and everyone who may
+ * manage it).
  */
-async function canManageGuestLink (userId, post) {
+async function canUseGuestLink (userId, post) {
   if (!userId || !post) return false
   if (String(post.get('user_id')) === String(userId)) return true
+  await post.load('groups')
+  const groups = post.relations.groups?.models || []
+  for (const group of groups) {
+    if (await GroupMembership.hasActiveMembership(userId, group.id)) return true
+  }
+  return false
+}
+
+/**
+ * Whether this person may revoke the guest link of this event, or replace a
+ * link that is there with a new one: the person who made the event, the
+ * person who made the link (`link` is its row, if any), or a steward of one
+ * of its circles (someone with Administration or Manage Content there, the
+ * same check Hylo uses for moderating posts).
+ */
+async function canManageGuestLink (userId, post, link = null) {
+  if (!userId || !post) return false
+  if (String(post.get('user_id')) === String(userId)) return true
+  if (link && link.created_by_id && String(link.created_by_id) === String(userId)) return true
   await post.load('groups')
   const groups = post.relations.groups?.models || []
   const { RESP_ADMINISTRATION, RESP_MANAGE_CONTENT } = Responsibility.constants
@@ -97,6 +119,36 @@ async function canManageGuestLink (userId, post) {
   return false
 }
 
+/** The server's own key for guest link secrets, or null when none is set. */
+function linkKey () {
+  return process.env.AGORA_GUEST_LINK_KEY || process.env.COOKIE_SECRET || null
+}
+
+/**
+ * The secret of a guest link, worked out from its row (event, who made it,
+ * when) and the server's key: always 43 base64url characters. Null when
+ * the server has no key.
+ */
+function deriveSecret (postId, createdById, madeAt) {
+  const key = linkKey()
+  if (!key) return null
+  return crypto.createHmac('sha256', key)
+    .update(`agora-guest-link-v1:${postId}:${createdById}:${new Date(madeAt).getTime()}`)
+    .digest('base64url')
+}
+
+/**
+ * The secret of a link that works now, so a member can see and copy it
+ * again, or null: no link, revoked, expired, or a link made before links
+ * could be shown again (its secret was random and is gone).
+ */
+function linkSecret (row, now = Date.now()) {
+  if (!row || row.revoked_at || new Date(row.expires_at).getTime() <= now) return null
+  const secret = deriveSecret(row.post_id, row.created_by_id, row.updated_at)
+  if (!secret || !sameHash(hashSecret(secret), row.token_hash)) return null
+  return secret
+}
+
 /** The guest link row of an event, if any. */
 function findLink (postId) {
   return bookshelf.knex('meeting_guest_links').where({ post_id: postId }).first()
@@ -104,10 +156,10 @@ function findLink (postId) {
 
 /**
  * Makes a new guest link for an event, replacing an earlier one.
- * Returns the secret, which is shown once and never stored.
+ * Returns the secret, which is never stored (see linkSecret).
  */
 async function createLink ({ post, userId, now = new Date() }) {
-  const secret = newSecret()
+  const secret = deriveSecret(post.id, userId, now) || newSecret()
   const expiresAt = defaultExpiry(post, now)
   const fields = {
     token_hash: hashSecret(secret),
@@ -255,7 +307,9 @@ module.exports = {
   cleanName,
   guestLabel,
   defaultExpiry,
+  canUseGuestLink,
   canManageGuestLink,
+  linkSecret,
   findLink,
   createLink,
   revokeLink,

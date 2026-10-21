@@ -147,9 +147,19 @@
   .about-notes { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 12px; font-size: 14px; }
   .about-notes p:last-child { margin-bottom: 0; }
 
+  .phone-only { display: none; }
   @media (max-width: 820px) {
-    #room { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 55%) minmax(0, 1fr); }
-    #side { border-left: 0; border-top: 1px solid var(--line); }
+    /* Agora: no chat on phones and narrow screens for now. The call gets the
+       space; below it stay who is here, the notes, End meeting and errors. */
+    #room { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+    #side { border-left: 0; border-top: 1px solid var(--line); max-height: 40vh; overflow-y: auto; }
+    #side .head h2, #chatHint, #messages, #chatForm, #chatError { display: none !important; }
+    #side .head { padding: 8px 16px 0; border-bottom: 0; }
+    #side .foot { border-top: 0; padding: 6px 16px 10px; gap: 6px; }
+    header { padding: 8px 12px; gap: 6px 12px; }
+    header .actions { gap: 6px; }
+    header .actions button { padding: 6px 10px; font-size: 14px; }
+    .phone-only { display: block; }
     .card { padding: 20px; }
   }
   @media (prefers-reduced-motion: reduce) { .pill .dot { box-shadow: none !important; } }
@@ -183,6 +193,7 @@
         <li>You can pause your notes at any moment, for something off the record.</li>
         <li>Next to the call there is a chat for everyone in the meeting. It is saved and goes into the minutes.</li>
       </ul>
+      <p class="notice phone-only" id="noChatOnPhone">On a phone or a narrow screen the chat is not shown for now. To read or write in the chat, use a computer.</p>
       <div id="guestIntro" hidden>
         <div class="field">
           <label for="guestName">Your name, as the others will see it</label>
@@ -301,6 +312,9 @@ let call = null;
 let pollTimer = null;
 let summaryTimer = null;
 const circle = BOOT.groupName || 'the circle';
+/* Agora: on phones and narrow screens there is no chat for now (same width as the CSS). */
+const narrowScreen = window.matchMedia('(max-width: 820px)');
+const chatShown = () => !narrowScreen.matches;
 
 /* ---------- Talking to Agora ---------- */
 
@@ -344,6 +358,7 @@ async function fetchLive() {
     // Guests learn whether the meeting is still going and get the chat, never the notes.
     const params = new URLSearchParams();
     if (state.chatAfter) params.set('chatAfter', state.chatAfter);
+    if (!chatShown()) params.set('noChat', '1');
     try {
       return await get('/status?' + params);
     } catch (e) {
@@ -351,7 +366,7 @@ async function fetchLive() {
       throw e;
     }
   }
-  return send('/live', { sessionId: state.sessionId, chatAfter: state.chatAfter });
+  return send('/live', { sessionId: state.sessionId, chatAfter: state.chatAfter, noChat: !chatShown() });
 }
 
 /* Pieces of speech wait here until they have been sent. */
@@ -774,6 +789,10 @@ function renderEnd(summary) {
     title = left ? 'You have left the call' : 'The meeting has ended';
     intro = left ? 'The meeting goes on for the others.' : '';
   }
+  // A meeting nobody ended by hand: say why it ended by itself.
+  const why = !left && summary && summary.endedByItself;
+  if (why === 'empty') intro = ('It ended by itself because nobody was in the room. ' + intro).trim();
+  if (why === 'too_long') intro = ('It ended by itself because it had been running for 8 hours. ' + intro).trim();
   $('endedTitle').textContent = state.endTitle || title;
   $('endedText').textContent = state.endText || intro;
   $('endedText').hidden = !(state.endText || intro);
@@ -910,7 +929,7 @@ async function join(withNotes) {
 
 async function sendMessage() {
   const text = $('chatText').value.trim();
-  if (!text || state.ended) return;
+  if (!text || state.ended || !chatShown()) return;
   $('chatSend').disabled = true;
   $('chatError').hidden = true;
   try {

@@ -1,13 +1,13 @@
 /**
  * Agora: the guest link of an event, on the event's own page.
  *
- * The person who made the event and the stewards of its circle can make a
- * link for people without an Agora account. Guests open it, give their name
+ * Every active member of the event's circle can see and copy the guest link,
+ * and make one when there is none (canUse). Guests open it, give their name
  * and join the same call as members (apps/backend/api/controllers/MeetingGuestController.js).
  *
- * The server keeps only a hash of the link, so the link is shown once, right
- * after it is made. Making a new one replaces the old one. Everyone else sees
- * nothing here: the server answers canManage: false.
+ * Only the person who made the event, the person who made the link and the
+ * circle's stewards can revoke it or replace it with a new one (canManage).
+ * People outside the circle see nothing here.
  */
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -59,7 +59,8 @@ export default function GuestLinkPanel ({ postId }) {
     try {
       const data = await call(base(postId), 'POST')
       setFreshUrl(data.url)
-      setInfo(current => ({ ...current, link: data.link }))
+      // whoever made the link may also revoke it
+      setInfo(current => ({ ...current, link: data.link, url: data.url, canManage: true }))
     } catch (e) {
       setError(e.message || t('Something went wrong. Try again in a minute.'))
     } finally {
@@ -74,7 +75,7 @@ export default function GuestLinkPanel ({ postId }) {
       await call(base(postId) + '/revoke', 'POST')
       setFreshUrl(null)
       setCopied(false)
-      setInfo(current => ({ ...current, link: null }))
+      setInfo(current => ({ ...current, link: null, url: null }))
     } catch (e) {
       setError(e.message || t('Something went wrong. Try again in a minute.'))
     } finally {
@@ -82,19 +83,22 @@ export default function GuestLinkPanel ({ postId }) {
     }
   }, [postId, t])
 
+  const shownUrl = freshUrl || info?.url || null
+
   const copy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(freshUrl)
+      await navigator.clipboard.writeText(shownUrl)
       setCopied(true)
     } catch (e) {
       setCopied(false)
       setError(t('Copying did not work. Select the link and copy it yourself.'))
     }
-  }, [freshUrl, t])
+  }, [shownUrl, t])
 
-  if (!info || !info.canManage) return null
+  if (!info || !(info.canUse || info.canManage)) return null
 
   const link = info.link
+  const working = link && !link.expired
   const buttonClass = 'border-2 border-foreground/20 rounded-lg px-3 py-1 text-sm hover:border-foreground/50 transition-all disabled:opacity-50'
 
   return (
@@ -111,12 +115,12 @@ export default function GuestLinkPanel ({ postId }) {
         <p className='text-foreground/70'>{t('Guest links need the call inside Agora, which is not switched on here.')}</p>
       )}
 
-      {info.available && freshUrl && (
+      {info.available && shownUrl && (
         <div className='flex flex-col gap-2'>
           <div className='flex flex-row gap-2 items-center'>
             <input
               readOnly
-              value={freshUrl}
+              value={shownUrl}
               aria-label={t('Guest link')}
               onFocus={e => e.target.select()}
               className='flex-1 min-w-0 bg-background border-2 border-foreground/20 rounded-md px-2 py-1 text-xs'
@@ -124,25 +128,27 @@ export default function GuestLinkPanel ({ postId }) {
             <button type='button' className={buttonClass} onClick={copy}>{copied ? t('Copied') : t('Copy')}</button>
           </div>
           <p className='text-foreground/70'>
-            {t('Copy it now: for safety Agora shows it only once. Anyone with this link can join the call until {{date}}, so share it only with the people you invite.', { date: formatDate(link?.expiresAt) })}
+            {t('Anyone with this link can join the call until {{date}}, so share it only with the people you invite.', { date: formatDate(link?.expiresAt) })}
           </p>
         </div>
       )}
 
-      {info.available && !freshUrl && link && (
+      {info.available && !shownUrl && link && (
         <p className='text-foreground/70'>
           {link.expired
             ? t('The guest link has expired.')
-            : t('There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.', { date: formatDate(link.expiresAt) })}
+            : info.canManage
+              ? t('There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.', { date: formatDate(link.expiresAt) })
+              : t('There is a guest link that works until {{date}}, made before Agora could show it again. Ask the person who made it or a steward of the circle.', { date: formatDate(link.expiresAt) })}
         </p>
       )}
 
-      {info.available && (
+      {info.available && (!working || info.canManage) && (
         <div className='flex flex-row flex-wrap gap-2 mt-2'>
           <button type='button' className={buttonClass} onClick={make} disabled={busy}>
-            {link ? t('Make a new guest link') : t('Make a guest link')}
+            {working ? t('Make a new guest link') : t('Make a guest link')}
           </button>
-          {link && !link.expired && (
+          {working && info.canManage && (
             <button type='button' className={buttonClass} onClick={revoke} disabled={busy}>{t('Revoke')}</button>
           )}
         </div>
