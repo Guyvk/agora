@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import createPost from './post/createPost'
 import { guestLabel } from '../../lib/agora/meetingGuests'
 import { reasonToEnd, listMessages, whoTookPart } from '../../lib/agora/meetingChat'
+import KdriveMinutes from '../../lib/agora/kdriveMinutes'
 
 /**
  * Agora: one meeting held on an event.
@@ -274,6 +275,27 @@ module.exports = bookshelf.Model.extend({
       minutes_post_id: minutesPost.id
     }, { patch: true })
 
+    // A copy of the minutes in each circle's kDrive folder, when kDrive is set
+    // up. It never stops the minutes: a failure is logged and tried once more.
+    try {
+      await KdriveMinutes.copy({
+        sessionId,
+        groupIds: groups.map(g => g.id),
+        fileName: KdriveMinutes.fileNameFor(date, title),
+        markdown: MeetingMinutes.renderMarkdown({ title, date, minutes, attendees, guests, lines, chat, startedAt, error })
+      })
+    } catch (err) {
+      sails.log.error(`MeetingSession.finalize: no kDrive copy of the minutes of session ${sessionId}: ${err.message}`)
+    }
+
     return minutesPost
+  },
+
+  /**
+   * Worker job: tries once more to save the copy of the minutes in kDrive,
+   * for the circles where the first try failed (lib/agora/kdriveMinutes.js).
+   */
+  copyMinutesToKdrive: async function ({ sessionId, groupIds, fileName, markdown, attempt }) {
+    await KdriveMinutes.copy({ sessionId, groupIds, fileName, markdown, attempt })
   }
 })

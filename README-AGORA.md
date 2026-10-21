@@ -14,6 +14,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
+| Each circle's files in kDrive | A Files page per circle shows its own folder in 7BP's kDrive at Infomaniak. Members of the circle open folders, download, add files and make folders; whoever added something, and the stewards, rename and delete it. Meeting minutes are also saved there. Used instead of Google Drive once its settings are filled in | `apps/backend/agora/kdrive-files.html`, `api/controllers/AgoraKdriveController.js`, `lib/agora/kdrive.js`, `lib/agora/kdriveCircles.js`, `lib/agora/kdriveMinutes.js` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with, team members as well as people outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
@@ -131,6 +132,54 @@ Members can invite people who have no Agora account into a meeting, so the call 
 - Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
 - The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
 - The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
+
+## Files in kDrive
+
+7BP keeps its files in kDrive, Infomaniak's file storage in Switzerland (1000 GB). Once Agora has a key to it, every circle has its own folder there, and its Files page in Agora shows that folder. This replaces Google Drive (below): as soon as the three kDrive settings (token, drive number and top folder) are filled in, the Files pages use kDrive. The Google Drive code stays, for if it is ever wanted.
+
+**Where the page is.** Each circle's Files page is at `/noo/agora/files/<circle>`, where `<circle>` is the last part of the circle's address (for example `governance` in `/groups/governance`). A steward adds a link to it in the circle's menu, in the circle's settings.
+
+**What members can do there:**
+
+- See the folders and files of their circle: name, size, date, and who added it (when it was added through Agora).
+- Open folders, and go back through the line of folders at the top.
+- **Download** a file. It comes through Agora: the browser never gets a kDrive link or key.
+- **Add files**: pick one or more, or drop them on the list. Up to 100 MB a file (`AGORA_KDRIVE_MAX_UPLOAD_MB`). Empty files are refused. A file with a name that is already there gets a new name (`plan (1).pdf`), so nothing is overwritten.
+- **New folder**: makes a folder in the folder that is open.
+- **Rename** and **Delete**: only for the member who added that file or folder in Agora, and for the circle's stewards (Administration or Manage Content). Deleting moves it to kDrive's bin, where a kDrive administrator can put it back for a while. The circle's `Minutes` folder is only for the minutes: nobody can rename or delete it from Agora or add anything to it, and nothing else at the top of the circle's folder (file or folder) can be called Minutes. If a file called Minutes was put there in kDrive itself, Agora keeps the minutes in `Minutes (Agora)` instead.
+
+**Who sees what.** Only active members of the circle see its files. The server checks this for every list, download, upload and change, not only the page. Agora never shows or touches anything outside the circle's folder: every file or folder is checked to be inside it. A space (a smaller group inside a circle) gets its own folder inside the circle's folder; members of the circle do not see it from the circle's page, only members of the space do, from the space's own Files page. These are files of 7BP people, so treat them as personal data: travel receipts with bank numbers, for example, do not belong here until 7BP has agreed how it handles such data.
+
+**Meeting minutes.** When the assistant posts a meeting's minutes, Agora also saves them as a text file (Markdown) in the circle's folder, in a folder called `Minutes`, named `2026-10-21 <meeting title>.md`, with the same content as the post: the summary and who was there, or, when no summary could be written, the transcript and the chat. If kDrive does not answer, the minutes post still appears; Agora writes the problem to its log and tries the copy once more 15 minutes later.
+
+**How the folders are made.** Agora makes a circle's folder the first time a member opens its Files page (or the first time its minutes are saved), called `<circle name> (<circle address>)`, for example `Governance (governance)`, and remembers its number. Renaming the circle or the folder later changes nothing. All circle folders go into one top folder, the one in `AGORA_KDRIVE_ROOT_FOLDER_ID`. That setting is required: without it Agora does not use kDrive, and it never makes a top folder itself. You make the folder and decide who in 7BP's kDrive itself can open it: everyone who can open it in kDrive (outside Agora) sees all circles' files.
+
+**Big files.** Agora passes files on to kDrive as they arrive and never keeps a copy. Files above 64 MB go to kDrive in pieces of 16 MB, so Agora's server never holds more than one piece in its memory. On a slow connection a very big upload can take long; keep the page open until it says "Added".
+
+### Setting it up
+
+Once, by Guy (or another kDrive administrator of 7BP):
+
+1. **Make the key (the API token).** Log in at [manager.infomaniak.com](https://manager.infomaniak.com) with the account that manages 7BP's kDrive. Click your name or picture at the top right, choose **My profile**, then **Developer** (some screens call it **API tokens** or **Token management**). Choose **Create a token**. Give it the name `Agora`, choose the scope (Infomaniak calls it a "scope" or "rights") **drive** only, and the longest validity offered. Click **Create**. Infomaniak shows the token **once**: copy it straight away and put it in the password manager. Never paste it into a chat, an email or GitHub.
+2. **Find the drive number.** Open kDrive in your browser. Its address looks like `https://ksuite.infomaniak.com/kdrive/app/drive/123456/files` (or `kdrive.infomaniak.com/app/drive/123456/...`): the number after `/drive/` is the drive number.
+3. **The top folder (required).** In kDrive, make a folder for Agora, for example `Agora`, and share it in kDrive only with the people who should also see all circles' files outside Agora. Open it: the number at the end of the address (`.../files/7`) is its number.
+4. **Tell Agora.** On the server, in `/srv/agora/apps/backend/.env` (on a Mac: `apps/backend/.env`), type in yourself:
+
+   | Setting | What to put there |
+   | --- | --- |
+   | `AGORA_KDRIVE_TOKEN` | The token from step 1. Secret |
+   | `AGORA_KDRIVE_DRIVE_ID` | The drive number from step 2 |
+   | `AGORA_KDRIVE_ROOT_FOLDER_ID` | The folder number from step 3. Required |
+   | `AGORA_KDRIVE_MAX_UPLOAD_MB` | The largest file a member may add, in MB. Empty means 100 |
+
+5. **Update the database and restart.** On the server, `agora/vps/update.sh` does both: it runs `yarn migrate` (which adds the two tables that remember the circle folders and who added what) and restarts Agora. On a Mac: `yarn migrate` in `apps/backend`, then restart with `./agora/start.sh`.
+6. **Check.** Open a circle's Files page as a member. The first time it makes the circle's folder; you see it appear in kDrive. The admin area (`/admin`, System) shows "kDrive (circle files): Yes", or "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing" when only the top folder is missing.
+
+The token works for everything the account that made it can reach in kDrive. Agora only uses it inside its own top folder, but whoever has the token could do more, so keep it as secret as a password. If it leaks, delete it in the same Developer page and make a new one.
+
+The key is never shown: not in Agora's pages, not in the admin area, not in error messages and not in the log. Agora sends it only to Infomaniak's own addresses.
+
+**Limits.** kDrive limits how many calls a key may make (about 60 a minute, according to others who use it). Agora makes at most 50 a minute from the website and 50 from the worker, and waits and tries again when kDrive says it is busy. With many people on the Files pages at once, a page can then say "kDrive is busy. Try again in a minute."
 
 ## Google Drive
 
@@ -322,7 +371,7 @@ For both: the account must be switched on, and an email address only counts when
   The internal note and the builder task are for the Help desk only.
 - **Invitations**: every circle invitation in one list, with its circle, who sent it, when it was made and last sent, how often it was sent, and what became of it: waiting, accepted (by whom and when) or expired or withdrawn. Filter by status and circle. For a waiting invitation: copy its link, send it again (Hylo's own invitation email) or withdraw it. Below that, each circle's join link (to copy) and the join requests that wait. Hylo does not record who joined through a join link, so the page shows how many members joined without an email invitation (through the join link, a join request, or added by a steward).
 - **Accounts**: everyone with an account, with email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
-- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
+- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, kDrive, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
 - **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended and Help desk requests. It is put together from what Agora already stores, so it needs nothing new.
 
 ### Let someone in
