@@ -7616,3 +7616,72 @@ ALTER TABLE ONLY public.meeting_guests
 
 ALTER TABLE ONLY public.meeting_segments
     ADD CONSTRAINT meeting_segments_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: Agora-wide roles given in the admin area, and the log of their changes.
+-- Added by migrations/20261020120000_add_agora_roles.js
+--
+
+CREATE TABLE public.agora_roles (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role character varying(20) NOT NULL,
+    granted_by_id bigint,
+    created_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_roles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_roles_id_seq OWNED BY public.agora_roles.id;
+
+ALTER TABLE ONLY public.agora_roles ALTER COLUMN id SET DEFAULT nextval('public.agora_roles_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_roles
+    ADD CONSTRAINT agora_roles_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_roles
+    ADD CONSTRAINT agora_roles_user_id_unique UNIQUE (user_id);
+
+ALTER TABLE ONLY public.agora_roles
+    ADD CONSTRAINT agora_roles_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_roles
+    ADD CONSTRAINT agora_roles_granted_by_id_foreign FOREIGN KEY (granted_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_role_changes (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    changed_by_id bigint,
+    from_role character varying(20) NOT NULL,
+    to_role character varying(20) NOT NULL,
+    created_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_role_changes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_role_changes_id_seq OWNED BY public.agora_role_changes.id;
+
+ALTER TABLE ONLY public.agora_role_changes ALTER COLUMN id SET DEFAULT nextval('public.agora_role_changes_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_role_changes
+    ADD CONSTRAINT agora_role_changes_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_role_changes_user_id_index ON public.agora_role_changes USING btree (user_id);
+
+CREATE INDEX agora_role_changes_created_at_index ON public.agora_role_changes USING btree (created_at);
+
+ALTER TABLE ONLY public.agora_role_changes
+    ADD CONSTRAINT agora_role_changes_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_role_changes
+    ADD CONSTRAINT agora_role_changes_changed_by_id_foreign FOREIGN KEY (changed_by_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
