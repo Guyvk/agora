@@ -539,6 +539,7 @@ async function system (userId) {
   const Help = require('./help')
   const Transcription = require('../../api/services/Transcription')
   const drive = require('./drive')
+  const kdrive = require('./kdrive')
   const { isInviteOnly } = require('./signup')
   const meetDomain = String(process.env.AGORA_MEET_DOMAIN || '').trim()
 
@@ -557,6 +558,7 @@ async function system (userId) {
       email: emailStatus(),
       googleDrive: drive.isConfigured(),
       driveUploads: drive.uploadsEnabled(),
+      kdrive: kdrive.isConfigured(),
       meetDomain: meetDomain || null,
       inviteOnly: isInviteOnly()
     },

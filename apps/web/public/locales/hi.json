@@ -3193,5 +3193,6 @@
   "Log out to accept it as {{email}}.": "इसे {{email}} के रूप में स्वीकार करने के लिए लॉग आउट करें।",
   "Log out and continue": "लॉग आउट करें और आगे बढ़ें",
   "Stay logged in as {{name}}": "{{name}} के रूप में लॉग इन रहें",
-  "Your invitation was sent to this address.": "आपका निमंत्रण इसी पते पर भेजा गया था।"
+  "Your invitation was sent to this address.": "आपका निमंत्रण इसी पते पर भेजा गया था।",
+  "kDrive (circle files)": "kDrive (सर्कलों की फ़ाइलें)"
 }

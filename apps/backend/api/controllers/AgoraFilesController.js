@@ -1,5 +1,7 @@
 /**
  * Agora: a circle's Files page, a live view of its Google Drive folder.
+ * When Infomaniak kDrive is set up (AGORA_KDRIVE_TOKEN and AGORA_KDRIVE_DRIVE_ID),
+ * the page shows the circle's kDrive folder instead: see AgoraKdriveController.
  *
  *   GET  /noo/agora/files/<circle>                 the page, for anyone logged in to Agora
  *   GET  /noo/agora/files/<circle>/list            what the page shows, for members of the circle
@@ -31,17 +33,20 @@ import path from 'path'
 import { Transform } from 'stream'
 import Drive from '../../lib/agora/drive'
 import DriveLinks from '../../lib/agora/driveLinks'
+import Kdrive from '../../lib/agora/kdrive'
 
 const PAGE_PATH = path.join(__dirname, '..', '..', 'agora', 'files.html')
+// When the files are in Infomaniak kDrive (lib/agora/kdrive.js), this page is sent instead.
+const KDRIVE_PAGE_PATH = path.join(__dirname, '..', '..', 'agora', 'kdrive-files.html')
 // The largest file that may go through Agora's own server.
 const RELAY_LIMIT = 25 * 1024 * 1024
-let pageTemplate = null
+const pageTemplates = {}
 
-function loadPage () {
-  if (!pageTemplate || process.env.NODE_ENV === 'development') {
-    pageTemplate = fs.readFileSync(PAGE_PATH, 'utf8')
+function loadPage (file = PAGE_PATH) {
+  if (!pageTemplates[file] || process.env.NODE_ENV === 'development') {
+    pageTemplates[file] = fs.readFileSync(file, 'utf8')
   }
-  return pageTemplate
+  return pageTemplates[file]
 }
 
 function webUrl (pathname) {
@@ -154,16 +159,24 @@ module.exports = {
     const group = await loadCircle(req, res)
     if (!group) return
 
+    // kDrive, when it is set up, comes before Google Drive.
+    const useKdrive = Kdrive.isConfigured()
+    let locale = 'en'
+    if (useKdrive) {
+      const user = await User.find(req.session.userId)
+      locale = String((user && user.getLocale()) || 'en').slice(0, 2).toLowerCase()
+    }
     const boot = {
       circleName: group.get('name'),
       circleUrl: webUrl(`/groups/${group.get('slug')}`),
-      api: `/noo/agora/files/${group.get('slug')}`
+      api: `/noo/agora/files/${group.get('slug')}${useKdrive ? '/kd' : ''}`,
+      locale
     }
     // A function is used so that "$" in a name is not read as a replace pattern.
     const bootJson = JSON.stringify(boot).replace(/</g, '\\u003c')
     res.set('Content-Type', 'text/html; charset=utf-8')
     res.set('Cache-Control', 'no-store')
-    return res.send(loadPage().replace('"__AGORA_BOOT__"', () => bootJson))
+    return res.send(loadPage(useKdrive ? KDRIVE_PAGE_PATH : PAGE_PATH).replace('"__AGORA_BOOT__"', () => bootJson))
   },
 
   /**

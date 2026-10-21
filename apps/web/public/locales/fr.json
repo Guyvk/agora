@@ -3192,5 +3192,6 @@
   "Log out to accept it as {{email}}.": "Déconnectez-vous pour l'accepter en tant que {{email}}.",
   "Log out and continue": "Se déconnecter et continuer",
   "Stay logged in as {{name}}": "Rester connecté·e en tant que {{name}}",
-  "Your invitation was sent to this address.": "Votre invitation a été envoyée à cette adresse."
+  "Your invitation was sent to this address.": "Votre invitation a été envoyée à cette adresse.",
+  "kDrive (circle files)": "kDrive (fichiers des cercles)"
 }
