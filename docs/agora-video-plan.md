@@ -108,25 +108,26 @@ sudo systemctl restart agora-api agora-worker
 - Everyone opens the room address and logs in.
 - Check: the page says "This meeting writes its own minutes" (not "Notes are off"). If it says notes are off, the address or key is missing.
 - Three people press "Join the meeting". One person presses "Join, but keep my voice out of the notes".
-- Check: the call appears inside the page (kMeet), everyone sees and hears each other, the browser asks for the microphone once or twice, and the pill at the top says "Listening". The person without notes sees "Your voice is not in the notes". The "Here:" line lists everyone, with "(not in notes)" after one name.
+- Check: the call appears inside the page (kMeet), everyone sees and hears each other, the browser asks for the microphone once or twice, and each person's pill says "Notes on". The line "Notes are being taken for the minutes. They are not shown during the meeting." is there, and kMeet's chat, record, stream and subtitles buttons are gone. The person without notes sees "Your voice is not in the notes". The "Here:" line lists everyone, with "(not in notes)" after one name.
 - Log: `POST /noo/meeting/<id>/join` lines in agora-api.
 
 **Minute 2 to 6: talking.**
 - Each person says two or three full sentences in turn, with their name in them ("This is Amara, I will write the agenda by Friday"). Then one short exchange where two people talk over each other.
-- Check: lines appear in "Notes so far" within about 5 to 10 seconds, under the right name, in the right order.
+- Check: no notes appear on screen (on purpose). One member and the guest (if any) each send a chat message: it shows for everyone within about 3 seconds, the guest as "Name (guest)".
 - Worker log, per piece: `Job N: MeetingSegment.transcribe` then `Job N: done`. An error line here means speech to text fails: a `401` or `403` is the key or product id, `422 validation_rule_mimes` is the sound format (note which browser), `was not ready within 120 seconds` means Infomaniak is slow.
 - If something fails, the room now shows: "Speech to text is having trouble ...".
 
 **Minute 6 to 8: mute and pause.**
-- One person mutes in the kMeet bar: their pill says "You are muted" and nothing of theirs appears. Unmute: "Listening" again.
+- One person mutes in the kMeet bar: their pill says "You are muted" and nothing of theirs appears. Unmute: "Notes on" again.
 - One person presses "Pause my notes", says a sentence, presses "Resume my notes". That sentence must **not** appear.
 - The person who joined without notes speaks: they must be heard in the call, and nothing must appear under their name.
 
 **Minute 8 to 10: ending.**
-- One person presses "End meeting", then confirms.
-- Check: everyone's page changes to "The meeting has ended" (within about 4 seconds for the others). Within about 1 to 2 minutes the page says "The minutes are posted in the group" with a link.
+- One person presses "Leave the call": they get Agora's end screen (no kMeet page or feedback form), the meeting goes on for the others, and "Join the call again" works.
+- One person presses "End meeting for everyone", then confirms.
+- Check: everyone gets Agora's end screen (within about 4 seconds for the others): title, date, length, who took part, number of chat messages. Within about 1 to 2 minutes "Read the minutes" appears.
 - Worker log: `MeetingSession.finalize`, then `done`.
-- Open the minutes post: transcript with names and times, "Who was there" with all four names.
+- Open the minutes post in the circle: summary, transcript with names and times, "Chat during the meeting", and "Who was there" with all names.
 
 **Optional check in the database** (read only):
 `sudo -u postgres psql agora -c "select status, count(*), max(error) from meeting_segments group by status"`
