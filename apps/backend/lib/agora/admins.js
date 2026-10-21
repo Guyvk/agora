@@ -61,12 +61,14 @@ function isAgoraAdmin (userId) {
  * another query (for example "where exists (...)"), for places that build a
  * query without waiting for an answer, such as the GraphQL person filter.
  * It finds one row when this user is an Agora admin and none otherwise.
- * Returns null when nobody can be an admin for this user id, so callers can
- * leave the condition out.
+ * Counts both the AGORA_ADMINS setting and the admin role given in the admin
+ * area (agora_roles). Returns null for a missing or odd user id, so callers
+ * can leave the condition out.
  */
 function agoraAdminQuery (userId) {
   const list = agoraAdminList()
-  if (!userId || list.length === 0) return null
+  // Agora: admins can also be given in the admin area (table agora_roles), so an empty setting no longer means nobody
+  if (!userId) return null
   if (!/^\d+$/.test(String(userId))) return null
   const ids = list.filter(entry => /^\d+$/.test(entry))
   const emails = list.filter(entry => !/^\d+$/.test(entry))
@@ -76,6 +78,8 @@ function agoraAdminQuery (userId) {
     .where('agora_admin.active', true)
     .where(q => {
       q.whereRaw('false')
+      q.orWhereExists(knex()('agora_roles').select(knex().raw('1'))
+        .whereRaw('agora_roles.user_id = agora_admin.id').where('agora_roles.role', 'admin'))
       if (ids.length > 0) q.orWhereIn('agora_admin.id', ids)
       if (emails.length > 0) {
         q.orWhere(q2 => q2.where('agora_admin.email_validated', true).whereIn(knex().raw('lower(agora_admin.email)'), emails))

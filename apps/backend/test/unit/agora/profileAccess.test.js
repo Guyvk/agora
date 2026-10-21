@@ -129,6 +129,17 @@ describe('Agora profiles', () => {
     expect(Admins.agoraAdminQuery('1 or 1=1')).to.equal(null)
   })
 
+  it('also counts an admin given in the admin area', async () => {
+    const isAdmin = async id => (await Admins.agoraAdminQuery(id)).length > 0
+    expect(await isAdmin(amara.id)).to.equal(false)
+    await bookshelf.knex('agora_roles').insert({ user_id: amara.id, role: 'admin', created_at: new Date() })
+    try {
+      expect(await isAdmin(amara.id)).to.equal(true)
+    } finally {
+      await bookshelf.knex('agora_roles').where({ user_id: amara.id }).del()
+    }
+  })
+
   describe('profile links in emails', () => {
     it('put the name after the id', () => {
       expect(Frontend.Route.profile(mariam)).to.match(/\/members\/\d+-mariam$/)
