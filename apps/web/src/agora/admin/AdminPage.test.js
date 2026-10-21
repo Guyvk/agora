@@ -42,8 +42,13 @@ const responses = {
     total: 1,
     email: noMail,
     circles: [{ id: '1', name: 'Governance', slug: 'governance' }],
-    accounts: [{ id: '2', name: 'Amara', email: 'amara@agora.test', state: 'active', emailConfirmed: true, joinedAt: '2026-10-01T08:00:00Z', lastActiveAt: null, circles: [{ id: '1', name: 'Governance' }], isAgoraAdmin: false, isMe: false }]
+    accounts: [
+      { id: '2', name: 'Amara', email: 'amara@agora.test', state: 'active', emailConfirmed: true, joinedAt: '2026-10-01T08:00:00Z', lastActiveAt: null, circles: [{ id: '1', name: 'Governance' }], role: 'member', roleSetOnServer: false, isAgoraAdmin: false, isMe: false },
+      { id: '1', name: 'Guy', email: 'guy@agora.test', state: 'active', emailConfirmed: true, joinedAt: '2026-10-01T08:00:00Z', lastActiveAt: null, circles: [], role: 'admin', roleSetOnServer: true, isAgoraAdmin: true, isMe: true },
+      { id: '5', name: 'Helper', email: 'helper@agora.test', state: 'deactivated', emailConfirmed: true, joinedAt: '2026-10-01T08:00:00Z', lastActiveAt: null, circles: [], role: 'helpdesk', roleSetOnServer: true, isAgoraAdmin: false, isMe: false }
+    ]
   },
+  '/accounts/2/role': { ok: true, from: 'member', role: 'admin', emailed: false, email: noMail },
   '/accounts/let-in': { kind: 'signup', email: 'newcomer@agora.test', link: 'https://agora.example.org/signup/verify-email?email=newcomer%40agora.test&token=t0k', hoursValid: 4, emailStatus: noMail },
   '/invitations/10/resend': { ok: true, email: noMail },
   '/accounts/2/deactivate': { ok: true },
@@ -65,7 +70,8 @@ const responses = {
     hasMore: false,
     events: [
       { kind: 'invited', at: '2026-10-18T08:00:00Z', person: { id: '1', name: 'Guy' }, circle: { id: '1', name: 'Governance' }, detail: 'new@agora.test' },
-      { kind: 'meeting_ended', at: '2026-10-17T08:00:00Z', person: null, circle: null, meeting: { postId: '9', title: 'Weekly call' } }
+      { kind: 'meeting_ended', at: '2026-10-17T08:00:00Z', person: null, circle: null, meeting: { postId: '9', title: 'Weekly call' } },
+      { kind: 'role_changed', at: '2026-10-16T08:00:00Z', person: { id: '1', name: 'Guy' }, circle: null, meeting: null, detail: null, target: { id: '6', name: 'David' }, role: { from: 'member', to: 'admin' } }
     ]
   }
 }
@@ -171,6 +177,65 @@ describe('AdminPage', () => {
     await waitFor(() => expect(calls.find(c => c.url.endsWith('/accounts/2/deactivate'))).toBeDefined())
   })
 
+  describe('roles on the Accounts tab', () => {
+    const roleCalls = () => calls.filter(c => c.url.endsWith('/role'))
+
+    it('shows each role, and does not let the page change roles from the server settings or your own', async () => {
+      fakeServer()
+      renderAt('accounts')
+      expect(await screen.findByText('Admin (set on the server)')).toBeInTheDocument()
+      expect(screen.getByText('Help desk (set on the server)')).toBeInTheDocument()
+      // Only Amara's role can be chosen: Guy is named on the server (and is you), Helper too
+      const selects = screen.getAllByLabelText('Role')
+      expect(selects).toHaveLength(1)
+      expect(selects[0]).toHaveValue('member')
+      expect([...selects[0].options].map(o => o.textContent)).toEqual(['Member', 'Help desk', 'Admin'])
+    })
+
+    it('asks on the page before making someone an admin, and then sends it', async () => {
+      fakeServer()
+      renderAt('accounts')
+      fireEvent.change(await screen.findByLabelText('Role'), { target: { value: 'admin' } })
+      expect(screen.getByText(/Make Amara an admin\? Admins can open the whole admin area/)).toBeInTheDocument()
+      expect(roleCalls()).toHaveLength(0)
+      expect(window.confirm).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByText('Yes, make it Admin'))
+      expect(await screen.findByText('Done: Amara is now Admin.')).toBeInTheDocument()
+      expect(roleCalls()).toHaveLength(1)
+      expect(roleCalls()[0].url).toBe('/noo/agora/admin/api/accounts/2/role')
+      expect(roleCalls()[0].options.method).toBe('POST')
+      expect(roleCalls()[0].options.headers['X-Agora']).toBe('1')
+      expect(roleCalls()[0].body).toEqual({ role: 'admin' })
+      expect(window.confirm).not.toHaveBeenCalled()
+    })
+
+    it('sends nothing when the change is cancelled', async () => {
+      fakeServer()
+      renderAt('accounts')
+      const select = await screen.findByLabelText('Role')
+      fireEvent.change(select, { target: { value: 'helpdesk' } })
+      expect(screen.getByText(/Let Amara run the Help desk\?/)).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Cancel'))
+      expect(screen.queryByText(/Let Amara run the Help desk\?/)).not.toBeInTheDocument()
+      expect(select).toHaveValue('member')
+      expect(roleCalls()).toHaveLength(0)
+    })
+
+    it('shows the reason when the server refuses', async () => {
+      fakeServer()
+      const answer = global.fetch
+      global.fetch = jest.fn(async (url, options) => url.endsWith('/role')
+        ? { ok: false, status: 409, json: async () => ({ error: 'Only an account that is switched on can get a role.' }) }
+        : answer(url, options))
+      renderAt('accounts')
+      const select = await screen.findByLabelText('Role')
+      fireEvent.change(select, { target: { value: 'admin' } })
+      fireEvent.click(screen.getByText('Yes, make it Admin'))
+      expect(await screen.findByText('Only an account that is switched on can get a role.')).toBeInTheDocument()
+      expect(select).toHaveValue('member')
+    })
+  })
+
   it('shows the system and says to check on the server what it cannot read', async () => {
     fakeServer()
     renderAt('system')
@@ -185,6 +250,7 @@ describe('AdminPage', () => {
     renderAt('activity')
     expect(await screen.findByText('Guy invited new@agora.test to Governance')).toBeInTheDocument()
     expect(screen.getByText('The meeting "Weekly call" ended')).toBeInTheDocument()
+    expect(screen.getByText('Guy changed the role of David from Member to Admin')).toBeInTheDocument()
   })
 
   it('sends the old Help desk address to the Help desk tab', async () => {

@@ -2,7 +2,8 @@
  * Agora: the server part of the admin dashboard, see lib/agora/adminDashboard.js.
  * The page itself is part of the web app, at /admin.
  *
- *   /noo/agora/admin/api/...   for Agora admins only (AGORA_ADMINS)
+ *   /noo/agora/admin/api/...   for Agora admins only (AGORA_ADMINS, or the role
+ *                              'admin' given on the Accounts tab, see admins.js)
  *
  * Every action needs a login (see config/policies.js), and every action checks
  * itself that the person is an Agora admin; anyone else is told the page does
@@ -76,6 +77,10 @@ module.exports = {
 
   reactivate: action(async (req, res, userId) => {
     res.ok(await Dashboard.reactivate(userId, req.param('accountId')))
+  }),
+
+  setRole: action(async (req, res, userId) => {
+    res.ok(await Dashboard.setRole(userId, req.param('accountId'), b(req).role))
   }),
 
   system: action(async (req, res, userId) => {

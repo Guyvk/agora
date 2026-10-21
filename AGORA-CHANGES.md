@@ -98,6 +98,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
 | `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
+| `apps/backend/config/routes.js` (admin roles) | The address where an Agora admin changes someone's role on the Accounts tab; it checks for an Agora admin itself |
+| `apps/backend/migrations/schema.sql` (admin roles) | The table of Agora-wide roles (`agora_roles`) and the log of their changes (`agora_role_changes`) |
+| `apps/backend/.env.example` (admin roles) | `AGORA_ADMINS` says roles can also be given in the admin area, and that the setting is the fallback |
+| `apps/web/public/locales/en.json` (admin roles) | The texts of the role control on the Accounts tab and of a role change in the Activity log, in English only for now |
 | `apps/web/src/routes/ChatRoom/ChatRoom.js` | The chat list is Agora's own `AgoraMessageList` instead of Hylo's paid `@virtuoso.dev/message-list`, which needs a licence key and without one showed only a red licence notice and no messages. Same props, no licence wrapper |
 | `apps/web/src/routes/ChatRoom/ChatRoom.module.scss` | The phone rule for the chat scroller points at the new list |
 | `apps/web/src/routes/ChatRoom/ChatRoom.test.js` | No longer pretends the paid list is there |

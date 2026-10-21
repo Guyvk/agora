@@ -10,7 +10,8 @@
  *   Invitations   every circle invitation with what became of it; resend,
  *                 revoke, copy the link; each circle's join link; join requests
  *   Accounts      everyone with an account; "Let someone in"; deactivate and
- *                 reactivate (never delete)
+ *                 reactivate (never delete); each person's role (Member, Help
+ *                 desk, Admin), which an admin can change (see admins.js)
  *   System        version, uptime, disk, which outside services are set up,
  *                 backups. Never a key, password or token
  *   Activity      the latest important events, from the tables Agora already has
@@ -312,10 +313,6 @@ function accountState (row) {
   return row.finished ? 'deactivated' : 'unfinished'
 }
 
-function isListedRow (row, list) {
-  return list.includes(String(row.id)) || Boolean(row.email_validated && row.email && list.includes(String(row.email).toLowerCase()))
-}
-
 async function accounts (userId, { search, state, page } = {}) {
   await requireAdmin(userId)
   if (state && !['active', 'deactivated', 'unfinished'].includes(state)) throw new AdminError(400, 'That choice is not valid.')
@@ -357,7 +354,7 @@ async function accounts (userId, { search, state, page } = {}) {
   const circlesOf = {}
   for (const m of memberships) (circlesOf[m.user_id] = circlesOf[m.user_id] || []).push({ id: String(m.id), name: m.name, slug: m.slug })
 
-  const adminList = Admins.agoraAdminList()
+  const tableRoles = await Admins.rolesOf(ids)
   return {
     page: current,
     pageSize: PAGE_SIZE,
@@ -375,11 +372,64 @@ async function accounts (userId, { search, state, page } = {}) {
         joinedAt: iso(row.created_at),
         lastActiveAt: times.length ? iso(Math.max(...times)) : null,
         circles: circlesOf[row.id] || [],
-        isAgoraAdmin: row.active === true && isListedRow(row, adminList),
+        ...roleFields(row, tableRoles[String(row.id)]),
         isMe: String(row.id) === String(userId)
       }
     })
   }
+}
+
+/**
+ * The role shown on the Accounts tab. role: 'admin', 'helpdesk' or 'member'.
+ * roleSetOnServer: the settings in .env give this role, so the page cannot
+ * change it. A switched off account has no role in effect, but its role is
+ * still shown, so an admin can take it away.
+ */
+function roleFields (row, tableRole) {
+  const server = Admins.serverRoleOf(row)
+  const role = server || tableRole || 'member'
+  return {
+    role,
+    roleSetOnServer: Boolean(server),
+    isAgoraAdmin: row.active === true && role === 'admin'
+  }
+}
+
+/**
+ * Changes someone's role (admins.js checks the rules), and tells them by
+ * email when they got one. Agora's own email sender, so without a mailbox it
+ * only goes into the log.
+ */
+async function setRole (userId, rawId, role, { sendEmail } = {}) {
+  await requireAdmin(userId)
+  let change
+  try {
+    change = await Admins.changeRole(userId, rawId, role)
+  } catch (err) {
+    if (err instanceof Admins.RoleError) throw new AdminError(err.status, err.message)
+    throw err
+  }
+  let emailed = false
+  if (change.to !== 'member' && change.user.email) {
+    const send = sendEmail || defaultSendEmail
+    try {
+      emailed = await send({
+        email_id: 'agora_role_given',
+        recipient: { address: change.user.email },
+        sender: { address: process.env.EMAIL_SENDER, name: process.env.AGORA_EMAIL_SENDER_NAME || 'Agora' },
+        email_data: { role: change.to, name: change.user.name, url: appUrl(change.to === 'admin' ? '/admin' : '/admin/help-desk') }
+      })
+    } catch (err) {
+      console.error('Agora admin: the role email could not be sent:', err && err.message)
+      emailed = false
+    }
+  }
+  return { ok: true, from: change.from, role: change.to, emailed: Boolean(emailed), email: emailStatus() }
+}
+
+function defaultSendEmail (options) {
+  const mailer = require('./mailer')
+  return new Promise(resolve => mailer.send(options, (err, result) => resolve(!err && Boolean(result) && !(result && result.skipped))))
 }
 
 /**
@@ -569,27 +619,29 @@ async function system (userId) {
 /* ----------------------------------------------------------------------- */
 
 const EVENTS_SQL = `
-  select kind, at, user_id, group_id, post_id, detail from (
-    select 'signup' as kind, u.created_at as at, u.id as user_id, null::bigint as group_id, null::bigint as post_id, null::text as detail
+  select kind, at, user_id, group_id, post_id, detail, target_id from (
+    select 'signup' as kind, u.created_at as at, u.id as user_id, null::bigint as group_id, null::bigint as post_id, null::text as detail, null::bigint as target_id
       from users u where u.name is not null
     union all
-    select 'invited', gi.created_at, gi.invited_by_id, gi.group_id, null, gi.email from group_invites gi
+    select 'invited', gi.created_at, gi.invited_by_id, gi.group_id, null, gi.email, null from group_invites gi
     union all
-    select 'invitation_accepted', gi.used_at, gi.used_by_id, gi.group_id, null, gi.email from group_invites gi where gi.used_at is not null
+    select 'invitation_accepted', gi.used_at, gi.used_by_id, gi.group_id, null, gi.email, null from group_invites gi where gi.used_at is not null
     union all
-    select 'invitation_revoked', gi.expired_at, gi.expired_by_id, gi.group_id, null, gi.email from group_invites gi where gi.expired_at is not null
+    select 'invitation_revoked', gi.expired_at, gi.expired_by_id, gi.group_id, null, gi.email, null from group_invites gi where gi.expired_at is not null
     union all
-    select 'circle_created', g.created_at, g.created_by_id, g.id, null, null from groups g
+    select 'circle_created', g.created_at, g.created_by_id, g.id, null, null, null from groups g
     union all
-    select 'joined', gm.created_at, gm.user_id, gm.group_id, null, null from group_memberships gm
+    select 'joined', gm.created_at, gm.user_id, gm.group_id, null, null, null from group_memberships gm
     union all
-    select 'left', gm.updated_at, gm.user_id, gm.group_id, null, null from group_memberships gm where gm.active = false
+    select 'left', gm.updated_at, gm.user_id, gm.group_id, null, null, null from group_memberships gm where gm.active = false
     union all
-    select 'join_request', jr.created_at, jr.user_id, jr.group_id, null, null from join_requests jr
+    select 'join_request', jr.created_at, jr.user_id, jr.group_id, null, null, null from join_requests jr
     union all
-    select 'meeting_ended', ms.ended_at, ms.ended_by_id, null, ms.post_id, null from meeting_sessions ms where ms.ended_at is not null
+    select 'meeting_ended', ms.ended_at, ms.ended_by_id, null, ms.post_id, null, null from meeting_sessions ms where ms.ended_at is not null
     union all
-    select 'help_request', hr.created_at, hr.user_id, null, null, hr.title from agora_help_requests hr
+    select 'help_request', hr.created_at, hr.user_id, null, null, hr.title, null from agora_help_requests hr
+    union all
+    select 'role_changed', rc.created_at, rc.changed_by_id, null, null, rc.from_role || ':' || rc.to_role, rc.user_id from agora_role_changes rc
   ) events
   where at is not null
   order by at desc
@@ -602,7 +654,7 @@ async function activity (userId, { page } = {}) {
   const result = await k.raw(EVENTS_SQL, [PAGE_SIZE + 1, (current - 1) * PAGE_SIZE])
   const rows = result.rows.slice(0, PAGE_SIZE)
 
-  const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))]
+  const userIds = [...new Set(rows.flatMap(r => [r.user_id, r.target_id]).filter(Boolean))]
   const groupIds = [...new Set(rows.map(r => r.group_id).filter(Boolean))]
   const postIds = [...new Set(rows.map(r => r.post_id).filter(Boolean))]
   const users = userIds.length ? await k('users').whereIn('id', userIds).select('id', 'name') : []
@@ -623,7 +675,13 @@ async function activity (userId, { page } = {}) {
       person: r.user_id && u[r.user_id] ? { id: String(r.user_id), name: u[r.user_id].name } : null,
       circle: r.group_id && g[r.group_id] ? { id: String(r.group_id), name: g[r.group_id].name, slug: g[r.group_id].slug, deleted: g[r.group_id].active === false } : null,
       meeting: r.post_id ? { postId: String(r.post_id), title: p[r.post_id] ? p[r.post_id].name : null } : null,
-      detail: r.detail || null
+      ...(r.kind === 'role_changed'
+        ? {
+            detail: null,
+            target: r.target_id ? { id: String(r.target_id), name: u[r.target_id] ? u[r.target_id].name : null } : null,
+            role: { from: String(r.detail).split(':')[0], to: String(r.detail).split(':')[1] }
+          }
+        : { detail: r.detail || null })
     }))
   }
 }
@@ -653,6 +711,7 @@ module.exports = {
   letIn,
   deactivate,
   reactivate,
+  setRole,
   system,
   activity
 }
