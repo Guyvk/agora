@@ -112,7 +112,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (kDrive) | The addresses of the circle Files pages when the files are in Infomaniak kDrive (list, download, add, new folder, rename, delete), for anyone logged in; each one checks that the person is a member of the circle |
 | `apps/backend/migrations/schema.sql` (kDrive) | The two kDrive tables: which folder belongs to which circle, and who added which file |
 | `apps/backend/.env.example` (kDrive) | The four kDrive settings (`AGORA_KDRIVE_TOKEN`, `AGORA_KDRIVE_DRIVE_ID`, `AGORA_KDRIVE_ROOT_FOLDER_ID`, `AGORA_KDRIVE_MAX_UPLOAD_MB`), empty |
-| `apps/web/public/locales/*.json (kDrive)` | One new text, "kDrive (circle files)" in the admin area's System tab, in every language |
+| `apps/web/public/locales/*.json (kDrive)` | Two new texts in the admin area's System tab, "kDrive (circle files)" and "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing", in every language |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 

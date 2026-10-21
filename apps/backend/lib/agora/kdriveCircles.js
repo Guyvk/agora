@@ -1,8 +1,8 @@
 /**
  * Agora: each circle's folder in kDrive, and who may do what in it.
  *
- * - Agora keeps its folders in one top folder: AGORA_KDRIVE_ROOT_FOLDER_ID, or
- *   else a folder called "Agora" that it finds or makes (see agoraFolderId).
+ * - Agora keeps its folders in one top folder, AGORA_KDRIVE_ROOT_FOLDER_ID,
+ *   which must be set (kDrive is not used without it).
  * - Each circle gets a folder in it, called "<circle name> (<circle address>)",
  *   made the first time a member opens the circle's Files page or a meeting's
  *   minutes are saved. Its number is kept in agora_kdrive_folders, so renaming
@@ -16,7 +16,9 @@
  *   files and make folders.
  * - Renaming and deleting is for the member who added the file or folder in
  *   Agora, and for the circle's stewards (Administration or Manage Content, as
- *   for moderating posts). Deleting moves it to kDrive's bin.
+ *   for moderating posts). Deleting moves it to kDrive's bin. Nobody renames
+ *   or deletes the circle's own folder or its "Minutes" folder from Agora, and
+ *   no other folder at the top of the circle's folder may be called Minutes.
  * - Agora never shows, changes or hands out anything outside the circle's
  *   folder. Every file or folder asked for is checked by walking up its
  *   parent folders to the circle's folder.
@@ -27,18 +29,18 @@ const Kdrive = require('./kdrive')
 
 const { KdriveError, NOT_HERE } = Kdrive
 const MAX_DEPTH = 30
+// Only the list of a folder uses cached details; every check before a
+// download, upload, rename or delete walks up the folders afresh.
 const INFO_SECONDS = 60
 const MINUTES_FOLDER = 'Minutes'
 
 const infoCache = new Map()
 const making = new Map()
-let agoraFolder = null
 
 /** For tests: forgets what was looked up. */
 function forget () {
   infoCache.clear()
   making.clear()
-  agoraFolder = null
 }
 
 function knex () {
@@ -54,6 +56,8 @@ function cleanName (value) {
     .normalize('NFC')
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    // Invisible and direction-changing characters, which can make a name look like another
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
     .replace(/[/\\]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
@@ -100,25 +104,19 @@ async function folderIn (parentId, name) {
 }
 
 /**
- * The folder that holds Agora's circle folders. AGORA_KDRIVE_ROOT_FOLDER_ID
- * when set. Otherwise a folder "Agora": the one at the top of the kDrive, or
- * inside its shared space ("Common documents"), and if there is none, made in
- * that shared space. Setting the number is better: see README-AGORA.md.
+ * The folder that holds Agora's circle folders: AGORA_KDRIVE_ROOT_FOLDER_ID.
+ * It is required, so Guy decides who else can open it in kDrive; Agora never
+ * looks for or makes a top folder itself.
  */
 async function agoraFolderId () {
   const set = Kdrive.rootFolderSetting()
-  if (set) return set
-  if (!agoraFolder) {
-    agoraFolder = (async () => {
-      const top = await Kdrive.listFolder(1)
-      const named = top.find(f => f.type === 'dir' && f.name === 'Agora' && isUsable(f))
-      if (named) return String(named.id)
-      const shared = top.find(f => f.type === 'dir' && f.visibility === 'is_team_space' && isUsable(f))
-      return String((await folderIn(shared ? shared.id : 1, 'Agora')).id)
-    })()
-    agoraFolder.catch(() => { agoraFolder = null })
-  }
-  return agoraFolder
+  if (!set) throw new KdriveError('not_configured', 'kDrive is not connected to Agora yet.')
+  return set
+}
+
+/** True for the name kept for the circle's minutes, in any capitals. */
+function isMinutesName (name) {
+  return String(cleanName(name) || '').toLowerCase() === MINUTES_FOLDER.toLowerCase()
 }
 
 async function folderRow (groupId) {
@@ -180,7 +178,7 @@ async function circleFolderId (group, depth = 0) {
  * folder of another circle or space. Throws not_found otherwise, with one
  * message for all of these, so the answer tells nothing about what is there.
  */
-async function itemInCircle (group, circleFolder, id, { type } = {}) {
+async function itemInCircle (group, circleFolder, id, { type, cached = false } = {}) {
   const itemId = Kdrive.idFrom(id)
   if (!itemId || itemId === String(circleFolder)) throw new KdriveError('not_found', NOT_HERE)
   const others = await otherCircleFolders(group.id)
@@ -196,20 +194,20 @@ async function itemInCircle (group, circleFolder, id, { type } = {}) {
   for (let depth = 0; depth < MAX_DEPTH && current; depth++) {
     if (String(current) === String(circleFolder)) return item
     if (others.has(String(current))) break
-    const parent = await info(current)
+    const parent = await info(current, { fresh: !cached })
     if (!isUsable(parent)) break
     current = parent.parent_id
   }
   throw new KdriveError('not_found', NOT_HERE)
 }
 
-/** The circle's folder, or a folder inside it. */
-async function folderInCircle (group, folderId) {
+/** The circle's folder, or a folder inside it. cached: only for showing a list. */
+async function folderInCircle (group, folderId, { cached = false } = {}) {
   const circleFolder = await circleFolderId(group)
   if (!folderId || String(folderId) === circleFolder) {
-    return { circleFolder, folder: await info(circleFolder), isCircleFolder: true }
+    return { circleFolder, folder: await info(circleFolder, { fresh: !cached }), isCircleFolder: true }
   }
-  return { circleFolder, folder: await itemInCircle(group, circleFolder, folderId, { type: 'dir' }), isCircleFolder: false }
+  return { circleFolder, folder: await itemInCircle(group, circleFolder, folderId, { type: 'dir', cached }), isCircleFolder: false }
 }
 
 async function isSteward (userId, group) {
@@ -256,7 +254,7 @@ function byFolderThenName (a, b) {
  * inside it) and what is in it.
  */
 async function list (group, folderId, userId) {
-  const { folder, isCircleFolder } = await folderInCircle(group, folderId)
+  const { folder, isCircleFolder } = await folderInCircle(group, folderId, { cached: true })
   const others = await otherCircleFolders(group.id)
   const children = (await Kdrive.listFolder(folder.id)).filter(f => isUsable(f) && !others.has(String(f.id)))
   const ids = children.map(f => f.id)
@@ -268,9 +266,17 @@ async function list (group, folderId, userId) {
     : []
   const byId = new Map(added.map(row => [String(row.file_id), row]))
   const steward = await isSteward(userId, group)
+  const row = await folderRow(group.id)
+  // The Minutes folder shows no Rename or Delete for anyone (changeable() refuses it too).
+  const kept = f => isCircleFolder && f.type === 'dir' &&
+    ((row && String(row.minutes_folder_id) === String(f.id)) || isMinutesName(f.name))
   return {
     folder: { id: String(folder.id), name: isCircleFolder ? group.get('name') : folder.name, isCircleFolder },
-    items: children.map(f => toItem(f, byId.get(String(f.id)), userId, steward)).sort(byFolderThenName),
+    items: children.map(f => {
+      const item = toItem(f, byId.get(String(f.id)), userId, steward)
+      if (kept(f)) item.canChange = false
+      return item
+    }).sort(byFolderThenName),
     isSteward: steward
   }
 }
@@ -291,20 +297,37 @@ async function addFile (group, { folderId, userId, name, size, stream }) {
 async function makeFolder (group, { folderId, userId, name }) {
   const folderName = cleanName(name)
   if (!folderName) throw new KdriveError('bad_request', 'The folder needs a name.')
-  const { folder } = await folderInCircle(group, folderId)
+  const { folder, isCircleFolder } = await folderInCircle(group, folderId)
+  if (isCircleFolder && isMinutesName(folderName)) throw minutesKept()
   const made = await Kdrive.createDirectory(folder.id, folderName)
   await remember(made.id, group, userId, 'dir')
   const user = userId ? await User.find(userId) : null
   return toItem(made, { user_id: userId, name: user ? user.get('name') : null }, userId, false)
 }
 
-/** Checks that this member may rename or delete this item; answers the item. */
+function minutesKept () {
+  return new KdriveError('bad_request', 'The name Minutes is kept for the meeting minutes. Choose another name.')
+}
+
+/**
+ * Checks that this member may rename or delete this item; answers the item
+ * and the circle's folder. The circle's "Minutes" folder (the one Agora uses,
+ * or any folder of that name at the top of the circle's folder) is never
+ * changed from Agora: the same answer as for something outside the circle.
+ */
 async function changeable (group, itemId, userId) {
   const circleFolder = await circleFolderId(group)
   const item = await itemInCircle(group, circleFolder, itemId)
+  const row = await folderRow(group.id)
+  const atTop = String(item.parent_id) === String(circleFolder)
+  if ((row && row.minutes_folder_id && String(row.minutes_folder_id) === String(item.id)) ||
+      (atTop && item.type === 'dir' && isMinutesName(item.name))) {
+    throw new KdriveError('not_found', NOT_HERE)
+  }
+  item.atTop = atTop
   if (await isSteward(userId, group)) return item
-  const row = await knex()('agora_kdrive_items').where({ file_id: item.id }).first('user_id')
-  if (row && userId && String(row.user_id) === String(userId)) return item
+  const added = await knex()('agora_kdrive_items').where({ file_id: item.id }).first('user_id')
+  if (added && userId && String(added.user_id) === String(userId)) return item
   throw new KdriveError('not_allowed', 'Only the member who added this, and the stewards of the circle, can change or delete it.')
 }
 
@@ -312,6 +335,7 @@ async function renameItem (group, { itemId, userId, name }) {
   const newName = cleanName(name)
   if (!newName) throw new KdriveError('bad_request', 'The new name is empty.')
   const item = await changeable(group, itemId, userId)
+  if (item.atTop && item.type === 'dir' && isMinutesName(newName)) throw minutesKept()
   await Kdrive.rename(item.id, newName)
   dropInfo(item.id)
   return { id: String(item.id), name: newName }
@@ -345,6 +369,8 @@ async function minutesFolderId (group) {
     }
   }
   const folder = await folderIn(circleFolder, MINUTES_FOLDER)
+  // A folder that was already there now belongs to the circle, not to the member who made it.
+  await knex()('agora_kdrive_items').where({ file_id: folder.id }).del()
   await knex()('agora_kdrive_folders').where({ group_id: group.id }).update({ minutes_folder_id: folder.id, updated_at: new Date() })
   return String(folder.id)
 }

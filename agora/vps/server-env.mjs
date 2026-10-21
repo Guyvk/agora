@@ -97,8 +97,9 @@ write('apps/backend/.env', {
   // New accounts need an invitation to a circle. The first person gets in with
   // scripts/agora-allow-signup.js (see README-AGORA.md).
   AGORA_INVITE_ONLY: 'on',
-  // Circle files in Infomaniak kDrive. Guy types the token and the drive
-  // number in himself (see "Files in kDrive" in README-AGORA.md).
+  // Circle files in Infomaniak kDrive. Guy types the token, the drive number
+  // and the top folder in himself; all three are needed (see "Files in kDrive"
+  // in README-AGORA.md).
   AGORA_KDRIVE_TOKEN: '',
   AGORA_KDRIVE_DRIVE_ID: '',
   AGORA_KDRIVE_ROOT_FOLDER_ID: '',

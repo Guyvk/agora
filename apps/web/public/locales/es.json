@@ -3201,5 +3201,6 @@
   "Log out and continue": "Cerrar sesión y continuar",
   "Stay logged in as {{name}}": "Seguir con la sesión de {{name}}",
   "Your invitation was sent to this address.": "Tu invitación se envió a esta dirección.",
-  "kDrive (circle files)": "kDrive (archivos de los círculos)"
+  "kDrive (circle files)": "kDrive (archivos de los círculos)",
+  "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing": "No: falta AGORA_KDRIVE_ROOT_FOLDER_ID"
 }

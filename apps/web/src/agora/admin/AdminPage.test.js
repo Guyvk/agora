@@ -179,6 +179,7 @@ describe('AdminPage', () => {
     expect(screen.getAllByText('check on the server').length).toBeGreaterThan(0)
     expect(screen.getByText('50% used, 20.0 GB free of 40.0 GB')).toBeInTheDocument()
     expect(screen.getByText('kDrive (circle files)').nextSibling).toHaveTextContent('Yes')
+    expect(screen.queryByText('No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing')).toBeNull()
   })
 
   it('writes the activity log in plain sentences', async () => {

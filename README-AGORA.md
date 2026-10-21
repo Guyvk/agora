@@ -135,7 +135,7 @@ Members can invite people who have no Agora account into a meeting, so the call 
 
 ## Files in kDrive
 
-7BP keeps its files in kDrive, Infomaniak's file storage in Switzerland (1000 GB). Once Agora has a key to it, every circle has its own folder there, and its Files page in Agora shows that folder. This replaces Google Drive (below): as soon as the kDrive settings are filled in, the Files pages use kDrive. The Google Drive code stays, for if it is ever wanted.
+7BP keeps its files in kDrive, Infomaniak's file storage in Switzerland (1000 GB). Once Agora has a key to it, every circle has its own folder there, and its Files page in Agora shows that folder. This replaces Google Drive (below): as soon as the three kDrive settings (token, drive number and top folder) are filled in, the Files pages use kDrive. The Google Drive code stays, for if it is ever wanted.
 
 **Where the page is.** Each circle's Files page is at `/noo/agora/files/<circle>`, where `<circle>` is the last part of the circle's address (for example `governance` in `/groups/governance`). A steward adds a link to it in the circle's menu, in the circle's settings.
 
@@ -146,13 +146,13 @@ Members can invite people who have no Agora account into a meeting, so the call 
 - **Download** a file. It comes through Agora: the browser never gets a kDrive link or key.
 - **Add files**: pick one or more, or drop them on the list. Up to 100 MB a file (`AGORA_KDRIVE_MAX_UPLOAD_MB`). Empty files are refused. A file with a name that is already there gets a new name (`plan (1).pdf`), so nothing is overwritten.
 - **New folder**: makes a folder in the folder that is open.
-- **Rename** and **Delete**: only for the member who added that file or folder in Agora, and for the circle's stewards (Administration or Manage Content). Deleting moves it to kDrive's bin, where a kDrive administrator can put it back for a while.
+- **Rename** and **Delete**: only for the member who added that file or folder in Agora, and for the circle's stewards (Administration or Manage Content). Deleting moves it to kDrive's bin, where a kDrive administrator can put it back for a while. The circle's `Minutes` folder cannot be renamed or deleted from Agora by anyone, and no other folder at the top of the circle's folder can be called Minutes.
 
 **Who sees what.** Only active members of the circle see its files. The server checks this for every list, download, upload and change, not only the page. Agora never shows or touches anything outside the circle's folder: every file or folder is checked to be inside it. A space (a smaller group inside a circle) gets its own folder inside the circle's folder; members of the circle do not see it from the circle's page, only members of the space do, from the space's own Files page. These are files of 7BP people, so treat them as personal data: travel receipts with bank numbers, for example, do not belong here until 7BP has agreed how it handles such data.
 
 **Meeting minutes.** When the assistant posts a meeting's minutes, Agora also saves them as a text file (Markdown) in the circle's folder, in a folder called `Minutes`, named `2026-10-21 <meeting title>.md`, with the same content as the post: the summary and who was there, or, when no summary could be written, the transcript and the chat. If kDrive does not answer, the minutes post still appears; Agora writes the problem to its log and tries the copy once more 15 minutes later.
 
-**How the folders are made.** Agora makes a circle's folder the first time a member opens its Files page (or the first time its minutes are saved), called `<circle name> (<circle address>)`, for example `Governance (governance)`, and remembers its number. Renaming the circle or the folder later changes nothing. All circle folders go into one top folder: the one in `AGORA_KDRIVE_ROOT_FOLDER_ID`, or else a folder called `Agora` that Agora finds (at the top of the kDrive, or in its shared "Common documents") or makes in "Common documents". Setting the top folder yourself is better: then you decide who in 7BP's kDrive itself can open it. Everyone who can open that top folder in kDrive (outside Agora) sees all circles' files.
+**How the folders are made.** Agora makes a circle's folder the first time a member opens its Files page (or the first time its minutes are saved), called `<circle name> (<circle address>)`, for example `Governance (governance)`, and remembers its number. Renaming the circle or the folder later changes nothing. All circle folders go into one top folder, the one in `AGORA_KDRIVE_ROOT_FOLDER_ID`. That setting is required: without it Agora does not use kDrive, and it never makes a top folder itself. You make the folder and decide who in 7BP's kDrive itself can open it: everyone who can open it in kDrive (outside Agora) sees all circles' files.
 
 **Big files.** Agora passes files on to kDrive as they arrive and never keeps a copy. Files above 64 MB go to kDrive in pieces of 16 MB, so Agora's server never holds more than one piece in its memory. On a slow connection a very big upload can take long; keep the page open until it says "Added".
 
@@ -162,18 +162,18 @@ Once, by Guy (or another kDrive administrator of 7BP):
 
 1. **Make the key (the API token).** Log in at [manager.infomaniak.com](https://manager.infomaniak.com) with the account that manages 7BP's kDrive. Click your name or picture at the top right, choose **My profile**, then **Developer** (some screens call it **API tokens** or **Token management**). Choose **Create a token**. Give it the name `Agora`, choose the scope (Infomaniak calls it a "scope" or "rights") **drive** only, and the longest validity offered. Click **Create**. Infomaniak shows the token **once**: copy it straight away and put it in the password manager. Never paste it into a chat, an email or GitHub.
 2. **Find the drive number.** Open kDrive in your browser. Its address looks like `https://ksuite.infomaniak.com/kdrive/app/drive/123456/files` (or `kdrive.infomaniak.com/app/drive/123456/...`): the number after `/drive/` is the drive number.
-3. **Optional: the top folder.** In kDrive, make a folder for Agora, for example `Agora` inside "Common documents", and share it in kDrive only with the people who should also see all circles' files outside Agora. Open it: the number at the end of the address (`.../files/7890`) is its number.
+3. **The top folder (required).** In kDrive, make a folder for Agora, for example `Agora`, and share it in kDrive only with the people who should also see all circles' files outside Agora. Open it: the number at the end of the address (`.../files/7`) is its number.
 4. **Tell Agora.** On the server, in `/srv/agora/apps/backend/.env` (on a Mac: `apps/backend/.env`), type in yourself:
 
    | Setting | What to put there |
    | --- | --- |
    | `AGORA_KDRIVE_TOKEN` | The token from step 1. Secret |
    | `AGORA_KDRIVE_DRIVE_ID` | The drive number from step 2 |
-   | `AGORA_KDRIVE_ROOT_FOLDER_ID` | The folder number from step 3, or empty |
+   | `AGORA_KDRIVE_ROOT_FOLDER_ID` | The folder number from step 3. Required |
    | `AGORA_KDRIVE_MAX_UPLOAD_MB` | The largest file a member may add, in MB. Empty means 100 |
 
 5. **Update the database and restart.** On the server, `agora/vps/update.sh` does both: it runs `yarn migrate` (which adds the two tables that remember the circle folders and who added what) and restarts Agora. On a Mac: `yarn migrate` in `apps/backend`, then restart with `./agora/start.sh`.
-6. **Check.** Open a circle's Files page as a member. The first time it makes the circle's folder; you see it appear in kDrive. The admin area (`/admin`, System) shows "kDrive (circle files): Yes".
+6. **Check.** Open a circle's Files page as a member. The first time it makes the circle's folder; you see it appear in kDrive. The admin area (`/admin`, System) shows "kDrive (circle files): Yes", or "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing" when only the top folder is missing.
 
 The token works for everything the account that made it can reach in kDrive. Agora only uses it inside its own top folder, but whoever has the token could do more, so keep it as secret as a password. If it leaks, delete it in the same Developer page and make a new one.
 

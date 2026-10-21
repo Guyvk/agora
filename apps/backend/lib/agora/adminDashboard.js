@@ -559,6 +559,7 @@ async function system (userId) {
       googleDrive: drive.isConfigured(),
       driveUploads: drive.uploadsEnabled(),
       kdrive: kdrive.isConfigured(),
+      kdriveMissingTopFolder: kdrive.missingTopFolder(),
       meetDomain: meetDomain || null,
       inviteOnly: isInviteOnly()
     },

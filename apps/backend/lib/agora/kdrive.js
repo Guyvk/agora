@@ -11,7 +11,7 @@
  * Settings, in apps/backend/.env:
  *   AGORA_KDRIVE_TOKEN           the API token, with the "drive" scope. Secret.
  *   AGORA_KDRIVE_DRIVE_ID        the number of 7BP's kDrive, from its web address
- *   AGORA_KDRIVE_ROOT_FOLDER_ID  optional: the folder that holds Agora's folders
+ *   AGORA_KDRIVE_ROOT_FOLDER_ID  the folder that holds Agora's circle folders (required)
  *   AGORA_KDRIVE_MAX_UPLOAD_MB   optional: the largest file a member may add, 100 by default
  *
  * The calls used, all on https://api.infomaniak.com with the header
@@ -85,9 +85,14 @@ function rootFolderSetting () {
   return idFrom(process.env.AGORA_KDRIVE_ROOT_FOLDER_ID)
 }
 
-/** True when the token and the drive number are set: then the Files pages use kDrive. */
+/** True when the token, the drive number and the top folder are set: then the Files pages use kDrive. */
 function isConfigured () {
-  return Boolean(token() && driveId())
+  return Boolean(token() && driveId() && rootFolderSetting())
+}
+
+/** True when the token and drive number are there but the required top folder is not. */
+function missingTopFolder () {
+  return Boolean(token() && driveId() && !rootFolderSetting())
 }
 
 /** The largest file a member may add, in bytes. */
@@ -334,7 +339,8 @@ async function openDownload (id) {
     if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
       drain(res)
       const next = new URL(res.headers.location, url)
-      if (next.protocol !== 'https:') throw new KdriveError('kdrive', 'kDrive sent the download somewhere unsafe.')
+      // Only on to Infomaniak's own https addresses.
+      if (!isInfomaniak(next)) throw new KdriveError('kdrive', 'Something went wrong with kDrive. Try again in a minute.')
       url = next
       hop++
       continue
@@ -446,6 +452,7 @@ async function upload ({ folderId, name, size, stream, conflict = 'rename' }) {
 
 module.exports = {
   isConfigured,
+  missingTopFolder,
   maxUploadBytes,
   rootFolderSetting,
   idFrom,

@@ -1,6 +1,6 @@
 /**
  * Agora: a circle's Files page, a live view of its Google Drive folder.
- * When Infomaniak kDrive is set up (AGORA_KDRIVE_TOKEN and AGORA_KDRIVE_DRIVE_ID),
+ * When Infomaniak kDrive is set up (AGORA_KDRIVE_TOKEN, AGORA_KDRIVE_DRIVE_ID and AGORA_KDRIVE_ROOT_FOLDER_ID),
  * the page shows the circle's kDrive folder instead: see AgoraKdriveController.
  *
  *   GET  /noo/agora/files/<circle>                 the page, for anyone logged in to Agora
