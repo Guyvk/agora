@@ -226,6 +226,10 @@ module.exports = {
       parts.push(`<p><strong>Guests</strong> (joined through the guest link, not members of Agora): ${guests.map(escapeHtml).join(', ')}</p>`)
     }
 
+    // Agora: with a summary the post holds only the summary and who was there (Guy, 2026-10-21).
+    // The transcript and the chat are posted only when no summary could be written, so nothing is lost.
+    if (minutes) return parts.join('')
+
     parts.push('<h3>Transcript</h3>')
     const merged = mergeLines(lines)
     parts.push(merged.length
