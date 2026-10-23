@@ -3557,5 +3557,7 @@
   "Admin": "Admin",
   "This page does not exist.": "This page does not exist.",
   "Help desk: {{count}} open requests": "Help desk: {{count}} open requests",
-  "Open the Help desk": "Open the Help desk"
+  "Open the Help desk": "Open the Help desk",
+  "kDrive (circle files)": "kDrive (circle files)",
+  "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing": "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing"
 }

@@ -117,6 +117,13 @@ module.exports.routes = {
   'POST   /noo/agora/files/:groupSlug/upload':            'AgoraFilesController.upload',
   'POST   /noo/agora/files/:groupSlug/folder':            'AgoraFilesController.createFolder',
   'POST   /noo/agora/files/:groupSlug/my-folder':         'AgoraFilesController.myFolder',
+  // Agora: the same Files pages when the files are in Infomaniak kDrive (AgoraKdriveController)
+  'GET    /noo/agora/files/:groupSlug/kd/list':           'AgoraKdriveController.list',
+  'GET    /noo/agora/files/:groupSlug/kd/download':       'AgoraKdriveController.download',
+  'POST   /noo/agora/files/:groupSlug/kd/upload':         'AgoraKdriveController.upload',
+  'POST   /noo/agora/files/:groupSlug/kd/folder':         'AgoraKdriveController.createFolder',
+  'POST   /noo/agora/files/:groupSlug/kd/rename':         'AgoraKdriveController.rename',
+  'POST   /noo/agora/files/:groupSlug/kd/delete':         'AgoraKdriveController.remove',
 
   // Agora contacts: one shared list of people and organisations outside Agora
   'GET    /noo/agora/contacts':                           'AgoraContactsController.page',
