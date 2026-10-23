@@ -66,7 +66,7 @@ describe('Agora meeting room without speech to text', () => {
     expect(res.body).to.contain('Back to the meeting post')
     expect(res.body).to.contain('location.href = BOOT.eventUrl')
     // a guest never goes into Agora
-    expect(res.body).to.contain('if (BOOT.guest || !state.joined || !BOOT.eventUrl) return')
+    expect(res.body).to.contain('if (BOOT.guest || !BOOT.eventUrl) return')
   })
 
   it('never hands the page another platform\'s link', async () => {

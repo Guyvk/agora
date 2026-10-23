@@ -86,8 +86,8 @@ const every10minutes = now => {
     Comment.sendDigests().then(count => sails.log.debug(`Sent ${count} comment/message digests`)),
     Group.updateAllMemberCounts(),
     Post.updateProposalStatuses(),
-    // Agora: end meetings that have been quiet for a while, so their minutes get written
-    MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} quiet meetings`)),
+    // Agora: end meetings everybody has left (or that run 2 hours past the event), so their minutes get written
+    MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} meetings nobody was in any more`)),
     FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`))
   ]
 }

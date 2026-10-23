@@ -1,5 +1,7 @@
 /**
  * Agora: a circle's Files page, a live view of its Google Drive folder.
+ * When Infomaniak kDrive is set up (AGORA_KDRIVE_TOKEN, AGORA_KDRIVE_DRIVE_ID and AGORA_KDRIVE_ROOT_FOLDER_ID),
+ * the page shows the circle's kDrive folder instead: see AgoraKdriveController.
  *
  *   GET  /noo/agora/files/<circle>                 the page, for anyone logged in to Agora
  *   GET  /noo/agora/files/<circle>/list            what the page shows, for members of the circle
@@ -31,17 +33,18 @@ import path from 'path'
 import { Transform } from 'stream'
 import Drive from '../../lib/agora/drive'
 import DriveLinks from '../../lib/agora/driveLinks'
+import Kdrive from '../../lib/agora/kdrive'
 
 const PAGE_PATH = path.join(__dirname, '..', '..', 'agora', 'files.html')
 // The largest file that may go through Agora's own server.
 const RELAY_LIMIT = 25 * 1024 * 1024
-let pageTemplate = null
+const pageTemplates = {}
 
-function loadPage () {
-  if (!pageTemplate || process.env.NODE_ENV === 'development') {
-    pageTemplate = fs.readFileSync(PAGE_PATH, 'utf8')
+function loadPage (file = PAGE_PATH) {
+  if (!pageTemplates[file] || process.env.NODE_ENV === 'development') {
+    pageTemplates[file] = fs.readFileSync(file, 'utf8')
   }
-  return pageTemplate
+  return pageTemplates[file]
 }
 
 function webUrl (pathname) {
@@ -64,6 +67,20 @@ async function loadCircle (req, res) {
     return null
   }
   return group
+}
+
+/**
+ * Where a circle's or space's Files page lives in the web app:
+ * /groups/<circle>/files, or /groups/<circle>/spaces/<space>/files for a space.
+ */
+async function inAppFilesUrl (group) {
+  const slug = group.get('slug')
+  let parent = null
+  if (group.get('type') === 'space' && group.get('parent_id')) parent = await Group.where({ id: group.get('parent_id') }).fetch()
+  if (!parent) return webUrl(`/groups/${slug}/files`)
+  const parentSlug = parent.get('slug')
+  const local = slug.startsWith(`${parentSlug}-`) ? slug.slice(parentSlug.length + 1) : slug
+  return webUrl(`/groups/${parentSlug}/spaces/${local}/files`)
 }
 
 async function isMember (userId, group) {
@@ -154,10 +171,15 @@ module.exports = {
     const group = await loadCircle(req, res)
     if (!group) return
 
+    // kDrive, when it is set up, comes before Google Drive. Its Files page is part of
+    // the web app (apps/web/src/agora/files), so the old address sends people there,
+    // with the circle menu and top bar around it.
+    if (Kdrive.isConfigured()) return res.redirect(await inAppFilesUrl(group))
     const boot = {
       circleName: group.get('name'),
       circleUrl: webUrl(`/groups/${group.get('slug')}`),
-      api: `/noo/agora/files/${group.get('slug')}`
+      api: `/noo/agora/files/${group.get('slug')}`,
+      locale: 'en'
     }
     // A function is used so that "$" in a name is not read as a replace pattern.
     const bootJson = JSON.stringify(boot).replace(/</g, '\\u003c')

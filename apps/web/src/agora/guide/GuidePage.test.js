@@ -41,10 +41,8 @@ describe('GuidePage', () => {
   it('says honestly what is not ready yet', () => {
     render(<GuidePage />, { wrapper: providers() })
     const soon = screen.getAllByTestId('guide-coming-soon').map(n => n.textContent)
-    expect(soon).toHaveLength(3)
-    expect(soon[0]).toMatch(/guest link/)
-    expect(soon[1]).toMatch(/Google Drive/)
-    expect(soon[2]).toMatch(/Emails from Agora/)
+    expect(soon).toHaveLength(1)
+    expect(soon[0]).toMatch(/Emails from Agora/)
   })
 
   it('links to the member\'s own circle and its playbook, and to pages that exist', () => {
@@ -57,7 +55,7 @@ describe('GuidePage', () => {
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
     // Meeting notes are live, so they are explained, not promised
-    expect(screen.getByText(/posts the transcript and a short summary/)).toBeInTheDocument()
+    expect(screen.getByText(/posts a short summary with decisions and actions/)).toBeInTheDocument()
   })
 
   it('opens the Help window from Getting help', () => {

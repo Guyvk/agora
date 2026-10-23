@@ -81,7 +81,7 @@ describe('HelpWindow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Events and meetings' }))
     const part = screen.getByTestId('help-guide-part')
     expect(within(part).getByText(/Video meeting in Agora \(with minutes\)/)).toBeInTheDocument()
-    expect(within(part).getByText(/A guest link/)).toBeInTheDocument()
+    expect(within(part).getByText(/People from outside Agora can join a meeting too/)).toBeInTheDocument()
     expect(within(part).getByRole('link', { name: 'Open the full guide' })).toHaveAttribute('href', '/guide#events')
     fireEvent.click(screen.getByRole('button', { name: /Back to the guide/ }))
     expect(screen.getByRole('list', { name: 'Agora guide' })).toBeInTheDocument()
