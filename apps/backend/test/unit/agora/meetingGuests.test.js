@@ -12,7 +12,7 @@ import createPost from '../../../api/models/post/createPost'
 import MeetingController from '../../../api/controllers/MeetingController'
 import MeetingGuestController from '../../../api/controllers/MeetingGuestController'
 import {
-  cleanName, isSecret, hashSecret, sameHash, defaultExpiry, createRateLimiter, rateLimiter, LIMITS
+  cleanName, isSecret, hashSecret, sameHash, defaultExpiry, createRateLimiter, rateLimiter, LIMITS, linkKey
 } from '../../../lib/agora/meetingGuests'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
@@ -283,13 +283,51 @@ describe('Agora meeting guests', () => {
       expect(stewardRevokes.body.link).to.equal(null)
     })
 
-    it('cannot show a link made before links could be shown again, and says so', async () => {
+    it('cannot show a link made before links could be shown again (no salt), but still lets guests in with it', async () => {
       const before = await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).first()
-      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: hashSecret('b'.repeat(43)) })
+      const oldSecret = 'b'.repeat(43)
+      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: hashSecret(oldSecret), token_salt: null })
       const seen = await memberCall('guestLink', member.id)
       expect(seen.body.url).to.equal(null)
       expect(seen.body.link.expired).to.equal(false)
-      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: before.token_hash })
+      const page = await guestCall('page', { token: oldSecret })
+      expect(page.statusCode).to.equal(undefined)
+      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: before.token_hash, token_salt: before.token_salt })
+    })
+
+    it('gives every link its own random salt, and a new one when it is replaced', async () => {
+      const first = await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).first()
+      const third = await bookshelf.knex('meeting_guest_links').where({ post_id: thirdEvent.id }).first()
+      expect(first.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(third.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(first.token_salt).not.to.equal(third.token_salt)
+      expect(link.secret).not.to.contain(first.token_salt)
+      await memberCall('createGuestLink', creator.id, { postId: thirdEvent.id })
+      const replaced = await bookshelf.knex('meeting_guest_links').where({ post_id: thirdEvent.id }).first()
+      expect(replaced.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(replaced.token_salt).not.to.equal(third.token_salt)
+      await memberCall('revokeGuestLink', creator.id, { postId: thirdEvent.id })
+    })
+
+    it('shows a revoked link as revoked, so members know to ask', async () => {
+      const seen = await memberCall('guestLink', member.id, { postId: thirdEvent.id })
+      expect(seen.body.link).to.deep.equal({ revoked: true })
+      expect(seen.body.url).to.equal(null)
+    })
+
+    it('uses a key of its own for links, never the cookie secret itself', () => {
+      const saved = process.env.AGORA_GUEST_LINK_KEY
+      delete process.env.AGORA_GUEST_LINK_KEY
+      try {
+        const key = linkKey()
+        expect(Buffer.isBuffer(key)).to.equal(true)
+        expect(key.toString('utf8')).not.to.equal(process.env.COOKIE_SECRET)
+        process.env.AGORA_GUEST_LINK_KEY = 'own-key'
+        expect(linkKey()).to.equal('own-key')
+      } finally {
+        if (saved === undefined) delete process.env.AGORA_GUEST_LINK_KEY
+        else process.env.AGORA_GUEST_LINK_KEY = saved
+      }
     })
   })
 

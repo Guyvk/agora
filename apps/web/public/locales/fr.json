@@ -14,6 +14,8 @@
   "Anyone with this link can join the call until {{date}}, so share it only with the people you invite.": "Toute personne ayant ce lien peut rejoindre l'appel jusqu'au {{date}}. Ne le partage donc qu'avec les personnes que tu invites.",
   "There is a guest link that works until {{date}}, made before Agora could show it again. Ask the person who made it or a steward of the circle.": "Il existe un lien invité valable jusqu'au {{date}}, créé avant qu'Agora puisse le montrer à nouveau. Demande-le à la personne qui l'a créé ou à un steward du cercle.",
   "The guest link has expired.": "Le lien invité a expiré.",
+  "The guest link was revoked.": "Le lien invité a été révoqué.",
+  "The guest link was revoked. To invite guests, ask the person who made the meeting or a steward of the circle.": "Le lien invité a été révoqué. Pour inviter des personnes, demande à la personne qui a créé la réunion ou à un steward du cercle.",
   "There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.": "Il existe un lien invité valable jusqu'au {{date}}. Agora ne peut pas l'afficher à nouveau. Si vous en avez besoin, créez-en un nouveau : l'ancien ne fonctionnera plus.",
   "Make a new guest link": "Créer un nouveau lien invité",
   "Make a guest link": "Créer un lien invité",

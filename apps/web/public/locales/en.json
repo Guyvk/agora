@@ -94,6 +94,8 @@
   "Anyone with this link can join the call until {{date}}, so share it only with the people you invite.": "Anyone with this link can join the call until {{date}}, so share it only with the people you invite.",
   "There is a guest link that works until {{date}}, made before Agora could show it again. Ask the person who made it or a steward of the circle.": "There is a guest link that works until {{date}}, made before Agora could show it again. Ask the person who made it or a steward of the circle.",
   "The guest link has expired.": "The guest link has expired.",
+  "The guest link was revoked.": "The guest link was revoked.",
+  "The guest link was revoked. To invite guests, ask the person who made the meeting or a steward of the circle.": "The guest link was revoked. To invite guests, ask the person who made the meeting or a steward of the circle.",
   "There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.": "There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.",
   "Make a new guest link": "Make a new guest link",
   "Make a guest link": "Make a guest link",

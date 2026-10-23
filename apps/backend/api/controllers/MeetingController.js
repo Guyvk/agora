@@ -119,7 +119,8 @@ async function loadMySession (req, res, post) {
 
 /** What the event page shows about the guest link to someone who may manage it. */
 function guestLinkPayload (row) {
-  if (!row || row.revoked_at) return null
+  if (!row) return null
+  if (row.revoked_at) return { revoked: true }
   return {
     expiresAt: row.expires_at,
     expired: new Date(row.expires_at).getTime() <= Date.now(),

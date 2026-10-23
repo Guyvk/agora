@@ -98,7 +98,10 @@ export default function GuestLinkPanel ({ postId }) {
   if (!info || !(info.canUse || info.canManage)) return null
 
   const link = info.link
-  const working = link && !link.expired
+  const revoked = !!link?.revoked
+  const working = link && !revoked && !link.expired
+  // After a revoke, only the event's author, the link's maker and stewards can make a new one.
+  const mayMake = info.canManage || !revoked
   const buttonClass = 'border-2 border-foreground/20 rounded-lg px-3 py-1 text-sm hover:border-foreground/50 transition-all disabled:opacity-50'
 
   return (
@@ -135,7 +138,11 @@ export default function GuestLinkPanel ({ postId }) {
 
       {info.available && !shownUrl && link && (
         <p className='text-foreground/70'>
-          {link.expired
+          {revoked
+            ? (info.canManage
+                ? t('The guest link was revoked.')
+                : t('The guest link was revoked. To invite guests, ask the person who made the meeting or a steward of the circle.'))
+            : link.expired
             ? t('The guest link has expired.')
             : info.canManage
               ? t('There is a guest link that works until {{date}}. Agora cannot show it again. If you need it, make a new one: the old one then stops working.', { date: formatDate(link.expiresAt) })
@@ -143,7 +150,7 @@ export default function GuestLinkPanel ({ postId }) {
         </p>
       )}
 
-      {info.available && (!working || info.canManage) && (
+      {info.available && mayMake && (!working || info.canManage) && (
         <div className='flex flex-row flex-wrap gap-2 mt-2'>
           <button type='button' className={buttonClass} onClick={make} disabled={busy}>
             {working ? t('Make a new guest link') : t('Make a guest link')}

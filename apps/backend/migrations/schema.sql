@@ -7664,3 +7664,10 @@ ALTER TABLE ONLY public.meeting_chat_messages
 
 ALTER TABLE ONLY public.meeting_chat_messages
     ADD CONSTRAINT meeting_chat_messages_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: a random salt per guest link.
+-- Added by migrations/20261021120000_add_agora_guest_link_salt.js
+--
+
+ALTER TABLE ONLY public.meeting_guest_links ADD COLUMN token_salt character varying(64);

@@ -95,7 +95,7 @@ function defang (value) {
 
 function transcriptAsText (lines, startedAt) {
   return mergeLines(lines)
-    .map(l => `[${clock(l.spokenAt, startedAt)}] ${defang(l.name)}: ${defang(l.text)}`)
+    .map(l => `[${clock(l.spokenAt, startedAt)}] ${defang(l.name)}: ${defang(String(l.text).replace(/\s*\n+\s*/g, ' '))}`)
     .join('\n')
 }
 

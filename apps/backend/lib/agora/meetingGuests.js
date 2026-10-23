@@ -119,32 +119,40 @@ async function canManageGuestLink (userId, post, link = null) {
   return false
 }
 
-/** The server's own key for guest link secrets, or null when none is set. */
+/**
+ * The server's own key for guest link secrets, or null when none is set:
+ * AGORA_GUEST_LINK_KEY, or else a key of its own worked out from
+ * COOKIE_SECRET (so the cookie secret itself is never used for links).
+ */
 function linkKey () {
-  return process.env.AGORA_GUEST_LINK_KEY || process.env.COOKIE_SECRET || null
+  if (process.env.AGORA_GUEST_LINK_KEY) return process.env.AGORA_GUEST_LINK_KEY
+  if (process.env.COOKIE_SECRET) {
+    return crypto.createHmac('sha256', process.env.COOKIE_SECRET).update('agora-guest-link-key-v1').digest()
+  }
+  return null
 }
 
 /**
- * The secret of a guest link, worked out from its row (event, who made it,
- * when) and the server's key: always 43 base64url characters. Null when
- * the server has no key.
+ * The secret of a guest link, worked out from its random salt, its event,
+ * who made it and when, with the server's key: always 43 base64url
+ * characters. Null when the server has no key or the link has no salt.
  */
-function deriveSecret (postId, createdById, madeAt) {
+function deriveSecret (salt, postId, createdById, madeAt) {
   const key = linkKey()
-  if (!key) return null
+  if (!key || !salt) return null
   return crypto.createHmac('sha256', key)
-    .update(`agora-guest-link-v1:${postId}:${createdById}:${new Date(madeAt).getTime()}`)
+    .update(`agora-guest-link-v2:${salt}:${postId}:${createdById}:${new Date(madeAt).getTime()}`)
     .digest('base64url')
 }
 
 /**
  * The secret of a link that works now, so a member can see and copy it
  * again, or null: no link, revoked, expired, or a link made before links
- * could be shown again (its secret was random and is gone).
+ * could be shown again (no salt: its secret was random and is gone).
  */
 function linkSecret (row, now = Date.now()) {
   if (!row || row.revoked_at || new Date(row.expires_at).getTime() <= now) return null
-  const secret = deriveSecret(row.post_id, row.created_by_id, row.updated_at)
+  const secret = deriveSecret(row.token_salt, row.post_id, row.created_by_id, row.updated_at)
   if (!secret || !sameHash(hashSecret(secret), row.token_hash)) return null
   return secret
 }
@@ -159,10 +167,14 @@ function findLink (postId) {
  * Returns the secret, which is never stored (see linkSecret).
  */
 async function createLink ({ post, userId, now = new Date() }) {
-  const secret = deriveSecret(post.id, userId, now) || newSecret()
+  // A fresh random salt for every new or replaced link.
+  const salt = newSecret()
+  const derived = deriveSecret(salt, post.id, userId, now)
+  const secret = derived || newSecret()
   const expiresAt = defaultExpiry(post, now)
   const fields = {
     token_hash: hashSecret(secret),
+    token_salt: derived ? salt : null,
     created_by_id: userId,
     expires_at: expiresAt,
     revoked_at: null,
@@ -310,6 +322,7 @@ module.exports = {
   canUseGuestLink,
   canManageGuestLink,
   linkSecret,
+  linkKey,
   findLink,
   createLink,
   revokeLink,
