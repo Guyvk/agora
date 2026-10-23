@@ -7705,3 +7705,42 @@ ALTER TABLE ONLY public.agora_kdrive_items
 
 ALTER TABLE ONLY public.agora_kdrive_items
     ADD CONSTRAINT agora_kdrive_items_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: links to Google documents in a circle's Files page (kDrive version).
+-- Added by migrations/20261023120000_add_agora_kdrive_links.js
+--
+
+CREATE TABLE public.agora_kdrive_links (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    folder_id bigint,
+    user_id bigint,
+    kind character varying(10) NOT NULL,
+    title character varying(255) NOT NULL,
+    url text NOT NULL,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_kdrive_links_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_kdrive_links_id_seq OWNED BY public.agora_kdrive_links.id;
+
+ALTER TABLE ONLY public.agora_kdrive_links ALTER COLUMN id SET DEFAULT nextval('public.agora_kdrive_links_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_kdrive_links_group_id_folder_id_index ON public.agora_kdrive_links USING btree (group_id, folder_id);
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
