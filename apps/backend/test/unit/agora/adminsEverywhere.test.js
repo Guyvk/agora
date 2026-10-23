@@ -10,7 +10,8 @@
  *   DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/adminsEverywhere.test.js
  */
 import { ensureStewardResponsibilities } from '../../../lib/agora/stewardRoles'
-import { addAgoraAdminsEverywhere, addAgoraAdminsToGroup, hourlyAgoraAdminsEverywhere, resolveAgoraAdmins } from '../../../lib/agora/adminsEverywhere'
+import { addAgoraAdminsEverywhere, addAgoraAdminsToGroup, hourlyAgoraAdminsEverywhere, removeAgoraAdminFromEverywhere, resolveAgoraAdmins } from '../../../lib/agora/adminsEverywhere'
+import { isAgoraAdmin, isHelpDeskAdmin } from '../../../lib/agora/admins'
 import { createSpace } from '../../../api/graphql/mutations/spaces'
 import { groupFilter } from '../../../api/graphql/filters'
 const rootPath = require('root-path')
@@ -18,7 +19,7 @@ const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
 
 describe('Agora admins everywhere', () => {
-  let saved, guy, boss, maker, member, outsider, sleeping, unconfirmed
+  let saved, guy, boss, maker, member, outsider, sleeping, unconfirmed, emailOnly
   const knex = () => bookshelf.knex
 
   const isAdministrator = (user, groupId) =>
@@ -35,6 +36,14 @@ describe('Agora admins everywhere', () => {
     process.env.AGORA_ADMINS = ''
     try { return await fn() } finally { process.env.AGORA_ADMINS = value }
   }
+  // Runs fn and returns what it logged as warnings
+  const warnings = async fn => {
+    const logged = []
+    const warn = sails.log.warn
+    sails.log.warn = message => logged.push(message)
+    try { await fn() } finally { sails.log.warn = warn }
+    return logged
+  }
 
   before(async () => {
     saved = process.env.AGORA_ADMINS
@@ -48,17 +57,67 @@ describe('Agora admins everywhere', () => {
     outsider = await user({ name: 'Outsider', email: 'outsider@agora.test' })
     sleeping = await user({ name: 'Gone', email: 'gone@agora.test', active: false })
     unconfirmed = await user({ name: 'Not confirmed', email: 'unconfirmed@agora.test', email_validated: false })
-    // An id, a confirmed address (other capitals), an unknown id, a deactivated
-    // account, an unconfirmed address and nonsense
-    process.env.AGORA_ADMINS = `${guy.id}, boss@agora.test, 99999999, ${sleeping.id}, unconfirmed@agora.test, nonsense`
+    emailOnly = await user({ name: 'Listed by email', email: 'listed@agora.test' })
+    // Two ids, an unknown id, a deactivated account, and entries that are not
+    // ids: email addresses (also of a confirmed account, in other capitals) and nonsense
+    process.env.AGORA_ADMINS = `${guy.id}, ${boss.id}, 99999999, ${sleeping.id}, Listed@Agora.test, unconfirmed@agora.test, nonsense`
   })
 
-  after(() => { process.env.AGORA_ADMINS = saved })
+  after(() => {
+    if (saved === undefined) delete process.env.AGORA_ADMINS
+    else process.env.AGORA_ADMINS = saved
+  })
 
-  it('finds the active admins and skips the entries that match no active account', async () => {
+  it('finds the active admins and skips the ids that match no active account', async () => {
     const { ids, skipped } = await resolveAgoraAdmins()
     expect(ids.sort()).to.deep.equal([String(guy.id), String(boss.id)].sort())
-    expect(skipped).to.deep.equal(['99999999', String(sleeping.id), 'unconfirmed@agora.test', 'nonsense'])
+    expect(skipped).to.deep.equal(['99999999', String(sleeping.id)])
+  })
+
+  it('ignores email addresses, with a warning in the log, and grants them nothing', async () => {
+    const value = process.env.AGORA_ADMINS
+    process.env.AGORA_ADMINS = `${guy.id}, fresh-entry@agora.test`
+    try {
+      const logged = await warnings(() => resolveAgoraAdmins())
+      expect(logged).to.have.length(1)
+      expect(logged[0]).to.equal('Agora: AGORA_ADMINS entry "fresh-entry@agora.test" ignored: use the account\'s number')
+    } finally {
+      process.env.AGORA_ADMINS = value
+    }
+    // Even an address of a confirmed, active account counts for nothing
+    const { ids } = await resolveAgoraAdmins()
+    expect(ids).to.not.include(String(emailOnly.id))
+    expect(await isAgoraAdmin(emailOnly.id)).to.equal(false)
+    expect(await isHelpDeskAdmin(emailOnly.id)).to.equal(false)
+    const circle = await Group.create(maker.id, { name: 'Emails', slug: 'emails' })
+    expect(await isMember(emailOnly, circle.id)).to.equal(false)
+    expect(await isAdministrator(emailOnly, circle.id)).to.equal(false)
+    // Ids still work, for both features
+    expect(await isAgoraAdmin(guy.id)).to.equal(true)
+    expect(await isHelpDeskAdmin(guy.id)).to.equal(true)
+    expect(await isAgoraAdmin(outsider.id)).to.equal(false)
+    await circle.save({ active: false }, { patch: true })
+  })
+
+  it('gives nothing to a person who changes their email address to a listed one', async () => {
+    const climber = await new User({ name: 'Climber', email: 'climber@agora.test', active: true, email_validated: true, created_at: new Date() }).save()
+    const value = process.env.AGORA_ADMINS
+    process.env.AGORA_ADMINS = `${guy.id}, newadmin@agora.test`
+    try {
+      // What Hylo allows: the address changes and email_validated stays true
+      await knex()('users').where({ id: climber.id }).update({ email: 'newadmin@agora.test' })
+      expect(await isAgoraAdmin(climber.id)).to.equal(false)
+      expect(await isHelpDeskAdmin(climber.id)).to.equal(false)
+      const circle = await Group.create(maker.id, { name: 'Climbing', slug: 'climbing' })
+      expect(await isMember(climber, circle.id)).to.equal(false)
+      expect(await isAdministrator(climber, circle.id)).to.equal(false)
+      const { changes } = await addAgoraAdminsEverywhere({ apply: true })
+      expect(changes.some(c => c.userId === String(climber.id))).to.equal(false)
+      expect(await isMember(climber, circle.id)).to.equal(false)
+      await circle.save({ active: false }, { patch: true })
+    } finally {
+      process.env.AGORA_ADMINS = value
+    }
   })
 
   it('makes the admins members and Administrator of a new circle, and leaves everyone else alone', async () => {
@@ -69,8 +128,8 @@ describe('Agora admins everywhere', () => {
     }
     // The maker keeps their own role, as in Hylo
     expect(await isAdministrator(maker, circle.id)).to.equal(true)
-    // Unknown, deactivated and unconfirmed entries were skipped without trouble
-    for (const other of [sleeping, unconfirmed, outsider]) {
+    // Unknown ids, deactivated accounts and email entries were skipped without trouble
+    for (const other of [sleeping, unconfirmed, emailOnly, outsider]) {
       expect(await isMember(other, circle.id)).to.equal(false)
       expect(await isAdministrator(other, circle.id)).to.equal(false)
     }
@@ -232,6 +291,90 @@ describe('Agora admins everywhere', () => {
       const changes = await addAgoraAdminsToGroup(old.id, { apply: true })
       expect(changes).to.deep.equal([{ userId: String(boss.id), groupId: String(old.id), change: 'administrator' }])
       expect(await isAdministrator(boss, old.id)).to.equal(true)
+    })
+  })
+
+  describe('one broken group', () => {
+    it('is logged and listed, and the other groups are still updated', async () => {
+      const [broken, fine] = await withoutAdmins(async () => [
+        await Group.create(maker.id, { name: 'Broken', slug: 'broken' }),
+        await Group.create(maker.id, { name: 'Fine', slug: 'fine' })
+      ])
+      const find = Group.find
+      Group.find = function (idOrSlug, ...rest) {
+        if (String(idOrSlug) === String(broken.id)) return Promise.reject(new Error('disk on fire'))
+        return find.call(this, idOrSlug, ...rest)
+      }
+      const errors = []
+      const error = sails.log.error
+      sails.log.error = message => errors.push(message)
+      let result
+      try {
+        result = await addAgoraAdminsEverywhere({ apply: true })
+      } finally {
+        Group.find = find
+        sails.log.error = error
+      }
+      expect(result.failures).to.deep.equal([{ groupId: String(broken.id), message: 'disk on fire' }])
+      expect(errors).to.deep.equal([`Agora: could not update group ${broken.id}: disk on fire`])
+      expect(await isMember(guy, broken.id)).to.equal(false)
+      expect(await isAdministrator(guy, fine.id)).to.equal(true)
+      expect(await isAdministrator(boss, fine.id)).to.equal(true)
+      // The next run, without the problem, finishes the job
+      const again = await addAgoraAdminsEverywhere({ apply: true })
+      expect(again.failures).to.deep.equal([])
+      expect(await isAdministrator(guy, broken.id)).to.equal(true)
+      await broken.save({ active: false }, { patch: true })
+      await fine.save({ active: false }, { patch: true })
+    })
+  })
+
+  describe('offboarding with --remove', () => {
+    it('takes back only what the feature gave, and only when applied', async () => {
+      const leaver = await new User({ name: 'Leaver', email: 'leaver@agora.test', active: true, email_validated: true, created_at: new Date() }).save()
+      const value = process.env.AGORA_ADMINS
+      process.env.AGORA_ADMINS = `${guy.id}, ${boss.id}, ${leaver.id}`
+      let given, givenSpace, own
+      try {
+        given = await Group.create(maker.id, { name: 'Given', slug: 'given' })
+        givenSpace = await createSpace(maker.id, { parentGroupId: given.id, name: 'Given space' }, {})
+        // A circle the leaver joined on their own, with the Administrator role
+        own = await withoutAdmins(() => Group.create(maker.id, { name: 'Own', slug: 'own' }))
+        await own.addMembers([leaver.id])
+        await GroupMembership.assignAdministratorRole(leaver.id, own.id)
+      } finally {
+        // Taken out of the list first, as the README says
+        process.env.AGORA_ADMINS = value
+      }
+      expect(await isAdministrator(leaver, given.id)).to.equal(true)
+      expect(await isMember(leaver, givenSpace.id)).to.equal(true)
+
+      const before = await snapshot()
+      const dry = await removeAgoraAdminFromEverywhere(leaver.id)
+      expect(dry.changes.map(c => c.groupId).sort()).to.deep.equal([String(given.id), String(givenSpace.id)].sort())
+      expect(dry.kept).to.deep.equal([String(own.id)])
+      expect(await snapshot()).to.deep.equal(before)
+
+      const done = await removeAgoraAdminFromEverywhere(leaver.id, { apply: true })
+      expect(done.changes).to.have.length(2)
+      expect(done.failures).to.deep.equal([])
+      expect(await isMember(leaver, given.id)).to.equal(false)
+      expect(await isAdministrator(leaver, given.id)).to.equal(false)
+      expect(await isMember(leaver, givenSpace.id)).to.equal(false)
+      // Their own membership and role stay
+      expect(await isMember(leaver, own.id)).to.equal(true)
+      expect(await isAdministrator(leaver, own.id)).to.equal(true)
+      // The other admins and the maker are untouched
+      for (const admin of [guy, boss]) {
+        expect(await isMember(admin, given.id)).to.equal(true)
+        expect(await isAdministrator(admin, given.id)).to.equal(true)
+      }
+      expect(await isAdministrator(maker, given.id)).to.equal(true)
+      // Not in the list any more, so the hourly run does not bring them back
+      await addAgoraAdminsEverywhere({ apply: true })
+      expect(await isMember(leaver, given.id)).to.equal(false)
+      // A second time finds nothing to take back
+      expect((await removeAgoraAdminFromEverywhere(leaver.id, { apply: true })).changes).to.deep.equal([])
     })
   })
 })

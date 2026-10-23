@@ -12,9 +12,11 @@
  * to AGORA_ADMINS later gets the role everywhere within the hour.
  *
  * Rules:
- * - Only active accounts count. An email address counts only when the account
- *   has confirmed it. Entries that match no such account are skipped and named
- *   in the log; they never stop a circle from being made.
+ * - Only active accounts count, and AGORA_ADMINS holds user ids only. An email
+ *   address is ignored (the log says so): Hylo lets anyone change their own
+ *   email address without confirming it, so an address cannot prove who
+ *   someone is. Ids that match no active account are skipped and named in the
+ *   log; they never stop a circle from being made.
  * - Only active circles and spaces are looked at.
  * - Agora admins are always in: an admin who left a circle or space, or was
  *   removed from it, is brought back by the next hourly run (or the command),
@@ -46,23 +48,16 @@ function quietSettings (now) {
 }
 
 /**
- * The active accounts named in AGORA_ADMINS, as ids (strings), and the entries
+ * The active accounts named in AGORA_ADMINS, as ids (strings), and the ids
  * that match no active account.
  */
 async function resolveAgoraAdmins ({ transacting } = {}) {
   const entries = agoraAdminList()
   const ids = new Set()
   const skipped = []
+  // agoraAdminList keeps only numbers and logs the other entries as ignored
   for (const entry of entries) {
-    let query = knex()('users').where('active', true)
-    if (/^\d+$/.test(entry)) {
-      query = query.where('id', entry)
-    } else if (entry.includes('@')) {
-      query = query.whereRaw('lower(email) = ?', [entry]).where('email_validated', true)
-    } else {
-      skipped.push(entry)
-      continue
-    }
+    let query = knex()('users').where('active', true).where('id', entry)
     if (transacting) query = query.transacting(transacting)
     const user = await query.first('id')
     if (user) ids.add(String(user.id))
@@ -145,7 +140,8 @@ async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, trans
 /**
  * Runs addAgoraAdminsToGroup for every active circle and space. Circles go
  * first, so a space finds its circle ready. Returns { changes, skipped,
- * adminIds, groups }. Nothing is saved unless apply is true.
+ * adminIds, groups, failures }. Nothing is saved unless apply is true. A group
+ * that fails is logged and listed in failures; the others carry on.
  */
 async function addAgoraAdminsEverywhere ({ apply = false } = {}) {
   const { ids: adminIds, skipped } = await resolveAgoraAdmins()
@@ -154,16 +150,64 @@ async function addAgoraAdminsEverywhere ({ apply = false } = {}) {
     .orderByRaw('parent_id is not null, id')
     .select('id')
   const changes = []
+  const failures = []
   if (adminIds.length > 0) {
     for (const { id } of rows) {
-      // In dry run a space would report its circle again; count each change once
-      const found = await addAgoraAdminsToGroup(id, { adminIds, apply })
-      for (const c of found) {
-        if (!changes.some(d => d.userId === c.userId && d.groupId === c.groupId && d.change === c.change)) changes.push(c)
+      try {
+        // In dry run a space would report its circle again; count each change once
+        const found = await addAgoraAdminsToGroup(id, { adminIds, apply })
+        for (const c of found) {
+          if (!changes.some(d => d.userId === c.userId && d.groupId === c.groupId && d.change === c.change)) changes.push(c)
+        }
+      } catch (err) {
+        sails.log.error(`Agora: could not update group ${id}: ${err.message}`)
+        failures.push({ groupId: String(id), message: err.message })
       }
     }
   }
-  return { changes, skipped, adminIds, groups: rows.length }
+  return { changes, skipped, adminIds, groups: rows.length, failures }
+}
+
+/**
+ * Offboarding: takes back what this feature gave one person. Removes the
+ * Administrator role and the membership in every circle and space they were
+ * put in by this feature (the membership has the marker agoraAdminAutoJoined).
+ * Memberships and roles they had on their own are left alone, and so is
+ * everything else the person did. Spaces go before circles.
+ *
+ * Remove the person from AGORA_ADMINS first, or the next hourly run puts them
+ * back. Returns { changes: [{ userId, groupId, change: 'remove' }], kept,
+ * failures }; kept lists the active memberships that were theirs and stay.
+ * Nothing is saved unless apply is true.
+ */
+async function removeAgoraAdminFromEverywhere (userId, { apply = false } = {}) {
+  const rows = await knex()('group_memberships')
+    .join('groups', 'groups.id', 'group_memberships.group_id')
+    .where({ 'group_memberships.user_id': userId, 'group_memberships.active': true })
+    .orderByRaw('groups.parent_id is null, groups.id')
+    .select('group_memberships.group_id', 'group_memberships.settings')
+  const granted = rows.filter(r => r.settings && r.settings.agoraAdminAutoJoined === true)
+  const kept = rows.filter(r => !(r.settings && r.settings.agoraAdminAutoJoined === true)).map(r => String(r.group_id))
+  const changes = []
+  const failures = []
+  for (const { group_id: groupId } of granted) {
+    changes.push({ userId: String(userId), groupId: String(groupId), change: 'remove' })
+    if (!apply) continue
+    try {
+      const group = await Group.find(groupId)
+      // Leaving a circle also takes the person out of its spaces, and removeMembers
+      // revokes the roles there; an earlier step may already have done it
+      const membership = await GroupMembership.forPair(userId, groupId).fetch()
+      if (membership && membership.get('active')) {
+        await GroupMembership.removeAdministratorRole(userId, groupId)
+        await group.removeMembers([userId])
+      }
+    } catch (err) {
+      sails.log.error(`Agora: could not take Agora admin ${userId} out of group ${groupId}: ${err.message}`)
+      failures.push({ groupId: String(groupId), message: err.message })
+    }
+  }
+  return { changes, kept, failures }
 }
 
 /**
@@ -175,7 +219,7 @@ async function addAgoraAdminsToNewGroup (groupOrId) {
   try {
     const { ids, skipped } = await resolveAgoraAdmins()
     for (const entry of skipped) {
-      sails.log.warn(`Agora: AGORA_ADMINS entry "${entry}" matches no active account; it is skipped`)
+      sails.log.warn(`Agora: AGORA_ADMINS id "${entry}" matches no active account; it is skipped`)
     }
     return await addAgoraAdminsToGroup(groupOrId, { adminIds: ids })
   } catch (err) {
@@ -186,7 +230,10 @@ async function addAgoraAdminsToNewGroup (groupOrId) {
 
 /** For the hourly cron job: saves what is missing, says nothing when nothing changed. */
 async function hourlyAgoraAdminsEverywhere () {
-  const { changes } = await addAgoraAdminsEverywhere({ apply: true })
+  const { changes, failures } = await addAgoraAdminsEverywhere({ apply: true })
+  if (failures.length > 0) {
+    sails.log.warn(`Agora: the Agora admins could not be updated in ${failures.length} group${failures.length === 1 ? '' : 's'}; the next run tries again`)
+  }
   for (const c of changes.filter(c => c.change === 'rejoin')) {
     sails.log.info(`Agora: brought Agora admin ${c.userId} back into group ${c.groupId}, which they had left or been removed from`)
   }
@@ -202,5 +249,6 @@ module.exports = {
   addAgoraAdminsToGroup,
   addAgoraAdminsEverywhere,
   addAgoraAdminsToNewGroup,
-  hourlyAgoraAdminsEverywhere
+  hourlyAgoraAdminsEverywhere,
+  removeAgoraAdminFromEverywhere
 }
