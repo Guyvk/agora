@@ -103,9 +103,10 @@ module.exports = bookshelf.Model.extend({
   /**
    * Open meetings that should end by themselves now: nobody has been in
    * them for 10 minutes (every room page says "still here" every few
-   * seconds), or it is 2 hours past the event's end time.
+   * seconds), or, as a safety cap, they started 8 hours ago. A meeting with
+   * someone in it is never ended for running past the event's end time.
    * See lib/agora/meetingChat.js.
-   * @returns {Promise<Array<{session, reason}>>} reason is 'empty' or 'late'
+   * @returns {Promise<Array<{session, reason}>>} reason is 'empty' or 'too_long'
    */
   findAbandoned: async function (now = new Date()) {
     const open = await MeetingSession.query(q => {
