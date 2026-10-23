@@ -6,8 +6,8 @@
  *   node scripts/agora-admins-everywhere.js            shows what it would change, saves nothing
  *   node scripts/agora-admins-everywhere.js --apply    saves those changes
  *
- * Add --rejoin to also bring an admin back into circles and spaces they left
- * or were removed from (without it, those are left alone).
+ * Admins who left a circle or space, or were removed from it, are brought
+ * back too ("becomes a member again of"): Agora admins are always in.
  *
  * It only adds what is missing, so it is safe to run again; a second run finds
  * nothing to do. New circles and spaces get the admins by themselves, and the
@@ -17,7 +17,6 @@ require('@babel/register')
 const skiff = require('../lib/skiff')
 
 const apply = process.argv.includes('--apply')
-const rejoin = process.argv.includes('--rejoin')
 
 const WHAT = {
   join: 'becomes a member of',
@@ -27,7 +26,7 @@ const WHAT = {
 
 async function run () {
   const { addAgoraAdminsEverywhere } = require('../lib/agora/adminsEverywhere')
-  const { changes, skipped, adminIds, groups } = await addAgoraAdminsEverywhere({ apply, rejoin })
+  const { changes, skipped, adminIds, groups } = await addAgoraAdminsEverywhere({ apply })
 
   for (const entry of skipped) console.log(`Skipped "${entry}" in AGORA_ADMINS: no active account with that id or confirmed email address.`)
   if (adminIds.length === 0) {

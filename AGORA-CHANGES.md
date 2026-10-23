@@ -19,7 +19,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
-| `apps/backend/cron.js` | Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written. Every hour, makes the Agora admins (`AGORA_ADMINS`) members and Administrator of every circle and space where that is missing |
+| `apps/backend/cron.js` | Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written. Every hour, makes the Agora admins (`AGORA_ADMINS`) members and Administrator of every circle and space where that is missing, also where they left or were removed |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest; "still here" and "left" times per person), the meeting chat table, the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |

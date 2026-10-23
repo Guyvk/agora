@@ -16,9 +16,10 @@
  *   has confirmed it. Entries that match no such account are skipped and named
  *   in the log; they never stop a circle from being made.
  * - Only active circles and spaces are looked at.
- * - An admin who left a circle or space, or was removed from it, stays out:
- *   Agora does not undo that by itself. Running the command with --rejoin
- *   brings them back everywhere.
+ * - Agora admins are always in: an admin who left a circle or space, or was
+ *   removed from it, is brought back by the next hourly run (or the command),
+ *   and a log line says so. Guy decided this on 2026-10-23: "Admins have full
+ *   access everywhere and can see everything."
  * - Joining this way skips the join form (agreements and join questions), so
  *   nobody is told "X joined". Hylo's addMembers sends no notification to the
  *   other members. The admin gets only important notices from the circle
@@ -78,7 +79,7 @@ async function resolveAgoraAdmins ({ transacting } = {}) {
  * For a space this also covers the circle it sits in, because that is where
  * the Administrator role of the space lives.
  */
-async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, rejoin = false, transacting } = {}) {
+async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, transacting } = {}) {
   const group = groupOrId instanceof Group ? groupOrId : await Group.find(groupOrId, { transacting })
   if (!group || !group.get('active')) return []
   if (!adminIds) adminIds = (await resolveAgoraAdmins({ transacting })).ids
@@ -88,7 +89,7 @@ async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, rejoi
   const roleScopeId = await Group.roleScopeId(group, { transacting })
   if (String(roleScopeId) !== String(group.id)) {
     // A space: first the circle it sits in, where its roles are kept
-    changes.push(...await addAgoraAdminsToGroup(roleScopeId, { adminIds, apply, rejoin, transacting }))
+    changes.push(...await addAgoraAdminsToGroup(roleScopeId, { adminIds, apply, transacting }))
   }
 
   // Memberships, also the ones that are no longer active
@@ -106,11 +107,11 @@ async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, rejoi
     } else if (!membership) {
       toJoin.push(userId)
       changes.push({ userId, groupId: String(group.id), change: 'join' })
-    } else if (rejoin) {
+    } else {
+      // Left or was removed: an Agora admin is always brought back
       toJoin.push(userId)
       changes.push({ userId, groupId: String(group.id), change: 'rejoin' })
     }
-    // Left or removed, and no --rejoin: stays out
   }
 
   if (apply && toJoin.length > 0) {
@@ -146,7 +147,7 @@ async function addAgoraAdminsToGroup (groupOrId, { adminIds, apply = true, rejoi
  * first, so a space finds its circle ready. Returns { changes, skipped,
  * adminIds, groups }. Nothing is saved unless apply is true.
  */
-async function addAgoraAdminsEverywhere ({ apply = false, rejoin = false } = {}) {
+async function addAgoraAdminsEverywhere ({ apply = false } = {}) {
   const { ids: adminIds, skipped } = await resolveAgoraAdmins()
   const rows = await knex()('groups')
     .where('active', true)
@@ -156,7 +157,7 @@ async function addAgoraAdminsEverywhere ({ apply = false, rejoin = false } = {})
   if (adminIds.length > 0) {
     for (const { id } of rows) {
       // In dry run a space would report its circle again; count each change once
-      const found = await addAgoraAdminsToGroup(id, { adminIds, apply, rejoin })
+      const found = await addAgoraAdminsToGroup(id, { adminIds, apply })
       for (const c of found) {
         if (!changes.some(d => d.userId === c.userId && d.groupId === c.groupId && d.change === c.change)) changes.push(c)
       }
@@ -186,6 +187,9 @@ async function addAgoraAdminsToNewGroup (groupOrId) {
 /** For the hourly cron job: saves what is missing, says nothing when nothing changed. */
 async function hourlyAgoraAdminsEverywhere () {
   const { changes } = await addAgoraAdminsEverywhere({ apply: true })
+  for (const c of changes.filter(c => c.change === 'rejoin')) {
+    sails.log.info(`Agora: brought Agora admin ${c.userId} back into group ${c.groupId}, which they had left or been removed from`)
+  }
   if (changes.length > 0) {
     sails.log.info(`Agora: made the Agora admins Administrator in more places (${changes.length} change${changes.length === 1 ? '' : 's'})`)
   }

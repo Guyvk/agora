@@ -10,10 +10,12 @@
  *   DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/adminsEverywhere.test.js
  */
 import { ensureStewardResponsibilities } from '../../../lib/agora/stewardRoles'
-import { addAgoraAdminsEverywhere, addAgoraAdminsToGroup, resolveAgoraAdmins } from '../../../lib/agora/adminsEverywhere'
+import { addAgoraAdminsEverywhere, addAgoraAdminsToGroup, hourlyAgoraAdminsEverywhere, resolveAgoraAdmins } from '../../../lib/agora/adminsEverywhere'
 import { createSpace } from '../../../api/graphql/mutations/spaces'
+import { groupFilter } from '../../../api/graphql/filters'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
+const factories = require(rootPath('test/setup/factories'))
 
 describe('Agora admins everywhere', () => {
   let saved, guy, boss, maker, member, outsider, sleeping, unconfirmed
@@ -122,6 +124,24 @@ describe('Agora admins everywhere', () => {
     expect(await isAdministrator(outsider, space.id)).to.equal(false)
   })
 
+  it('lets the admins see everything in a hidden circle and a hidden, paywalled space', async () => {
+    const circle = await Group.create(maker.id, { name: 'Secret', slug: 'secret', visibility: Group.Visibility.HIDDEN })
+    const space = await createSpace(maker.id, { parentGroupId: circle.id, name: 'Paid', paywall: true, visibility: Group.Visibility.HIDDEN }, {})
+    const post = await factories.post({ user_id: maker.id }).save()
+    await knex()('groups_posts').insert({ group_id: space.id, post_id: post.id })
+    const paid = await Group.find(space.id)
+
+    expect(await Post.isVisibleToUser(post.id, guy.id)).to.equal(true)
+    expect(await paid.canAccess(guy.id)).to.equal(true)
+    const visibleIds = (await groupFilter(guy.id)(Group.collection()).fetch()).pluck('id').map(String)
+    expect(visibleIds).to.include.members([String(circle.id), String(space.id)])
+
+    expect(await Post.isVisibleToUser(post.id, outsider.id)).to.equal(false)
+    expect(await paid.canAccess(outsider.id)).to.equal(false)
+    const outsiderIds = (await groupFilter(outsider.id)(Group.collection()).fetch()).pluck('id').map(String)
+    expect(outsiderIds).to.not.include(String(space.id))
+  })
+
   describe('the command for circles and spaces that already exist', () => {
     let old, oldSpace, before
 
@@ -176,18 +196,34 @@ describe('Agora admins everywhere', () => {
       expect(await snapshot()).to.deep.equal(again)
     })
 
-    it('leaves an admin out of a circle they left, unless asked to bring them back', async () => {
+    it('brings an admin who left or was removed back in the hourly run, and says so in the log', async () => {
       await old.removeMembers([guy.id])
       expect(await isAdministrator(guy, old.id)).to.equal(false)
-      expect((await addAgoraAdminsEverywhere({ apply: true })).changes).to.deep.equal([])
-      expect(await isMember(guy, old.id)).to.equal(false)
+      expect(await isMember(guy, oldSpace.id)).to.equal(false)
+      // Leaving only a space counts too
+      await oldSpace.removeMembers([boss.id])
+      expect(await isMember(boss, oldSpace.id)).to.equal(false)
 
-      const { changes } = await addAgoraAdminsEverywhere({ apply: true, rejoin: true })
-      expect(changes.map(c => `${c.groupId}:${c.change}`).sort())
-        .to.deep.equal([`${old.id}:rejoin`, `${old.id}:administrator`, `${oldSpace.id}:rejoin`].sort())
+      const logged = []
+      const info = sails.log.info
+      sails.log.info = message => logged.push(message)
+      let count
+      try {
+        count = await hourlyAgoraAdminsEverywhere()
+      } finally {
+        sails.log.info = info
+      }
+      expect(count).to.equal(4)
       expect(await isMember(guy, old.id)).to.equal(true)
-      expect(await isMember(guy, oldSpace.id)).to.equal(true)
       expect(await isAdministrator(guy, old.id)).to.equal(true)
+      expect(await isMember(guy, oldSpace.id)).to.equal(true)
+      expect(await isMember(boss, oldSpace.id)).to.equal(true)
+      const back = logged.filter(m => m.includes('brought Agora admin'))
+      expect(back).to.have.length(3)
+      expect(back.some(m => m.includes(`admin ${guy.id} back into group ${old.id}`))).to.equal(true)
+      expect(back.some(m => m.includes(`admin ${boss.id} back into group ${oldSpace.id}`))).to.equal(true)
+      // And quiet again
+      expect((await addAgoraAdminsEverywhere({ apply: true })).changes).to.deep.equal([])
     })
 
     it('gives the role back when a steward took it away from an admin who is still a member', async () => {
