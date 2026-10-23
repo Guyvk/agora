@@ -7664,3 +7664,44 @@ ALTER TABLE ONLY public.meeting_chat_messages
 
 ALTER TABLE ONLY public.meeting_chat_messages
     ADD CONSTRAINT meeting_chat_messages_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: circle files in Infomaniak kDrive.
+-- Added by migrations/20261021120000_add_agora_kdrive.js
+--
+
+CREATE TABLE public.agora_kdrive_folders (
+    group_id bigint NOT NULL,
+    folder_id bigint NOT NULL,
+    minutes_folder_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_pkey PRIMARY KEY (group_id);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_folder_id_unique UNIQUE (folder_id);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_kdrive_items (
+    file_id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    user_id bigint,
+    kind character varying(10) NOT NULL,
+    created_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_pkey PRIMARY KEY (file_id);
+
+CREATE INDEX agora_kdrive_items_group_id_index ON public.agora_kdrive_items USING btree (group_id);
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;

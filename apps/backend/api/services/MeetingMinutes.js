@@ -177,6 +177,58 @@ module.exports = {
   },
 
   /**
+   * Agora: the same minutes as Markdown, for the copy in the circle's kDrive
+   * folder (lib/agora/kdriveMinutes.js). Same content as the post: with a
+   * summary, the summary and who was there; without one, the transcript and
+   * the chat as well.
+   */
+  renderMarkdown: function ({ title, date, minutes, attendees, guests = [], lines, chat = [], startedAt, error }) {
+    const oneLine = value => String(value == null ? '' : value).replace(/\s+/g, ' ').trim()
+    const bullets = items => items.map(i => `- ${i}`).join('\n')
+    const parts = [`# Minutes: ${oneLine(title)} (${date})`]
+
+    if (minutes) {
+      parts.push('_Written by the Agora assistant from the meeting transcript. It can be wrong, so please correct it in the comments of the post in Agora._')
+      if (minutes.summary) parts.push(`## Summary\n\n${oneLine(minutes.summary)}`)
+      parts.push(`## Decisions\n\n${minutes.decisions.length ? bullets(minutes.decisions.map(oneLine)) : 'No decisions were recorded.'}`)
+      parts.push(`## Actions\n\n${minutes.actions.length
+        ? bullets(minutes.actions.map(a => `**${oneLine(a && a.who)}**: ${oneLine(a && a.what)}${a && a.due ? ` (by ${oneLine(a.due)})` : ''}`))
+        : 'No actions were recorded.'}`)
+      if (minutes.open_questions.length) parts.push(`## Open questions\n\n${bullets(minutes.open_questions.map(oneLine))}`)
+      if (minutes.topics.length) {
+        parts.push('## What was discussed')
+        for (const topic of minutes.topics) {
+          const points = Array.isArray(topic && topic.points) ? topic.points : []
+          parts.push(`**${oneLine(topic && topic.title)}**${points.length ? '\n\n' + bullets(points.map(oneLine)) : ''}`)
+        }
+      }
+      if (minutes.cut) parts.push('_The transcript was very long, so the end of the meeting is not covered in this summary._')
+    } else {
+      parts.push(error
+        ? '_The assistant could not write a summary this time, so here is the transcript as it was heard._'
+        : '_The assistant is not connected yet, so here is the transcript as it was heard._')
+    }
+
+    parts.push(`## Who was there\n\n${attendees.map(oneLine).join(', ') || (guests.length ? 'No members were recorded as present.' : 'Nobody was recorded as present.')}`)
+    if (guests.length) parts.push(`**Guests** (joined through the guest link, not members of Agora): ${guests.map(oneLine).join(', ')}`)
+
+    // Like the post: with a summary only the summary and who was there. The
+    // transcript and the chat only when no summary could be written.
+    if (minutes) return parts.join('\n\n') + '\n'
+
+    const merged = mergeLines(lines)
+    parts.push(`## Transcript\n\n${merged.length
+      ? merged.map(l => `**${oneLine(l.name)}** ${clock(l.spokenAt, startedAt)}  \n${oneLine(l.text)}`).join('\n\n')
+      : 'Nothing was transcribed.'}`)
+
+    if (chat && chat.length) {
+      parts.push(`## Chat during the meeting\n\n${chat.map(m => `**${oneLine(m.name)}** ${clock(m.at, startedAt)}  \n${String(m.text).split(/\n+/).map(oneLine).join('  \n')}`).join('\n\n')}`)
+    }
+
+    return parts.join('\n\n') + '\n'
+  },
+
+  /**
    * Lays the minutes out as the body of a post. Everything that came from the
    * assistant or from speech recognition is escaped.
    */
