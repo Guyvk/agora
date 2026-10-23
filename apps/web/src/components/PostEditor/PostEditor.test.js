@@ -134,6 +134,15 @@ describe('PostEditor', () => {
         expect(screen.getByText('Venue')).toBeInTheDocument()
       })
     })
+
+    // Agora: the form says every meeting comes with a video room
+    it('says every meeting gets its own video room in Agora', async () => {
+      renderComponent({ post: { type: 'event', groups: [] } })
+
+      await waitFor(() => {
+        expect(screen.getByText('Every meeting gets its own video room in Agora, with minutes.')).toBeInTheDocument()
+      })
+    })
   })
 
   describe('editing a post', () => {

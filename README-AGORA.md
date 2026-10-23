@@ -68,7 +68,7 @@ It installs PostgreSQL 17 with PostGIS, Redis and Node 24, creates the databases
 
 ## Meetings
 
-Open any event and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
+Open any event and choose **Video meeting in Agora (with minutes)**. The meeting room asks whether your voice may be part of the notes, then opens the call.
 
 Video calls in Agora always go through the event's own meeting room. There is no field for a video call link on an event: Agora gives every event its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The event form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as an event's location. When `AGORA_MEET_DOMAIN` is empty there is no call server, so events have no video call link at all.
 

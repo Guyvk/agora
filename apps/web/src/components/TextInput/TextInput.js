@@ -39,7 +39,8 @@ const TextInput = forwardRef(({
   const onFocus = () => { props.onFocus && props.onFocus(); setActive(true) }
 
   const otherProps = omit(['onEnter', 'onBlur', 'onFocus'], props)
-  const clear = () => onChange && onChange({ target: { name, value: '' } })
+  // Agora: `name` was never defined here (it is in props), so the X cleared nothing in forms that pick the field by name, such as sign-up
+  const clear = () => onChange && onChange({ target: { name: props.name, value: '' } })
 
   // Combine forwarded ref and local ref
   useEffect(() => {

@@ -145,7 +145,7 @@
     <button id="pauseBtn" hidden>Pause my notes</button>
     <button id="endBtn" hidden>End meeting</button>
     <button id="leaveBtn" hidden>Leave the meeting</button>
-    <a id="backLink" href="#">Back to the event</a>
+    <a id="backLink" href="#">Back to the meeting post</a>
   </div>
 </header>
 
@@ -209,7 +209,7 @@
       <p id="endedText">The assistant is writing the minutes. This usually takes a minute or two.</p>
       <div class="choices">
         <a id="minutesLink" href="#" hidden>Read the minutes</a>
-        <a id="endedBack" href="#">Back to the event</a>
+        <a id="endedBack" href="#">Back to the meeting post</a>
       </div>
     </div>
   </div>
@@ -238,7 +238,8 @@ const state = {
   paused: false,       // "pause my notes" pressed?
   lastLineId: null,
   startedAt: null,
-  ended: false
+  ended: false,
+  joined: false        // did this person join in this page? Only then they are sent back to the post when the meeting ends
 };
 let recorder = null;
 let call = null;
@@ -576,6 +577,19 @@ async function poll() {
   } catch (e) { /* a missed poll is fine, the next one catches up */ }
 }
 
+/* Members who were in this meeting go back to the meeting post, in this same tab, a few
+   seconds after it ends. The button on the end screen does the same at once. Guests have no
+   account, so they stay on the end screen. */
+const BACK_AFTER = 4000;
+function goBackSoon() {
+  if (BOOT.guest || !state.joined || !BOOT.eventUrl) return;
+  setTimeout(() => { location.href = BOOT.eventUrl; }, BACK_AFTER);
+  const note = document.createElement('p');
+  note.id = 'backSoon';
+  note.textContent = 'Taking you back to the meeting post in a few seconds.';
+  $('endedText').after(note);
+}
+
 function meetingEnded(data) {
   if (!state.ended) {
     state.ended = true;
@@ -586,6 +600,7 @@ function meetingEnded(data) {
     $('endBtn').hidden = true;
     $('leaveBtn').hidden = true;
     show('ended');
+    goBackSoon();
     clearInterval(pollTimer);
     pollTimer = setInterval(poll, POLL_EVERY);
   }
@@ -645,6 +660,7 @@ async function join(withNotes) {
     state.roomName = data.roomName;
     state.startedAt = data.startedAt;
     state.notes = withNotes;
+    state.joined = true;
     if (BOOT.guest) {
       state.guestId = data.guestId;
       state.guestKey = data.guestKey;
