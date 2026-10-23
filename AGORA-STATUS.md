@@ -2,7 +2,17 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 23 October 2026, by Claude Code on the Mac (coordinator chat, handing over to the new coordinator session). Older sections below are partly out of date; "Latest" is current.
+**Last updated:** 23 October 2026, evening, by the Agora coordinator session on the Mac. Older sections below are partly out of date; "Evening of 23 October" and "Latest" are current.
+
+## Evening of 23 October 2026
+
+- **Live on 0181ce8e5** (deployed 18:26 UTC): #38 meeting room fixes, #40 Files menu line and Google Doc links, #42 guide's Files part, #44 Files page inside the app with move, select several and sort, #46 David's quick fixes (sign-up password X, "Video meeting in Agora (with minutes)", room opens in the same tab and sends members back to the post 4 s after the end). #41 status note merged, #15 closed. #43: the uptime check no longer uses Issues and emails only when Agora is down.
+- AGORA_GUEST_LINK_KEY is deliberately not set: the key derived from COOKIE_SECRET is used, and setting one later would break guest links already shared.
+- Rule from Guy: every menu item and page opens inside the Agora app, never a separate page or new tab (also in AGORA-CLOUD.md).
+- Merges need Guy's explicit "merge N" per PR. Warn him before each deploy (about 15 s restart).
+- The 5-day plan (23 to 27 October, per-day to-do lists, credit rules, David's onboarding notes from help desk request 3) is a Claude doc: https://claude.ai/artifact/2vtNgBHgkuyiuxCWNDNbLx. Goal: the Governance meeting on Tuesday 27 October at 17:00 runs in Agora.
+- Next (Saturday): finish #39 (branch agora-admins-everywhere, WIP 632020ac0c; tests, description, Fable re-check), then merge and run the admins script. Guy: try one real move in Files (only tested against a pretend kDrive) and the meeting room; say why the 21 October comms meeting (post 12) did not run in Agora.
+- Mac tests: a hang at start-up is often a wrong DATABASE_URL database name in a worktree's apps/backend/.env, or the 50 s limit in test/setup/index.js; raise it to 400000 locally, never commit that. One test process at a time.
 
 ## Latest (23 October 2026)
 
