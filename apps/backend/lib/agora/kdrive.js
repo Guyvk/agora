@@ -27,6 +27,7 @@
  *   DELETE /3/drive/{drive}/upload/session/{token}       cancels an upload in pieces
  *   GET    /2/drive/{drive}/files/{id}/download          the contents of a file
  *   POST   /2/drive/{drive}/files/{id}/rename            renames
+ *   POST   /3/drive/{drive}/files/{id}/move/{folder}     moves into another folder
  *   DELETE /2/drive/{drive}/files/{id}                   moves to kDrive's bin
  *
  * kDrive limits how many calls a token may make (about 60 a minute, according
@@ -317,6 +318,14 @@ async function rename (id, name) {
   await call('POST', apiUrl(drivePath(2, `/files/${fileId}/rename`)), { json: { name } })
 }
 
+/** Moves a file or folder into another folder. Answers nothing. The caller checks that the name is free first. */
+async function move (id, destinationId) {
+  const fileId = idFrom(id)
+  const folderId = idFrom(destinationId)
+  if (!fileId || !folderId) throw new KdriveError('not_found', NOT_HERE)
+  await call('POST', apiUrl(drivePath(3, `/files/${fileId}/move/${folderId}`)))
+}
+
 /** Moves a file or folder to kDrive's bin, where it can be put back for a while. */
 async function trash (id) {
   const fileId = idFrom(id)
@@ -461,6 +470,7 @@ module.exports = {
   childByName,
   createDirectory,
   rename,
+  move,
   trash,
   openDownload,
   upload,

@@ -957,6 +957,7 @@ export default function ContextMenu (props) {
         {isGroupContext && !isEditing && filesGroup?.slug && (
           <FilesMenuLink
             groupSlug={filesGroup.slug}
+            to={showingSpaceMenu ? spaceUrl(groupSlug, localSpaceSlug(groupSlug, filesGroup.slug), '/files') : `/groups/${filesGroup.slug}/files`}
             isMember={myMemberships.some(m => String(m.group?.id) === String(filesGroup.id))}
           />
         )}

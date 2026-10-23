@@ -54,8 +54,10 @@
       "icon": "FolderOpen",
       "title": "Files",
       "blocks": [
-        { "text": "Each circle will get a Files page that shows its folder in 7BP's Google Drive. Files open in Drive, and members of the circle can add files and folders, also big videos." },
-        { "soon": "The Google Drive of 7BP is not connected to Agora yet. Until then, keep using Drive as you do now." }
+        { "text": "Every circle has a Files page: click Files in the circle's menu. It opens inside the circle, with the menu and the top bar still there. It holds the circle's folder in kDrive, 7BP's file storage at Infomaniak in Switzerland. Members of the circle can open folders, download files, make folders and add files. Drag files in, or click to add them: they land in the folder that is open." },
+        { "text": "You can rename, move or delete what you added yourself. Stewards can do this for everything. The Minutes folder holds the notes of the circle's meetings: Agora fills it, and nobody can add to it or change it." },
+        { "text": "Google Docs, Sheets and Slides stay in Google. Click \"Add a Google Doc\" and paste its link: it shows in the folder with who added it, and opens in Google. Comments and suggestions stay in Google Docs." },
+        { "text": "To move something, drag it onto a folder in the list, or onto a part of the path at the top. Or click \"Move to…\" on its row and pick the folder. To work on several at once, tick the boxes (or the box at the top to tick all) and choose Move, Download or Delete. Click Name, Added by, Date or Size at the top of the list to sort it." }
       ]
     },
     {
