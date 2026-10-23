@@ -140,6 +140,12 @@ function fakeKdrive (state) {
         session.finished = true
         return ok({ token: m[1], result: true, file: view(id) })
       }
+      if ((m = url.pathname.match(new RegExp(`^${prefix}/files/(\\d+)/move/(\\d+)$`)))) {
+        if (!state.tree[m[1]] || !state.tree[m[2]]) return notFound
+        if (children(m[2]).some(k => state.tree[k].name === state.tree[m[1]].name)) return [409, { result: 'error', error: { code: 'conflict_error' } }]
+        state.tree[m[1]].parent = Number(m[2])
+        return ok({ result: true })
+      }
       if ((m = url.pathname.match(new RegExp(`^${prefix2}/files/(\\d+)/rename$`)))) {
         if (!state.tree[m[1]]) return notFound
         state.tree[m[1]].name = body.name
@@ -421,27 +427,32 @@ describe('Agora files in kDrive', () => {
     })
 
     it('has its addresses, all behind a login', () => {
-      for (const action of ['list', 'download', 'upload', 'createFolder', 'addLink', 'rename', 'remove']) {
+      for (const action of ['list', 'download', 'upload', 'createFolder', 'addLink', 'rename', 'move', 'remove']) {
         expect(Object.values(routes)).to.include(`AgoraKdriveController.${action}`)
       }
       expect(policies.AgoraKdriveController['*']).to.equal('sessionAuth')
     })
 
-    it('serves the kDrive page in the member\'s language when kDrive is set up', async () => {
-      await member.addSetting({ locale: 'de' }, true)
+    it('sends the old Files address to the page inside the app when kDrive is set up', async () => {
       const req = request('page', { userId: member.id })
       const res = factories.mock.response()
       res.set = () => {}
       await AgoraFilesController.page(req, res)
-      expect(res.body).to.include('TEXTS')
-      expect(res.body).to.include('"api":"/noo/agora/files/governance/kd"')
-      expect(res.body).to.include('"locale":"de"')
+      expect(res.redirected).to.equal('https://agora.example.org/groups/governance/files')
+      // A space goes to its own page under its circle.
+      const spaceReq = request('page', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' } })
+      const spaceRes = factories.mock.response()
+      spaceRes.set = () => {}
+      await AgoraFilesController.page(spaceReq, spaceRes)
+      expect(spaceRes.redirected).to.equal('https://agora.example.org/groups/governance/spaces/budget/files')
+      expect(state.calls).to.have.length(0)
+      // Without kDrive the Google Drive page is still served, as before.
       delete process.env.AGORA_KDRIVE_TOKEN
       const old = factories.mock.response()
       old.set = () => {}
       await AgoraFilesController.page(request('page', { userId: member.id }), old)
       expect(old.body).to.include('"api":"/noo/agora/files/governance"')
-      expect(old.body).to.not.include('TEXTS')
+      expect(old.redirected).to.equal(undefined)
     })
 
     it('makes the circle\'s folder the first time, with its name and address, and remembers it', async () => {
@@ -697,6 +708,182 @@ describe('Agora files in kDrive', () => {
       const listed = await call('list', { userId: other.id, query: { folder: made.body.item.id } })
       expect(listed.body.folder).to.include({ name: 'Reports', isCircleFolder: false })
       expect(listed.body.items.map(i => i.name)).to.deep.equal(['Plan.txt'])
+    })
+
+    describe('moving', () => {
+      const DOC = 'https://docs.google.com/document/d/1AbC_def-123/edit'
+      const folderOf = async (userId, name, inside) => (await call('createFolder', { userId, body: { name, folder: inside || '' } })).body.item.id
+      const move = (userId, item, folder, params) => call('move', { userId, body: { item, folder: folder || '' }, ...(params ? { params } : {}) })
+      const minutesFolder = async () => {
+        await KdriveMinutes.copy({ sessionId: 20, groupIds: [group.id], fileName: '2026-10-21 Call.md', markdown: 'x' })
+        return String((await bookshelf.knex('agora_kdrive_folders').where({ group_id: group.id }).first()).minutes_folder_id)
+      }
+      const moveCalls = () => state.calls.filter(c => c.method === 'POST' && c.uri.includes('/move/'))
+
+      it('moves a file into a folder with kDrive\'s own move call, and keeps who added it', async () => {
+        const file = (await upload(member.id)).body.item.id
+        const reports = await folderOf(other.id, 'Reports')
+        const res = await move(member.id, file, reports)
+        expect(res.statusCode).to.equal(undefined)
+        expect(res.body.item).to.deep.equal({ id: file, folder: reports })
+        expect(String(state.tree[file].parent)).to.equal(reports)
+        expect(moveCalls().map(c => c.uri)).to.deep.equal([`/3/drive/${DRIVE}/files/${file}/move/${reports}`])
+        const listed = await call('list', { userId: member.id, query: { folder: reports } })
+        expect(listed.body.items.find(i => i.id === file)).to.include({ addedBy: 'Amara', canChange: true })
+        expect((await call('list', { userId: member.id })).body.items.map(i => i.id)).to.not.include(file)
+        const row = await bookshelf.knex('agora_kdrive_items').where({ file_id: file }).first()
+        expect(String(row.group_id)).to.equal(String(group.id))
+        expect(String(row.user_id)).to.equal(String(member.id))
+        // and back to the circle's own folder
+        const back = await move(member.id, file, '')
+        expect(back.statusCode).to.equal(undefined)
+        expect((await call('list', { userId: member.id })).body.items.map(i => i.id)).to.include(file)
+      })
+
+      it('moves a folder with what is in it', async () => {
+        const a = await folderOf(member.id, 'A')
+        const b = await folderOf(member.id, 'B')
+        const inside = (await upload(member.id, { folder: a })).body.item.id
+        expect((await move(member.id, a, b)).statusCode).to.equal(undefined)
+        expect(String(state.tree[a].parent)).to.equal(b)
+        expect(String(state.tree[inside].parent)).to.equal(a)
+      })
+
+      it('lets only the member who added it, and stewards, move it, like renaming', async () => {
+        const file = (await upload(member.id)).body.item.id
+        const target = await folderOf(other.id, 'Target')
+        expect((await move(other.id, file, target)).statusCode).to.equal(403)
+        expect((await move(outsider.id, file, target)).statusCode).to.equal(403)
+        expect(String(state.tree[file].parent)).to.not.equal(target)
+        expect((await move(steward.id, file, target)).statusCode).to.equal(undefined)
+        expect(String(state.tree[file].parent)).to.equal(target)
+      })
+
+      it('needs the header X-Agora and a login', async () => {
+        const file = (await upload(member.id)).body.item.id
+        const target = await folderOf(member.id, 'Target')
+        const noHeader = await call('move', { userId: member.id, headers: { 'x-agora': '0' }, body: { item: file, folder: target } })
+        expect(noHeader.statusCode).to.equal(400)
+        const anonymous = await call('move', { body: { item: file, folder: target } })
+        expect(anonymous.statusCode).to.equal(401)
+        expect(String(state.tree[file].parent)).to.not.equal(target)
+      })
+
+      it('refuses the circle\'s folder, the Minutes folder and anything outside the circle', async () => {
+        const target = await folderOf(member.id, 'Target')
+        const minutes = await minutesFolder()
+        const circleFolder = String((await bookshelf.knex('agora_kdrive_folders').where({ group_id: group.id }).first()).folder_id)
+        for (const item of [circleFolder, minutes, '900', '901', '5']) {
+          expect((await move(steward.id, item, target)).statusCode).to.equal(404)
+        }
+        expect(String(state.tree[minutes].parent)).to.equal(circleFolder)
+        const file = (await upload(member.id)).body.item.id
+        for (const folder of ['900', '2', '9999', 'abc']) {
+          expect((await move(member.id, file, folder)).statusCode).to.equal(404)
+        }
+        expect(String(state.tree[file].parent)).to.equal(circleFolder)
+      })
+
+      it('moves nothing into Minutes, not a file, a folder or a link', async () => {
+        const minutes = await minutesFolder()
+        const file = (await upload(member.id)).body.item.id
+        const folder = await folderOf(member.id, 'Mine')
+        const link = (await call('addLink', { userId: member.id, body: { url: DOC } })).body.item.id
+        for (const item of [file, folder, link]) {
+          for (const userId of [member.id, steward.id]) {
+            const res = await move(userId, item, minutes)
+            expect(res.statusCode).to.equal(403)
+            expect(res.body.error).to.match(/only for the meeting minutes/)
+          }
+        }
+        expect(Object.values(state.tree).filter(f => String(f.parent) === minutes).map(f => f.name)).to.deep.equal(['2026-10-21 Call.md'])
+        expect((await bookshelf.knex('agora_kdrive_links').first()).folder_id).to.equal(null)
+      })
+
+      it('never puts a folder into itself or into a folder inside itself', async () => {
+        const a = await folderOf(member.id, 'A')
+        const b = await folderOf(member.id, 'B', a)
+        const c = await folderOf(member.id, 'C', b)
+        for (const target of [a, b, c]) {
+          expect((await move(member.id, a, target)).statusCode).to.equal(400)
+        }
+        expect((await move(member.id, b, c)).statusCode).to.equal(400)
+        expect(String(state.tree[a].parent)).to.not.equal(c)
+        expect(String(state.tree[b].parent)).to.equal(a)
+        expect(moveCalls()).to.have.length(0)
+        // up and out is fine
+        expect((await move(member.id, c, a)).statusCode).to.equal(undefined)
+        expect(moveCalls()).to.have.length(1)
+      })
+
+      it('says plainly when the name is already taken there, or the item is already in that folder', async () => {
+        const file = (await upload(member.id, { name: 'Plan.txt' })).body.item.id
+        const target = await folderOf(member.id, 'Target')
+        await upload(other.id, { name: 'Plan.txt', folder: target })
+        const taken = await move(member.id, file, target)
+        expect(taken.statusCode).to.equal(409)
+        expect(taken.body.error).to.match(/already there/)
+        const same = await move(member.id, file, '')
+        expect(same.statusCode).to.equal(400)
+        expect(moveCalls()).to.have.length(0)
+      })
+
+      it('keeps the name Minutes for the minutes at the top of the circle\'s folder', async () => {
+        const holder = await folderOf(member.id, 'Holder')
+        const file = (await upload(member.id, { name: 'Minutes', folder: holder })).body.item.id
+        const res = await move(member.id, file, '')
+        expect(res.statusCode).to.equal(400)
+        expect(res.body.error).to.match(/kept for the meeting minutes/)
+        expect(String(state.tree[file].parent)).to.equal(holder)
+      })
+
+      it('moves a link by changing its folder, with the same rights as renaming', async () => {
+        const reports = await folderOf(member.id, 'Reports')
+        const link = (await call('addLink', { userId: member.id, body: { url: DOC, title: 'Plan' } })).body.item.id
+        expect((await move(other.id, link, reports)).statusCode).to.equal(403)
+        expect((await bookshelf.knex('agora_kdrive_links').first()).folder_id).to.equal(null)
+        const res = await move(member.id, link, reports)
+        expect(res.body.item).to.deep.equal({ id: link, folder: reports })
+        expect(String((await bookshelf.knex('agora_kdrive_links').first()).folder_id)).to.equal(reports)
+        expect((await call('list', { userId: member.id })).body.items.map(i => i.id)).to.not.include(link)
+        expect((await call('list', { userId: member.id, query: { folder: reports } })).body.items.map(i => i.id)).to.include(link)
+        // nothing is asked of kDrive's move call for a link
+        expect(moveCalls()).to.have.length(0)
+        // back to the circle's own folder, by a steward
+        expect((await move(steward.id, link, '')).statusCode).to.equal(undefined)
+        expect((await bookshelf.knex('agora_kdrive_links').first()).folder_id).to.equal(null)
+        // not to another circle's folder, and not a link that is not there
+        expect((await move(member.id, link, '900')).statusCode).to.equal(404)
+        expect((await move(member.id, 'link-9999', reports)).statusCode).to.equal(404)
+      })
+
+      it('never moves things with another circle\'s address, or into a space\'s folder', async () => {
+        const file = (await upload(member.id)).body.item.id
+        const viaSpace = await move(spaceMember.id, file, '', { groupSlug: 'governance-budget' })
+        expect(viaSpace.statusCode).to.equal(404)
+        await call('list', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' } })
+        const spaceFolder = String((await bookshelf.knex('agora_kdrive_folders').where({ group_id: space.id }).first()).folder_id)
+        expect((await move(member.id, file, spaceFolder)).statusCode).to.equal(404)
+        expect(String(state.tree[file].parent)).to.not.equal(spaceFolder)
+      })
+
+      it('lists the path of a folder, who added things and when, and where nothing can be added', async () => {
+        const a = await folderOf(member.id, 'A')
+        const b = await folderOf(member.id, 'B', a)
+        const listed = await call('list', { userId: member.id, query: { folder: b } })
+        expect(listed.body.folder.path.map(p => p.name)).to.deep.equal(['Governance / Core', 'A', 'B'])
+        expect(listed.body.folder.path[0].isCircleFolder).to.equal(true)
+        expect(listed.body.folder.canAdd).to.equal(true)
+        const top = await call('list', { userId: member.id })
+        expect(top.body.folder.path).to.have.length(1)
+        const item = top.body.items.find(i => i.id === a)
+        expect(item.addedBy).to.equal('Amara')
+        expect(item.addedAt).to.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/)
+        const minutes = await minutesFolder()
+        const inMinutes = await call('list', { userId: member.id, query: { folder: minutes } })
+        expect(inMinutes.body.folder.canAdd).to.equal(false)
+        expect((await call('list', { userId: member.id })).body.items.find(i => i.id === minutes).kept).to.equal(true)
+      })
     })
 
     it('refuses empty files, files over the limit and nameless files before calling kDrive', async () => {

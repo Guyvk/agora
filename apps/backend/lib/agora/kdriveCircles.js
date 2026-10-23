@@ -19,6 +19,11 @@
  *   for moderating posts). Deleting moves it to kDrive's bin. Nobody renames
  *   or deletes the circle's own folder or its "Minutes" folder from Agora, and
  *   no other folder at the top of the circle's folder may be called Minutes.
+ * - Moving (moveItem) follows the same rule as renaming: the member who added
+ *   it, and the stewards. Into any folder of the circle, never into Minutes,
+ *   never a folder into itself or its own subfolder, never out of the circle,
+ *   never the circle's folder or Minutes itself, never onto a name that is
+ *   already taken there. A link moves by changing its folder in agora_kdrive_links.
  * - Members can also add a link to a Google Doc, Sheet, Slides, Form or Drive
  *   file or folder (lib/agora/googleLinks.js). It is kept in agora_kdrive_links,
  *   not in kDrive, and listed in the folder it was added in, with the files.
@@ -254,6 +259,7 @@ function toItem (f, added, userId, steward) {
     mimeType: f.type === 'dir' ? null : (f.mime_type || null),
     changedAt: asIso(f.last_modified_at) || asIso(f.added_at),
     addedBy: added ? added.name || null : null,
+    addedAt: added && added.created_at ? new Date(added.created_at).toISOString() : null,
     canChange: steward || mine
   }
 }
@@ -315,7 +321,7 @@ async function list (group, folderId, userId) {
     ? await knex()('agora_kdrive_items')
       .leftJoin('users', 'users.id', 'agora_kdrive_items.user_id')
       .whereIn('agora_kdrive_items.file_id', ids)
-      .select('agora_kdrive_items.file_id', 'agora_kdrive_items.user_id', 'users.name')
+      .select('agora_kdrive_items.file_id', 'agora_kdrive_items.user_id', 'agora_kdrive_items.created_at', 'users.name')
     : []
   const byId = new Map(added.map(row => [String(row.file_id), row]))
   const steward = await isSteward(userId, group)
@@ -324,15 +330,42 @@ async function list (group, folderId, userId) {
   const kept = f => isCircleFolder && f.type === 'dir' &&
     ((row && String(row.minutes_folder_id) === String(f.id)) || isMinutesName(f.name))
   const links = await linksIn(group, isCircleFolder ? null : folder.id, userId, steward)
+  const inMinutes = Boolean(row && row.minutes_folder_id && String(row.minutes_folder_id) === String(folder.id))
   return {
-    folder: { id: String(folder.id), name: isCircleFolder ? group.get('name') : folder.name, isCircleFolder },
+    folder: {
+      id: String(folder.id),
+      name: isCircleFolder ? group.get('name') : folder.name,
+      isCircleFolder,
+      // Nothing can be added to or moved into the Minutes folder.
+      canAdd: !inMinutes,
+      // The folders above this one, the circle's own first: the clickable path of the page.
+      path: await pathTo(group, folder, isCircleFolder)
+    },
     items: children.map(f => {
       const item = toItem(f, byId.get(String(f.id)), userId, steward)
-      if (kept(f)) item.canChange = false
+      if (kept(f)) {
+        item.canChange = false
+        item.kept = true
+      }
       return item
     }).concat(links).sort(byFolderThenName),
     isSteward: steward
   }
+}
+
+/** The folders from the circle's own down to this one: [{ id, name, isCircleFolder }]. */
+async function pathTo (group, folder, isCircleFolder) {
+  const circleFolder = await circleFolderId(group)
+  const top = { id: circleFolder, name: group.get('name'), isCircleFolder: true }
+  if (isCircleFolder) return [top]
+  const trail = [{ id: String(folder.id), name: folder.name, isCircleFolder: false }]
+  let current = folder.parent_id
+  for (let depth = 0; depth < MAX_DEPTH && current && String(current) !== circleFolder; depth++) {
+    const parent = await info(current)
+    trail.unshift({ id: String(parent.id), name: parent.name, isCircleFolder: false })
+    current = parent.parent_id
+  }
+  return [top, ...trail]
 }
 
 /** Adds a file to the circle's folder, or a folder inside it. stream carries exactly size bytes. */
@@ -458,6 +491,48 @@ async function deleteItem (group, { itemId, userId }) {
   return { id: String(item.id) }
 }
 
+/**
+ * Moves a file, folder or link into another folder of the circle (folderId
+ * null: the circle's own folder). Same rights as renaming. Answers the item's
+ * number and the folder it is in now.
+ */
+async function moveItem (group, { itemId, folderId, userId }) {
+  const linkId = linkNumber(itemId)
+  const row = await folderRow(group.id)
+  if (linkId) {
+    const link = await changeableLink(group, linkId, userId)
+    const { folder, isCircleFolder } = await folderInCircle(group, folderId)
+    refuseMinutesFolder(row, folder)
+    await knex()('agora_kdrive_links')
+      .where({ id: link.id })
+      .update({ folder_id: isCircleFolder ? null : folder.id, updated_at: new Date() })
+    return { id: `${LINK_PREFIX}${link.id}`, folder: String(folder.id) }
+  }
+  const item = await changeable(group, itemId, userId)
+  const { circleFolder, folder, isCircleFolder } = await folderInCircle(group, folderId)
+  refuseMinutesFolder(row, folder)
+  if (String(item.parent_id) === String(folder.id)) {
+    throw new KdriveError('bad_request', 'It is already in this folder.')
+  }
+  // A folder cannot go into itself or into a folder inside itself.
+  if (item.type === 'dir') {
+    let current = String(folder.id)
+    for (let depth = 0; depth < MAX_DEPTH && current && current !== String(circleFolder); depth++) {
+      if (current === String(item.id)) throw new KdriveError('bad_request', 'A folder cannot be moved into itself or into a folder inside itself.')
+      const above = await info(current, { fresh: true })
+      current = above.parent_id ? String(above.parent_id) : null
+    }
+  }
+  // The name Minutes is kept at the top of the circle's folder.
+  if (isCircleFolder && isMinutesName(item.name)) throw minutesKept()
+  const same = await Kdrive.childByName(folder.id, item.name)
+  if (same && isUsable(same)) throw new KdriveError('conflict', 'Something with this name is already there.')
+  await Kdrive.move(item.id, folder.id)
+  dropInfo(item.id)
+  // The record of who added it stays: it is kept by file number, which does not change.
+  return { id: String(item.id), folder: String(folder.id) }
+}
+
 /** A file of the circle, opened for download: { item, stream }. */
 async function openFile (group, itemId) {
   const circleFolder = await circleFolderId(group)
@@ -514,6 +589,7 @@ module.exports = {
   addLink,
   renameItem,
   deleteItem,
+  moveItem,
   openFile,
   saveMinutes,
   isSteward,
