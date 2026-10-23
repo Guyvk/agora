@@ -58,6 +58,13 @@ const hourly = now => {
       })
   ]
 
+  // Agora: someone added to AGORA_ADMINS becomes Administrator in every circle and space; quiet when nothing changes
+  tasks.push(require('./lib/agora/adminsEverywhere').hourlyAgoraAdminsEverywhere()
+    .catch(err => {
+      sails.log.error('Agora admins job failed; continuing hourly tasks', err)
+      return 0
+    }))
+
   switch (now.hour) {
     case 12:
       sails.log.debug('Sending daily digests')

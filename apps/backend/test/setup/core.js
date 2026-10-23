@@ -13,6 +13,9 @@ process.env.KUE_NAMESPACE = process.env.KUE_NAMESPACE || 'q-test'
 // Agora: uploads that tests make go to a temporary folder, never to the uploads of
 // an Agora on the same computer (lib/agora/diskUploads.js)
 process.env.AGORA_UPLOADS_DIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'agora-test-uploads-'))
+// Agora: tests start without Agora admins, so an AGORA_ADMINS in .env does not join every
+// circle a test makes (lib/agora/adminsEverywhere.js). Tests that need them set it themselves
+delete process.env.AGORA_ADMINS
 
 // just set up the test globals, not the test database
 
