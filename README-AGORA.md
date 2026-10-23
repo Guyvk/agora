@@ -606,14 +606,14 @@ The uploads come back as they were on the last night. An older version of a chan
 
 ## When Agora is down
 
-A server that is down cannot warn anyone, so the check runs elsewhere: on GitHub's computers, as a scheduled job in this repository (`.github/workflows/agora-uptime.yml`). Every 30 minutes it opens Agora's login page and asks Agora's server one small question (`/noo/graphql`, "who is logged in", which also answers when nobody is). If that fails three times in a row, two minutes apart, it opens an issue **"Agora is down"** on GitHub, assigned to you, so GitHub emails you. While Agora stays down, nothing more is sent. When Agora answers again, it writes a comment and closes the issue, which sends a second email. It costs nothing (public repositories get these jobs free) and needs no new account.
+A server that is down cannot warn anyone, so the check runs elsewhere: on GitHub's computers, as a scheduled job in this repository (`.github/workflows/agora-uptime.yml`). Every 30 minutes it opens Agora's login page and asks Agora's server one small question (`/noo/graphql`, "who is logged in", which also answers when nobody is). If that fails three times in a row, two minutes apart, the job fails and GitHub emails you "Agora uptime check: All jobs have failed". While Agora stays down you get that email every 30 minutes; when it answers again the emails stop. While Agora is up, nobody is emailed. It costs nothing (public repositories get these jobs free) and needs no new account.
 
 Things to know:
 
-- The repository is public, so the issues and the job's log are public too. They only show the address and what the server answered; no keys are used.
+- The repository is public, so the job's log is public too. They only show the address and what the server answered; no keys are used.
 - GitHub sometimes starts scheduled jobs late, by a few minutes up to an hour when it is busy. Fine for a volunteer site, not to the minute.
 - GitHub pauses scheduled jobs in a public repository after **60 days without any change** to the repository, and emails you before it does. Then open *Actions*, *Agora uptime check*, and click *Enable workflow*.
-- Check your email settings on GitHub once: *Settings*, *Notifications*, "Issues" or "Participating" by email on.
+- Check your email settings on GitHub once: *Settings*, *Notifications*, "Actions" by email on (only failed workflows).
 - Try it by hand: *Actions*, *Agora uptime check*, *Run workflow*.
 - When Agora moves to agora.7billionpresidents.org: *Settings*, *Secrets and variables*, *Actions*, *Variables*, add `AGORA_URL` with `https://agora.7billionpresidents.org`. No code change needed.
 
