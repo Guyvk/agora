@@ -12,7 +12,7 @@ import createPost from '../../../api/models/post/createPost'
 import MeetingController from '../../../api/controllers/MeetingController'
 import MeetingGuestController from '../../../api/controllers/MeetingGuestController'
 import {
-  cleanName, isSecret, hashSecret, sameHash, defaultExpiry, createRateLimiter, rateLimiter, LIMITS
+  cleanName, isSecret, hashSecret, sameHash, defaultExpiry, createRateLimiter, rateLimiter, LIMITS, linkKey
 } from '../../../lib/agora/meetingGuests'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
@@ -114,7 +114,7 @@ describe('Agora meeting guests: small parts', () => {
 })
 
 describe('Agora meeting guests', () => {
-  let saved, creator, steward, member, outsider, group, event, otherEvent
+  let saved, creator, steward, member, outsider, group, event, otherEvent, thirdEvent
 
   const link = {}
 
@@ -183,6 +183,13 @@ describe('Agora meeting guests', () => {
       startTime: Date.now(),
       endTime: Date.now() + 3600000
     })
+    thirdEvent = await createPost(creator.id, {
+      name: 'A meeting a member invites guests to',
+      type: Post.Type.EVENT,
+      group_ids: [group.id],
+      startTime: Date.now(),
+      endTime: Date.now() + 3600000
+    })
   })
 
   after(() => {
@@ -211,16 +218,19 @@ describe('Agora meeting guests', () => {
       expect(everything).not.to.contain(link.secret)
     })
 
-    it('lets a steward of the circle make one', async () => {
+    it('shows a steward of the circle the link, and lets them manage it', async () => {
       const res = await memberCall('guestLink', steward.id)
+      expect(res.body.canUse).to.equal(true)
       expect(res.body.canManage).to.equal(true)
       expect(res.body.link.expired).to.equal(false)
-      expect(JSON.stringify(res.body)).not.to.contain(link.secret)
+      expect(res.body.url).to.equal(link.url)
     })
 
-    it('does not let other members make, see or revoke one', async () => {
+    it('lets every member of the circle see and copy the link, but not revoke or replace it', async () => {
       const seen = await memberCall('guestLink', member.id)
-      expect(seen.body).to.deep.equal({ canManage: false })
+      expect(seen.body.canUse).to.equal(true)
+      expect(seen.body.canManage).to.equal(false)
+      expect(seen.body.url).to.equal(link.url)
       const made = await memberCall('createGuestLink', member.id)
       expect(made.statusCode).to.equal(403)
       const revoked = await memberCall('revokeGuestLink', member.id)
@@ -231,8 +241,93 @@ describe('Agora meeting guests', () => {
     })
 
     it('does not let people outside the circle near it', async () => {
+      const seen = await memberCall('guestLink', outsider.id)
+      expect(seen.statusCode).to.equal(403) // they cannot see the event at all
+      expect(JSON.stringify(seen.body || {})).not.to.contain(link.secret)
       const made = await memberCall('createGuestLink', outsider.id)
       expect(made.statusCode).to.equal(403)
+      const revoked = await memberCall('revokeGuestLink', outsider.id)
+      expect(revoked.statusCode).to.equal(403)
+    })
+
+    it('lets a member make a link when there is none, and then revoke their own', async () => {
+      const made = await memberCall('createGuestLink', member.id, { postId: thirdEvent.id })
+      expect(made.statusCode).to.equal(undefined)
+      expect(made.body.url).to.match(/\/guest\/[A-Za-z0-9_-]{43}$/)
+      const seen = await memberCall('guestLink', member.id, { postId: thirdEvent.id })
+      expect(seen.body.canManage).to.equal(true) // they made it
+      expect(seen.body.url).to.equal(made.body.url)
+      const page = await run(MeetingGuestController, 'page', { params: { postId: String(thirdEvent.id), token: made.body.url.split('/guest/')[1] } })
+      expect(page.statusCode).to.equal(undefined)
+      const revoked = await memberCall('revokeGuestLink', member.id, { postId: thirdEvent.id })
+      expect(revoked.body.link).to.equal(null)
+    })
+
+    it('lets only the author, the link maker and stewards revoke or replace a link; a revoked link stays revoked for members', async () => {
+      const byAuthor = await memberCall('createGuestLink', creator.id, { postId: thirdEvent.id })
+      expect(byAuthor.statusCode).to.equal(undefined)
+      const seen = await memberCall('guestLink', member.id, { postId: thirdEvent.id })
+      expect(seen.body.canManage).to.equal(false)
+      expect(seen.body.url).to.equal(byAuthor.body.url)
+      expect((await memberCall('revokeGuestLink', member.id, { postId: thirdEvent.id })).statusCode).to.equal(403)
+      expect((await memberCall('createGuestLink', member.id, { postId: thirdEvent.id })).statusCode).to.equal(403)
+      const bySteward = await memberCall('createGuestLink', steward.id, { postId: thirdEvent.id })
+      expect(bySteward.statusCode).to.equal(undefined)
+      expect(bySteward.body.url).not.to.equal(byAuthor.body.url)
+      const authorRevokes = await memberCall('revokeGuestLink', creator.id, { postId: thirdEvent.id })
+      expect(authorRevokes.body.link).to.equal(null)
+      const again = await memberCall('createGuestLink', member.id, { postId: thirdEvent.id })
+      expect(again.statusCode).to.equal(403)
+      await memberCall('createGuestLink', creator.id, { postId: thirdEvent.id })
+      const stewardRevokes = await memberCall('revokeGuestLink', steward.id, { postId: thirdEvent.id })
+      expect(stewardRevokes.body.link).to.equal(null)
+    })
+
+    it('cannot show a link made before links could be shown again (no salt), but still lets guests in with it', async () => {
+      const before = await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).first()
+      const oldSecret = 'b'.repeat(43)
+      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: hashSecret(oldSecret), token_salt: null })
+      const seen = await memberCall('guestLink', member.id)
+      expect(seen.body.url).to.equal(null)
+      expect(seen.body.link.expired).to.equal(false)
+      const page = await guestCall('page', { token: oldSecret })
+      expect(page.statusCode).to.equal(undefined)
+      await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).update({ token_hash: before.token_hash, token_salt: before.token_salt })
+    })
+
+    it('gives every link its own random salt, and a new one when it is replaced', async () => {
+      const first = await bookshelf.knex('meeting_guest_links').where({ post_id: event.id }).first()
+      const third = await bookshelf.knex('meeting_guest_links').where({ post_id: thirdEvent.id }).first()
+      expect(first.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(third.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(first.token_salt).not.to.equal(third.token_salt)
+      expect(link.secret).not.to.contain(first.token_salt)
+      await memberCall('createGuestLink', creator.id, { postId: thirdEvent.id })
+      const replaced = await bookshelf.knex('meeting_guest_links').where({ post_id: thirdEvent.id }).first()
+      expect(replaced.token_salt).to.match(/^[A-Za-z0-9_-]{43}$/)
+      expect(replaced.token_salt).not.to.equal(third.token_salt)
+      await memberCall('revokeGuestLink', creator.id, { postId: thirdEvent.id })
+    })
+
+    it('shows a revoked link as revoked, so members know to ask', async () => {
+      const seen = await memberCall('guestLink', member.id, { postId: thirdEvent.id })
+      expect(seen.body.link).to.deep.equal({ revoked: true })
+      expect(seen.body.url).to.equal(null)
+    })
+
+    it('uses a key of its own for links, never the cookie secret itself', () => {
+      const saved = process.env.AGORA_GUEST_LINK_KEY
+      delete process.env.AGORA_GUEST_LINK_KEY
+      try {
+        const key = linkKey()
+        expect(Buffer.isBuffer(key)).to.equal(true)
+        expect(key.toString('utf8')).not.to.equal(process.env.COOKIE_SECRET)
+        process.env.AGORA_GUEST_LINK_KEY = 'own-key'
+        expect(linkKey()).to.equal('own-key')
+      } finally {
+        if (saved === undefined) delete process.env.AGORA_GUEST_LINK_KEY
+        else process.env.AGORA_GUEST_LINK_KEY = saved
+      }
     })
   })
 

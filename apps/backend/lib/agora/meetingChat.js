@@ -18,11 +18,11 @@ const MESSAGES_PER_PERSON_PER_MEETING = 500
 const MESSAGES_PER_ANSWER = 200
 // Someone whose room page has not said "still here" for this long is shown as gone.
 const HERE_WITHIN_MS = 90 * 1000
-// A meeting ends by itself once nobody has been in it for this long ...
+// A meeting ends by itself once nobody has been in it for this long. While
+// someone is still in it, it goes on, also past the event's end time ...
 const EMPTY_FOR_MS = 10 * 60 * 1000
-// ... and at the latest this long after the event's end time.
-const AFTER_EVENT_END_MS = 2 * 60 * 60 * 1000
-const EVENT_LENGTH_IF_UNKNOWN_MS = 60 * 60 * 1000
+// ... except as a safety cap: a meeting ends by itself this long after it started.
+const MAX_MEETING_MS = 8 * 60 * 60 * 1000
 
 /**
  * A chat message, tidied up, or null when it cannot be used: not text, empty,
@@ -35,7 +35,7 @@ function cleanText (raw) {
     .normalize('NFC')
     .replace(/\r\n?/g, '\n')
     // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩]/g, '')
+    .replace(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
@@ -153,6 +153,17 @@ function isHere (row, now = Date.now()) {
   return !!seen && now - new Date(seen).getTime() < HERE_WITHIN_MS
 }
 
+/** How many people (members and guests) are in a meeting right now, as isHere counts them. */
+async function peopleHere (sessionId, now = Date.now()) {
+  const members = await bookshelf.knex('meeting_participants')
+    .where({ session_id: sessionId })
+    .select('left_at', 'last_seen_at', 'joined_at')
+  const guests = await bookshelf.knex('meeting_guests')
+    .where({ session_id: sessionId })
+    .select('left_at', 'last_seen_at', 'joined_at')
+  return members.concat(guests).filter(row => isHere(row, now)).length
+}
+
 /**
  * Everyone who took part in a meeting: members first, then guests (each
  * guest name once, ending in "(guest)").
@@ -192,6 +203,7 @@ async function summary (session, post) {
   const startedAt = session.get('started_at')
   const endedAt = session.get('ended_at')
   return {
+    endedByItself: endedReason(session),
     status: session.get('status'),
     title: post.get('name') || 'Meeting',
     groupName: group ? group.get('name') : '',
@@ -205,19 +217,25 @@ async function summary (session, post) {
 }
 
 /**
- * The latest moment an open meeting may run until: two hours after the
- * event's end time. A meeting started after that (a room opened again for an
- * old event) gets two hours from its start instead.
+ * The latest moment an open meeting may run until, even with people in it:
+ * 8 hours after it started. This is only a safety cap; the event's own end
+ * time does not matter.
  */
-function latestEnd (post, session) {
-  const started = new Date(session.get('started_at')).getTime()
-  const end = post.get('end_time')
-  const start = post.get('start_time')
-  let eventEnd
-  if (end) eventEnd = new Date(end).getTime()
-  else if (start) eventEnd = new Date(start).getTime() + EVENT_LENGTH_IF_UNKNOWN_MS
-  else eventEnd = started + EVENT_LENGTH_IF_UNKNOWN_MS
-  return new Date(Math.max(eventEnd, started) + AFTER_EVENT_END_MS)
+function latestEnd (session) {
+  return new Date(new Date(session.get('started_at')).getTime() + MAX_MEETING_MS)
+}
+
+/**
+ * For the end screen: why a meeting that has ended ended by itself, or null
+ * when someone ended it (or it has not ended). 'too_long': it ran into the
+ * 8-hour cap. 'empty': nobody was in the room. Worked out from the times, so
+ * no extra column is needed.
+ */
+function endedReason (session) {
+  const endedAt = session.get('ended_at')
+  if (!endedAt || session.get('ended_by_id')) return null
+  const ran = new Date(endedAt).getTime() - new Date(session.get('started_at')).getTime()
+  return ran >= MAX_MEETING_MS ? 'too_long' : 'empty'
 }
 
 /** The last moment anybody was in this meeting (joined, said "still here", or spoke). */
@@ -237,11 +255,13 @@ async function lastPresence (session) {
 
 /**
  * Why an open meeting should end by itself now, or null when it should go on.
- * 'empty': nobody has been in it for 10 minutes. 'late': it is 2 hours past
- * the event's end time.
+ * 'empty': nobody has been in it for 10 minutes. 'too_long': it started 8
+ * hours ago (a safety cap). A meeting with someone in it is never ended for
+ * running past the event's end time. `post` is not used any more; it stays
+ * so callers do not change.
  */
 async function reasonToEnd (session, post, now = new Date()) {
-  if (now.getTime() >= latestEnd(post, session).getTime()) return 'late'
+  if (now.getTime() >= latestEnd(session).getTime()) return 'too_long'
   const last = await lastPresence(session)
   if (now.getTime() - last.getTime() >= EMPTY_FOR_MS) return 'empty'
   return null
@@ -252,7 +272,7 @@ module.exports = {
   MESSAGES_PER_MINUTE,
   HERE_WITHIN_MS,
   EMPTY_FOR_MS,
-  AFTER_EVENT_END_MS,
+  MAX_MEETING_MS,
   cleanText,
   postMessage,
   listMessages,
@@ -261,9 +281,11 @@ module.exports = {
   guestSeen,
   memberLeft,
   isHere,
+  peopleHere,
   whoTookPart,
   summary,
   latestEnd,
+  endedReason,
   lastPresence,
   reasonToEnd
 }

@@ -1,7 +1,7 @@
 import {
   renderRoom, meetDomain, webUrl, setRoomHeaders, fromAgoraPage, receiveSegment
 } from '../../lib/agora/meetingRoom'
-import { canManageGuestLink, createLink, revokeLink, findLink, guestLabel, defaultExpiry } from '../../lib/agora/meetingGuests'
+import { canUseGuestLink, canManageGuestLink, linkSecret, createLink, revokeLink, findLink, guestLabel, defaultExpiry } from '../../lib/agora/meetingGuests'
 import {
   isHere, memberSeen, memberLeft, postMessage, listMessages, forPage, summary
 } from '../../lib/agora/meetingChat'
@@ -119,7 +119,8 @@ async function loadMySession (req, res, post) {
 
 /** What the event page shows about the guest link to someone who may manage it. */
 function guestLinkPayload (row) {
-  if (!row || row.revoked_at) return null
+  if (!row) return null
+  if (row.revoked_at) return { revoked: true }
   return {
     expiresAt: row.expires_at,
     expired: new Date(row.expires_at).getTime() <= Date.now(),
@@ -237,7 +238,9 @@ module.exports = {
     if (session.isOpen()) await memberSeen(session.id, req.session.userId)
     const payload = await statusPayload(post, session, req.session.userId)
     delete payload.lines
-    payload.chat = forPage(await listMessages(session.id, { afterId: req.param('chatAfter') }), { userId: req.session.userId })
+    // Agora: a phone shows no chat for now, and asks with noChat so the messages are not fetched.
+    const noChat = req.param('noChat') === true || req.param('noChat') === 'true' || req.param('noChat') === '1'
+    payload.chat = noChat ? [] : forPage(await listMessages(session.id, { afterId: req.param('chatAfter') }), { userId: req.session.userId })
     res.set('Cache-Control', 'no-store')
     res.ok(payload)
   },
@@ -310,31 +313,52 @@ module.exports = {
   },
 
   /**
-   * The guest link of this event, for the event page. Only the person who made
-   * the event and the circle's stewards see it; everyone else gets canManage: false.
-   * The link itself is never shown again after it was made: Agora keeps only its hash.
+   * The guest link of this event, for the event page. Every active member of
+   * the event's circle sees it and can copy it (canUse); the person who made
+   * the event, the person who made the link and the circle's stewards can
+   * also revoke or replace it (canManage). Everyone else gets nothing.
+   * `url` is the working link, when Agora can show it again (see
+   * lib/agora/meetingGuests.js linkSecret).
    */
   guestLink: async function (req, res) {
     const post = await loadEvent(req, res)
     if (!post) return
     res.set('Cache-Control', 'no-store')
-    if (!(await canManageGuestLink(req.session.userId, post))) return res.ok({ canManage: false })
+    const userId = req.session.userId
+    if (!(await canUseGuestLink(userId, post))) return res.ok({ canUse: false, canManage: false })
+    const row = await findLink(post.id)
+    const secret = meetDomain() ? linkSecret(row) : null
     res.ok({
-      canManage: true,
+      canUse: true,
+      canManage: await canManageGuestLink(userId, post, row),
       available: !!meetDomain(),
-      link: guestLinkPayload(await findLink(post.id))
+      link: guestLinkPayload(row),
+      url: secret ? webUrl(`/noo/meeting/${post.id}/guest/${secret}`) : null
     })
   },
 
   /**
-   * Makes a new guest link, replacing the old one (which stops working).
+   * Makes a guest link. Any active member of the circle can make one when
+   * there is none (or the old one has expired). Replacing a link that is
+   * there (it stops working), or making one after a link was revoked, is for
+   * the person who made the event, the person who made the link and stewards.
    */
   createGuestLink: async function (req, res) {
     if (!fromAgoraPage(req)) return res.status(400).send({ error: 'Bad request.' })
     const post = await loadEvent(req, res)
     if (!post) return
-    if (!(await canManageGuestLink(req.session.userId, post))) {
-      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+    const userId = req.session.userId
+    if (!(await canUseGuestLink(userId, post))) {
+      return res.status(403).send({ error: 'Only members of this event\'s circle can invite guests.' })
+    }
+    const existing = await findLink(post.id)
+    const inTheWay = existing && (existing.revoked_at || new Date(existing.expires_at).getTime() > Date.now())
+    if (inTheWay && !(await canManageGuestLink(userId, post, existing))) {
+      return res.status(403).send({
+        error: existing.revoked_at
+          ? 'The guest link of this event was revoked. Only the person who made the event, the person who made the link and the stewards of its circle can make a new one.'
+          : 'There is already a guest link. Only the person who made the event, the person who made the link and the stewards of its circle can replace it.'
+      })
     }
     if (!meetDomain()) {
       return res.status(503).send({ error: 'Guest links need the call inside Agora, which is not switched on here (AGORA_MEET_DOMAIN).' })
@@ -357,8 +381,8 @@ module.exports = {
     if (!fromAgoraPage(req)) return res.status(400).send({ error: 'Bad request.' })
     const post = await loadEvent(req, res)
     if (!post) return
-    if (!(await canManageGuestLink(req.session.userId, post))) {
-      return res.status(403).send({ error: 'Only the person who made this event and the stewards of its circle can invite guests.' })
+    if (!(await canManageGuestLink(req.session.userId, post, await findLink(post.id)))) {
+      return res.status(403).send({ error: 'Only the person who made the event, the person who made the link and the stewards of its circle can revoke it.' })
     }
     await revokeLink(post.id)
     res.ok({ link: null })

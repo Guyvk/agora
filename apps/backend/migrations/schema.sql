@@ -7744,3 +7744,10 @@ ALTER TABLE ONLY public.agora_kdrive_links
 
 ALTER TABLE ONLY public.agora_kdrive_links
     ADD CONSTRAINT agora_kdrive_links_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: a random salt per guest link.
+-- Added by migrations/20261022120000_add_agora_guest_link_salt.js
+--
+
+ALTER TABLE ONLY public.meeting_guest_links ADD COLUMN token_salt character varying(64);
