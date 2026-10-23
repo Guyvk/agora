@@ -258,8 +258,11 @@ function toItem (f, added, userId, steward) {
   }
 }
 
+// Folders first, then files and links together by name.
 function byFolderThenName (a, b) {
-  if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1
+  const aFolder = a.kind === 'folder'
+  const bFolder = b.kind === 'folder'
+  if (aFolder !== bFolder) return aFolder ? -1 : 1
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
 }
 
