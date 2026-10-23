@@ -72,6 +72,7 @@ import { spaceRowBadgeCount, viewShowsUnreadDot, viewUnreadBadgeCount } from 'ut
 
 import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
+import FilesMenuLink from '@/agora/files/FilesMenuLink' // Agora: the Files page of a circle or space
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -750,6 +751,8 @@ export default function ContextMenu (props) {
     if (spaceMenuViewsFromStore.length > 0) return spaceMenuViewsFromStore
     return activeSpaceGroup?.groupViews?.items || []
   }, [showingSpaceMenu, spaceMenuViewsFromStore, activeSpaceGroup])
+  // Agora: the group whose Files page the menu links to
+  const filesGroup = showingSpaceMenu ? activeSpaceGroup : group
   const spaceViewsLoading = viewsPending && spaceMenuViews.length === 0
   const spaceDisplayName = (activeSpaceView ? displayNameForView(GroupViewPresenter(activeSpaceView), t) : null) ||
     activeSpaceGroup?.name ||
@@ -950,6 +953,13 @@ export default function ContextMenu (props) {
       {/* When the sticky alerts exist they carry the mt-auto (they must be a
           direct flex child for their sticky pinning to span the whole card) */}
       <div className={stickyAlertsSection ? undefined : 'mt-auto'}>
+        {/* Agora: the Files page of the circle, or of the space when its menu is open. Members only. */}
+        {isGroupContext && !isEditing && filesGroup?.slug && (
+          <FilesMenuLink
+            groupSlug={filesGroup.slug}
+            isMember={myMemberships.some(m => String(m.group?.id) === String(filesGroup.id))}
+          />
+        )}
         {/* Agora: the playbook page of a group */}
         {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
         {moreSpacesSection}

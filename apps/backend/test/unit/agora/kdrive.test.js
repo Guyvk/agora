@@ -14,6 +14,7 @@ import nock from 'nock'
 import { PassThrough } from 'stream'
 import Kdrive from '../../../lib/agora/kdrive'
 import Circles from '../../../lib/agora/kdriveCircles'
+import GoogleLinks from '../../../lib/agora/googleLinks'
 import KdriveMinutes from '../../../lib/agora/kdriveMinutes'
 import AgoraKdriveController from '../../../api/controllers/AgoraKdriveController'
 import AgoraFilesController from '../../../api/controllers/AgoraFilesController'
@@ -368,6 +369,7 @@ describe('Agora files in kDrive', () => {
     })
 
     beforeEach(async () => {
+      await bookshelf.knex('agora_kdrive_links').del()
       await bookshelf.knex('agora_kdrive_items').del()
       await bookshelf.knex('agora_kdrive_folders').del()
     })
@@ -419,7 +421,7 @@ describe('Agora files in kDrive', () => {
     })
 
     it('has its addresses, all behind a login', () => {
-      for (const action of ['list', 'download', 'upload', 'createFolder', 'rename', 'remove']) {
+      for (const action of ['list', 'download', 'upload', 'createFolder', 'addLink', 'rename', 'remove']) {
         expect(Object.values(routes)).to.include(`AgoraKdriveController.${action}`)
       }
       expect(policies.AgoraKdriveController['*']).to.equal('sessionAuth')
@@ -516,6 +518,175 @@ describe('Agora files in kDrive', () => {
       expect(removed.statusCode).to.equal(undefined)
       expect(state.tree[id].status).to.equal('trashed')
       expect((await call('list', { userId: member.id })).body.items.map(i => i.id)).to.not.include(id)
+    })
+
+    describe('links to Google documents', () => {
+      const DOC = 'https://docs.google.com/document/d/1AbC_def-123/edit?usp=sharing'
+      const addLink = (userId, body, params) => call('addLink', { userId, body, ...(params ? { params } : {}) })
+
+      it('adds a link of each kind, with a default title by kind, and lists it with who added it', async () => {
+        const cases = [
+          [DOC, 'docs', 'Google Doc'],
+          ['https://docs.google.com/spreadsheets/d/1XyZ/edit#gid=0', 'sheets', 'Google Sheet'],
+          ['https://docs.google.com/presentation/d/1XyZ/edit', 'slides', 'Google Slides'],
+          ['https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform', 'forms', 'Google Form'],
+          ['https://drive.google.com/file/d/1XyZ/view', 'drive', 'Google Drive file'],
+          ['https://drive.google.com/drive/folders/1XyZ', 'drive', 'Google Drive folder']
+        ]
+        for (const [url, service, title] of cases) {
+          const res = await addLink(member.id, { url })
+          expect(res.statusCode).to.equal(undefined)
+          expect(res.body.item).to.include({ kind: 'link', service, name: title, addedBy: 'Amara', canChange: true })
+          expect(res.body.item.id).to.match(/^link-\d+$/)
+        }
+        const listed = await call('list', { userId: other.id })
+        const links = listed.body.items.filter(i => i.kind === 'link')
+        expect(links).to.have.length(6)
+        expect(links.every(l => l.addedBy === 'Amara' && l.canChange === false && l.changedAt)).to.equal(true)
+        // The tracking part of the address is taken out; the rest stays.
+        expect(links.find(l => l.service === 'docs').url).to.equal('https://docs.google.com/document/d/1AbC_def-123/edit')
+        expect(links.find(l => l.service === 'sheets').url).to.equal('https://docs.google.com/spreadsheets/d/1XyZ/edit#gid=0')
+        // Nothing went to kDrive or to Google, and no kDrive file was made.
+        // (The only POST is the one that makes the circle's own folder the first time.)
+        expect(state.calls.filter(c => c.method === 'POST' && !/\/directory$/.test(c.uri))).to.have.length(0)
+        expect(Object.keys(state.tree)).to.have.length(Object.keys(freshTree()).length + 1)
+      })
+
+      it('uses the title the member gives, cleaned like a file name', async () => {
+        const res = await addLink(member.id, { url: DOC, title: '  Budget‮ 2027 / draft  ' })
+        expect(res.body.item.name).to.equal('Budget 2027 - draft')
+        const rows = await bookshelf.knex('agora_kdrive_links')
+        expect(rows).to.have.length(1)
+        expect(rows[0]).to.include({ title: 'Budget 2027 - draft', kind: 'docs' })
+        expect(String(rows[0].group_id)).to.equal(String(group.id))
+        expect(rows[0].folder_id).to.equal(null)
+      })
+
+      it('refuses addresses that are not a plain https Google document or Drive link', async () => {
+        const bad = [
+          'http://docs.google.com/document/d/1/edit',
+          'https://docs.google.com.evil.tld/document/d/1/edit',
+          'https://evil.tld/docs.google.com/document/d/1',
+          'https://evildocs.google.com/document/d/1',
+          'https://sub.docs.google.com/document/d/1',
+          'https://docs.google.com@evil.tld/document/d/1',
+          'https://user:pass@docs.google.com/document/d/1/edit',
+          'https://docs.google.com:8443/document/d/1/edit',
+          'https://docs.google.com./document/d/1/edit',
+          'https://www.google.com/document/d/1',
+          'https://accounts.google.com/ServiceLogin',
+          'https://docs.google.com/accounts/logout',
+          'https://docs.google.com/',
+          'https://drive.google.com/uc?export=download&id=1',
+          'javascript:alert(1)',
+          'JaVaScRiPt:alert(1)//docs.google.com/document/',
+          'data:text/html,<script>alert(1)</script>',
+          'ftp://docs.google.com/document/d/1',
+          '//docs.google.com/document/d/1',
+          'docs.google.com/document/d/1',
+          'https://docs.google.com/document/d/1 onclick=alert(1)',
+          'https://docs.google.com\\@evil.tld/document/d/1\\',
+          'https://docs.google.com/document/d/' + 'a'.repeat(2100),
+          '',
+          '   '
+        ]
+        for (const url of bad) {
+          const res = await addLink(member.id, { url })
+          expect(res.statusCode, url).to.equal(400)
+        }
+        expect((await addLink(member.id, {})).statusCode).to.equal(400)
+        expect((await addLink(member.id, { url: ['https://docs.google.com/document/d/1'] })).statusCode).to.equal(400)
+        expect(await bookshelf.knex('agora_kdrive_links')).to.have.length(0)
+      })
+
+      it('checks addresses without calling anyone, and keeps the exact host', () => {
+        expect(GoogleLinks.parse('HTTPS://DOCS.GOOGLE.COM/document/d/1/edit?utm_source=x&usp=sharing&tab=t.0&fbclid=zz'))
+          .to.deep.equal({ url: 'https://docs.google.com/document/d/1/edit?tab=t.0', kind: 'docs', defaultTitle: 'Google Doc' })
+        expect(() => GoogleLinks.parse('https://docs.google.com/document/d/1\nhttps://evil.tld')).to.throw()
+        expect(() => GoogleLinks.parse(null)).to.throw()
+        expect(() => GoogleLinks.parse({ toString: () => 'https://evil.tld' })).to.throw()
+      })
+
+      it('is for active members only', async () => {
+        expect((await addLink(outsider.id, { url: DOC })).statusCode).to.equal(403)
+        expect((await addLink(undefined, { url: DOC })).statusCode).to.equal(401)
+        expect((await addLink(member.id, { url: DOC }, { groupSlug: 'nope' })).statusCode).to.equal(404)
+        // A member of the circle is not a member of its space.
+        expect((await addLink(member.id, { url: DOC }, { groupSlug: 'governance-budget' })).statusCode).to.equal(403)
+        await other.leaveGroup(group)
+        expect((await addLink(other.id, { url: DOC })).statusCode).to.equal(403)
+        expect((await call('list', { userId: other.id })).statusCode).to.equal(403)
+        await other.joinGroup(group)
+        // Calls that change something must come from the Agora page.
+        const noHeader = await call('addLink', { userId: member.id, body: { url: DOC }, headers: { 'x-agora': '0' } })
+        expect(noHeader.statusCode).to.equal(400)
+        expect(await bookshelf.knex('agora_kdrive_links')).to.have.length(0)
+        // Links are listed only to members, too.
+        await addLink(member.id, { url: DOC })
+        expect((await call('list', { userId: outsider.id })).statusCode).to.equal(403)
+      })
+
+      it('lists a link in the folder it was added in, and in no other', async () => {
+        const made = await call('createFolder', { userId: member.id, body: { name: 'Reports', folder: '' } })
+        const folderId = made.body.item.id
+        await addLink(member.id, { url: DOC, title: 'Top one' })
+        await addLink(other.id, { url: 'https://docs.google.com/spreadsheets/d/1/edit', title: 'Inside one', folder: folderId })
+        const top = await call('list', { userId: member.id })
+        expect(top.body.items.map(i => i.name)).to.have.members(['Reports', 'Top one'])
+        const inside = await call('list', { userId: member.id, query: { folder: folderId } })
+        expect(inside.body.items.map(i => i.name)).to.deep.equal(['Inside one'])
+        expect(inside.body.items[0]).to.include({ addedBy: 'Mei', canChange: false, service: 'sheets' })
+        // A folder outside the circle takes no link.
+        const outside = await addLink(member.id, { url: DOC, folder: '900' })
+        expect(outside.statusCode).to.equal(404)
+        // The circle's Minutes folder takes none either.
+        const minutes = await Circles.saveMinutes(group, { fileName: 'a.md', markdown: 'x' })
+        expect(minutes).to.not.equal(undefined)
+        const minutesId = (await bookshelf.knex('agora_kdrive_folders').where({ group_id: group.id }).first()).minutes_folder_id
+        expect((await addLink(member.id, { url: DOC, folder: String(minutesId) })).statusCode).to.equal(403)
+        // The space has its own list.
+        const spaceList = await call('list', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' } })
+        expect(spaceList.body.items).to.deep.equal([])
+      })
+
+      it('lets only the member who added it, and stewards, rename or delete it', async () => {
+        const id = (await addLink(member.id, { url: DOC, title: 'Plan' })).body.item.id
+        const asOther = await call('list', { userId: other.id })
+        expect(asOther.body.items.find(i => i.id === id).canChange).to.equal(false)
+        expect((await call('list', { userId: steward.id })).body.items.find(i => i.id === id).canChange).to.equal(true)
+
+        expect((await call('rename', { userId: other.id, body: { item: id, name: 'Mine' } })).statusCode).to.equal(403)
+        expect((await call('remove', { userId: other.id, body: { item: id } })).statusCode).to.equal(403)
+        expect((await call('rename', { userId: outsider.id, body: { item: id, name: 'Mine' } })).statusCode).to.equal(403)
+        expect((await bookshelf.knex('agora_kdrive_links').first()).title).to.equal('Plan')
+
+        const renamed = await call('rename', { userId: member.id, body: { item: id, name: 'Plan 2027' } })
+        expect(renamed.body.item).to.deep.equal({ id, name: 'Plan 2027' })
+        const byAmara = await call('rename', { userId: steward.id, body: { item: id, name: 'Plan 2028' } })
+        expect(byAmara.body.item.name).to.equal('Plan 2028')
+        expect((await call('rename', { userId: member.id, body: { item: id, name: '  ' } })).statusCode).to.equal(400)
+        // The address never changes by renaming.
+        expect((await bookshelf.knex('agora_kdrive_links').first()).url).to.equal('https://docs.google.com/document/d/1AbC_def-123/edit')
+
+        const theirs = (await addLink(other.id, { url: DOC })).body.item.id
+        expect((await call('remove', { userId: member.id, body: { item: theirs } })).statusCode).to.equal(403)
+        expect((await call('remove', { userId: steward.id, body: { item: theirs } })).statusCode).to.equal(undefined)
+        expect((await call('remove', { userId: member.id, body: { item: id } })).statusCode).to.equal(undefined)
+        expect(await bookshelf.knex('agora_kdrive_links')).to.have.length(0)
+        expect((await call('list', { userId: member.id })).body.items).to.deep.equal([])
+        // Deleting it again, or a number that is not a link, finds nothing. Nothing goes to kDrive.
+        expect((await call('remove', { userId: member.id, body: { item: id } })).statusCode).to.equal(404)
+        expect((await call('remove', { userId: member.id, body: { item: 'link-abc' } })).statusCode).to.equal(404)
+      })
+
+      it('never lets one circle change or delete the links of another', async () => {
+        const id = (await addLink(member.id, { url: DOC })).body.item.id
+        const viaSpace = await call('remove', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' }, body: { item: id } })
+        expect(viaSpace.statusCode).to.equal(404)
+        const renameViaSpace = await call('rename', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' }, body: { item: id, name: 'x' } })
+        expect(renameViaSpace.statusCode).to.equal(404)
+        expect(await bookshelf.knex('agora_kdrive_links')).to.have.length(1)
+      })
     })
 
     it('makes folders and adds files inside them', async () => {

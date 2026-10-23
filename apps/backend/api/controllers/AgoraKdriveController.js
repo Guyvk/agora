@@ -8,8 +8,12 @@
  *   GET  /noo/agora/files/<circle>/kd/download?file=<id>      a file, passed on by Agora
  *   POST /noo/agora/files/<circle>/kd/upload?name=&folder=    adds one file (the body is the file)
  *   POST /noo/agora/files/<circle>/kd/folder                  { name, folder } makes a folder
+ *   POST /noo/agora/files/<circle>/kd/link                    { url, title, folder } adds a link to a Google document
  *   POST /noo/agora/files/<circle>/kd/rename                  { item, name }
  *   POST /noo/agora/files/<circle>/kd/delete                  { item } moves it to kDrive's bin
+ *
+ * A link (lib/agora/googleLinks.js) is kept in Agora, not in kDrive. Its item
+ * number is "link-<number>"; rename changes its title and delete removes it.
  *
  * Every call checks, on the server, that the person is logged in and an
  * active member of the circle. Renaming and deleting also check that they
@@ -207,6 +211,23 @@ module.exports = {
     try {
       const item = await Circles.makeFolder(allowed.group, { folderId: req.param('folder') || null, userId: allowed.userId, name: req.param('name') })
       sails.log.info(`Agora kDrive: user ${allowed.userId} made folder ${item.id} in group ${allowed.group.id}`)
+      return res.ok({ item })
+    } catch (err) {
+      return failure(res, err)
+    }
+  },
+
+  addLink: async function (req, res) {
+    const allowed = await memberCircle(req, res, { changes: true })
+    if (!allowed) return
+    try {
+      const item = await Circles.addLink(allowed.group, {
+        folderId: req.param('folder') || null,
+        userId: allowed.userId,
+        url: req.param('url'),
+        title: req.param('title')
+      })
+      sails.log.info(`Agora kDrive: user ${allowed.userId} added link ${item.id} to group ${allowed.group.id}`)
       return res.ok({ item })
     } catch (err) {
       return failure(res, err)

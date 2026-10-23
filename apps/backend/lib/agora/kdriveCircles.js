@@ -19,6 +19,11 @@
  *   for moderating posts). Deleting moves it to kDrive's bin. Nobody renames
  *   or deletes the circle's own folder or its "Minutes" folder from Agora, and
  *   no other folder at the top of the circle's folder may be called Minutes.
+ * - Members can also add a link to a Google Doc, Sheet, Slides, Form or Drive
+ *   file or folder (lib/agora/googleLinks.js). It is kept in agora_kdrive_links,
+ *   not in kDrive, and listed in the folder it was added in, with the files.
+ *   Its number on the page is "link-<number>". Renaming (the title) and
+ *   deleting follow the same rule as for files; deleting really removes it.
  * - Agora never shows, changes or hands out anything outside the circle's
  *   folder. Every file or folder asked for is checked by walking up its
  *   parent folders to the circle's folder.
@@ -26,6 +31,7 @@
  * All calls to kDrive go through lib/agora/kdrive.js.
  */
 const Kdrive = require('./kdrive')
+const GoogleLinks = require('./googleLinks')
 
 const { KdriveError, NOT_HERE } = Kdrive
 const MAX_DEPTH = 30
@@ -252,9 +258,48 @@ function toItem (f, added, userId, steward) {
   }
 }
 
+// Folders first, then files and links together by name.
 function byFolderThenName (a, b) {
-  if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1
+  const aFolder = a.kind === 'folder'
+  const bFolder = b.kind === 'folder'
+  if (aFolder !== bFolder) return aFolder ? -1 : 1
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+const LINK_PREFIX = 'link-'
+const MAX_LINKS = 1000
+
+/** The number of a link from its id on the page ("link-12"), or null when it is not one. */
+function linkNumber (id) {
+  const m = /^link-([1-9]\d{0,15})$/.exec(String(id === undefined || id === null ? '' : id))
+  return m ? m[1] : null
+}
+
+/** One link as the Files page shows it. folderId null: the circle's own folder. */
+function toLinkItem (row, userId, steward) {
+  const mine = Boolean(row.user_id && userId && String(row.user_id) === String(userId))
+  return {
+    id: `${LINK_PREFIX}${row.id}`,
+    name: row.title,
+    kind: 'link',
+    service: row.kind,
+    url: row.url,
+    size: null,
+    mimeType: null,
+    changedAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    addedBy: row.user_name || null,
+    canChange: steward || mine
+  }
+}
+
+async function linksIn (group, folderId, userId, steward) {
+  const query = knex()('agora_kdrive_links')
+    .leftJoin('users', 'users.id', 'agora_kdrive_links.user_id')
+    .where('agora_kdrive_links.group_id', group.id)
+  if (folderId) query.where('agora_kdrive_links.folder_id', folderId)
+  else query.whereNull('agora_kdrive_links.folder_id')
+  const rows = await query.select('agora_kdrive_links.*', 'users.name as user_name')
+  return rows.map(row => toLinkItem(row, userId, steward))
 }
 
 /**
@@ -278,13 +323,14 @@ async function list (group, folderId, userId) {
   // The Minutes folder shows no Rename or Delete for anyone (changeable() refuses it too).
   const kept = f => isCircleFolder && f.type === 'dir' &&
     ((row && String(row.minutes_folder_id) === String(f.id)) || isMinutesName(f.name))
+  const links = await linksIn(group, isCircleFolder ? null : folder.id, userId, steward)
   return {
     folder: { id: String(folder.id), name: isCircleFolder ? group.get('name') : folder.name, isCircleFolder },
     items: children.map(f => {
       const item = toItem(f, byId.get(String(f.id)), userId, steward)
       if (kept(f)) item.canChange = false
       return item
-    }).sort(byFolderThenName),
+    }).concat(links).sort(byFolderThenName),
     isSteward: steward
   }
 }
@@ -316,6 +362,46 @@ async function makeFolder (group, { folderId, userId, name }) {
   return toItem(made, { user_id: userId, name: user ? user.get('name') : null }, userId, false)
 }
 
+/**
+ * Adds a link to a Google document to the circle's folder, or a folder inside
+ * it. The address is checked and cleaned (lib/agora/googleLinks.js); nobody is
+ * contacted. The title is optional: without one, the kind of document is used.
+ */
+async function addLink (group, { folderId, userId, url, title }) {
+  const checked = GoogleLinks.parse(url)
+  const given = String(title === undefined || title === null ? '' : title).trim()
+  const linkTitle = cleanName(given) || checked.defaultTitle
+  if (given && !cleanName(given)) throw new KdriveError('bad_request', 'The title is empty.')
+  const { folder, isCircleFolder } = await folderInCircle(group, folderId)
+  refuseMinutesFolder(await folderRow(group.id), folder)
+  const [{ count }] = await knex()('agora_kdrive_links').where({ group_id: group.id }).count('id as count')
+  if (Number(count) >= MAX_LINKS) throw new KdriveError('bad_request', 'This circle has reached the limit of links. Remove some first.')
+  const now = new Date()
+  const [row] = await knex()('agora_kdrive_links')
+    .insert({
+      group_id: group.id,
+      folder_id: isCircleFolder ? null : folder.id,
+      user_id: userId || null,
+      kind: checked.kind,
+      title: linkTitle,
+      url: checked.url,
+      created_at: now,
+      updated_at: now
+    })
+    .returning('*')
+  const user = userId ? await User.find(userId) : null
+  return toLinkItem({ ...row, user_name: user ? user.get('name') : null }, userId, false)
+}
+
+/** Checks that this member may change this link; answers its row. Same rule as for files. */
+async function changeableLink (group, number, userId) {
+  const row = await knex()('agora_kdrive_links').where({ id: number, group_id: group.id }).first()
+  if (!row) throw new KdriveError('not_found', NOT_HERE)
+  if (await isSteward(userId, group)) return row
+  if (row.user_id && userId && String(row.user_id) === String(userId)) return row
+  throw new KdriveError('not_allowed', 'Only the member who added this, and the stewards of the circle, can change or delete it.')
+}
+
 function minutesKept () {
   return new KdriveError('bad_request', 'The name Minutes is kept for the meeting minutes. Choose another name.')
 }
@@ -345,6 +431,12 @@ async function changeable (group, itemId, userId) {
 async function renameItem (group, { itemId, userId, name }) {
   const newName = cleanName(name)
   if (!newName) throw new KdriveError('bad_request', 'The new name is empty.')
+  const linkId = linkNumber(itemId)
+  if (linkId) {
+    const row = await changeableLink(group, linkId, userId)
+    await knex()('agora_kdrive_links').where({ id: row.id }).update({ title: newName, updated_at: new Date() })
+    return { id: `${LINK_PREFIX}${row.id}`, name: newName }
+  }
   const item = await changeable(group, itemId, userId)
   if (item.atTop && isMinutesName(newName)) throw minutesKept()
   await Kdrive.rename(item.id, newName)
@@ -353,6 +445,12 @@ async function renameItem (group, { itemId, userId, name }) {
 }
 
 async function deleteItem (group, { itemId, userId }) {
+  const linkId = linkNumber(itemId)
+  if (linkId) {
+    const row = await changeableLink(group, linkId, userId)
+    await knex()('agora_kdrive_links').where({ id: row.id }).del()
+    return { id: `${LINK_PREFIX}${row.id}` }
+  }
   const item = await changeable(group, itemId, userId)
   await Kdrive.trash(item.id)
   dropInfo(item.id)
@@ -413,6 +511,7 @@ module.exports = {
   list,
   addFile,
   makeFolder,
+  addLink,
   renameItem,
   deleteItem,
   openFile,

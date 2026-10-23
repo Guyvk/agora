@@ -122,6 +122,7 @@ module.exports.routes = {
   'GET    /noo/agora/files/:groupSlug/kd/download':       'AgoraKdriveController.download',
   'POST   /noo/agora/files/:groupSlug/kd/upload':         'AgoraKdriveController.upload',
   'POST   /noo/agora/files/:groupSlug/kd/folder':         'AgoraKdriveController.createFolder',
+  'POST   /noo/agora/files/:groupSlug/kd/link':           'AgoraKdriveController.addLink',
   'POST   /noo/agora/files/:groupSlug/kd/rename':         'AgoraKdriveController.rename',
   'POST   /noo/agora/files/:groupSlug/kd/delete':         'AgoraKdriveController.remove',
 
