@@ -55,7 +55,7 @@ describe('GuidePage', () => {
     expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
     // Meeting notes are live, so they are explained, not promised
-    expect(screen.getByText(/posts the transcript and a short summary/)).toBeInTheDocument()
+    expect(screen.getByText(/posts a short summary with decisions and actions/)).toBeInTheDocument()
   })
 
   it('opens the Help window from Getting help', () => {

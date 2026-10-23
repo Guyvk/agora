@@ -29,10 +29,15 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
 | `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", the texts of the playbook page, and the message when a group cannot be deleted |
 | `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts", the texts of the playbook page and the message when a group cannot be deleted, in each language |
-| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and never a video call link to another platform |
+| `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and never a video call link to another platform; the link has a video icon, reads "Video meeting in Agora (with minutes)" and opens in the same tab |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.test.js` | Checks that a link to another platform is not shown |
-| `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message |
-| `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform |
+| `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message. A one-line hint says every meeting gets its own video room |
+| `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform; it opens in the same tab |
+| `apps/web/src/components/TextInput/TextInput.js`, `TextInput.test.js` | The X in a field cleared nothing in forms that pick the field by its name (sign-up password fields): it now sends the field's own name. This one is worth offering back to Hylo |
+| `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.test.js` | Test that the X in a password field clears only that field |
+| `apps/web/src/components/PostEditor/PostEditor.test.js`, `apps/web/src/routes/PostDetail/PostDetail.test.js` | Tests for the video meeting hint and for the meeting room opening in the same tab |
+| `apps/web/src/agora/guide/guideParts.json`, `apps/web/src/agora/help/HelpWindow.test.js` | The guide names the meeting room link by its new name |
+| `apps/web/public/locales/*.json (video meeting)` | Two new texts in every language: the hint on the event form and the name of the meeting room link ("Video meeting in Agora (with minutes)") |
 | `apps/web/public/locales/*.json (meeting room only)` | The texts of the video call link field are gone, and one new text says a video call link cannot be the location, in every language (Hindi in English for now) |
 | `apps/web/src/components/PostCard/EventBody/EventBody.js` | On the event's own page, the box where the event's maker and the circle's stewards make a guest link for people without an account |
 | `apps/web/public/locales/*.json (guest links)` | Twelve new texts for the guest link box, in every language |

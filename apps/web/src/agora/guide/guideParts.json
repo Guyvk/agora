@@ -44,7 +44,7 @@
       "title": "Events and meetings",
       "blocks": [
         { "text": "An event is a post with a date and time. When you make one, you can invite people. They get a notification and answer Going, Interested or Not going. The Events view of a circle lists what is coming up." },
-        { "text": "Every event has its own meeting room in Agora, and the call takes place there. Open the event and click \"Meet in Agora, with minutes\". Headphones help." },
+        { "text": "Every event has its own meeting room in Agora, and the call takes place there. Open the event and click \"Video meeting in Agora (with minutes)\". Headphones help." },
         { "text": "When you come in, the room asks if your voice may be part of the notes. Say no, or pause at any time, and your voice stays out of them. Next to the call there is a chat (not on phones for now). After the meeting, Agora posts a short summary with decisions and actions, and who was there, in the circle. Nobody has to take notes." },
         { "text": "People from outside Agora can join a meeting too. Under the event, every member of the circle finds a guest link to copy and send. Guests join the same call and chat, and see nothing else in Agora." }
       ]

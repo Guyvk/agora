@@ -177,7 +177,7 @@
     <button id="pauseBtn" hidden>Pause my notes</button>
     <button id="leaveBtn" hidden>Leave the call</button>
     <button class="danger" id="endBtn" hidden>End meeting for everyone</button>
-    <a id="backLink" href="#">Back to the event</a>
+    <a id="backLink" href="#">Back to the meeting post</a>
   </div>
 </header>
 
@@ -269,7 +269,7 @@
         <a class="button primary" id="minutesLink" href="#" hidden>Read the minutes</a>
         <button class="danger" id="endForAll" hidden>End meeting for everyone</button>
         <button id="rejoin" hidden>Join the call again</button>
-        <a class="button" id="endedBack" href="#">Back to the event</a>
+        <a class="button" id="endedBack" href="#">Back to the meeting post</a>
       </div>
       <p class="error" id="endedError" hidden></p>
     </div>
@@ -725,8 +725,22 @@ window.addEventListener('pagehide', () => {
 });
 
 /* Shows Agora's own end screen instead of the call. kind: 'left', 'ended' or 'gone'. */
+/* Agora: a member who was in this meeting goes back to the meeting post, in this same tab, a few
+   seconds after it ends or after they leave. The button on the end screen does the same at once.
+   Guests have no account, so they stay on the end screen. */
+const BACK_AFTER = 4000;
+function goBackSoon() {
+  if (BOOT.guest || !BOOT.eventUrl) return;
+  setTimeout(() => { location.href = BOOT.eventUrl; }, BACK_AFTER);
+  const note = document.createElement('p');
+  note.id = 'backSoon';
+  note.textContent = 'Taking you back to the meeting post in a few seconds.';
+  $('endedText').after(note);
+}
+
 function finish(kind, data) {
   const first = !state.ended;
+  const wasInCall = state.inCall;
   state.ended = true;
   state.inCall = false;
   if (recorder) recorder.stop();
@@ -745,6 +759,7 @@ function finish(kind, data) {
     renderEnd(null);
     return;
   }
+  if (first && wasInCall && kind !== 'gone') goBackSoon();   // Agora: only for people who were in the call in this page
   if (kind === 'left' && first) state.endKind = 'left';
   if (kind === 'ended') state.meetingStatus = (data && data.status) || 'closing';
   if (first) loadSummary();
