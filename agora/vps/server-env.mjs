@@ -67,6 +67,8 @@ write('apps/backend/.env', {
   REDIS_URL: 'redis://127.0.0.1:6379',
   COOKIE_SECRET: secret(32),
   JWT_SECRET: secret(32),
+  // Agora: the key for guest link secrets (lib/agora/meetingGuests.js), apart from the cookie secret.
+  AGORA_GUEST_LINK_KEY: secret(32),
   OIDC_KEYS: Buffer.from(privateKey).toString('base64'),
   INBOUND_EMAIL_SALT: secret(16),
   PLAY_APP_SECRET: secret(16),

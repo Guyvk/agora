@@ -226,7 +226,8 @@ module.exports = {
     res.set('Cache-Control', 'no-store')
     if (guest.left_at) return res.ok({ status: session.get('status'), chat: [] })
     if (session.isOpen()) await guestSeen(guest.id)
-    const chat = forPage(await listMessages(session.id, { afterId: req.query.chatAfter }), { guestId: guest.id })
+    // A phone shows no chat for now, and asks with noChat=1 so the messages are not fetched.
+    const chat = req.query.noChat === '1' ? [] : forPage(await listMessages(session.id, { afterId: req.query.chatAfter }), { guestId: guest.id })
     res.ok({ status: session.get('status'), chat })
   },
 

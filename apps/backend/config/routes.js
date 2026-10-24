@@ -122,7 +122,9 @@ module.exports.routes = {
   'GET    /noo/agora/files/:groupSlug/kd/download':       'AgoraKdriveController.download',
   'POST   /noo/agora/files/:groupSlug/kd/upload':         'AgoraKdriveController.upload',
   'POST   /noo/agora/files/:groupSlug/kd/folder':         'AgoraKdriveController.createFolder',
+  'POST   /noo/agora/files/:groupSlug/kd/link':           'AgoraKdriveController.addLink',
   'POST   /noo/agora/files/:groupSlug/kd/rename':         'AgoraKdriveController.rename',
+  'POST   /noo/agora/files/:groupSlug/kd/move':           'AgoraKdriveController.move',
   'POST   /noo/agora/files/:groupSlug/kd/delete':         'AgoraKdriveController.remove',
 
   // Agora contacts: one shared list of people and organisations outside Agora
