@@ -95,6 +95,9 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
         if (!(await hasLinkedAccount(user, service))) {
           await LinkedAccount.create(user.id, { type: service, profile }, { updateUser: true })
         }
+        // Agora: someone who started signing up by email and now logs in with Apple or Google
+        // joins the circle of the invitation kept with the account (a no-op when none is kept)
+        await AgoraSignup.joinRememberedCircle(user)
         return user
       }
 

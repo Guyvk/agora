@@ -271,7 +271,7 @@ Agora is by invitation. Only someone who holds an invitation to a circle can mak
 
 **Landing in the circle.** Someone who signs up through a circle's join link or an invitation email becomes a member of that circle as soon as the account is finished (name and password chosen), also when they open the email link in another browser or come back later. The server keeps the invitation with the new account for this and checks it again at that moment: a join link that was replaced or an invitation that was withdrawn in between does nothing, and the person still has an account but is in no circle. Someone who is already logged in and opens a join link or invitation joins at once and lands in the circle, without an extra click. When the circle has agreements or join questions, they see its About page first, with those steps, instead. A circle without a valid link still asks people to join themselves.
 
-**Logged out, nothing is visible.** Someone who is not logged in and opens a circle's join link or invitation sees only the sign-up or login page. The server gives a logged-out visitor nothing to read, except the name and address of the circle of a valid link: no description, members, posts or counts. Meeting guest links are separate and work as before.
+**Logged out, nothing is visible.** Someone who is not logged in and opens a circle's join link or invitation sees only the sign-up or login page. The server gives a logged-out visitor nothing to read, except the name and address of the circle of a valid link: no description, members, posts or counts. Pictures and files (`/noo/uploads`) and circle profiles are also only for people who are logged in. Meeting guest links are separate and work as before.
 
 **The Join button.** On the page of a circle you are not a member of, the Join button is at the top, below the banner and above the description, so it is the first thing you see, also on a phone.
 
@@ -454,6 +454,32 @@ Things to know:
   ```
   The update step also runs `yarn install`, which the new building block (`send`) needs.
 - If a bucket and key for Amazon S3 are set (`AWS_S3_BUCKET` and `AWS_ACCESS_KEY_ID`), Agora uses S3 like Hylo, and the folder is not used. Setting a Filestack key brings Hylo's Filestack picker back.
+
+## 7BP Home (main circle)
+
+Agora starts as separate circles with no place that holds them all. The 7BP Home is one main circle, by default named "7BP" with the slug `7bp` (set `AGORA_MAIN_GROUP_SLUG` and `AGORA_MAIN_GROUP_NAME` in `apps/backend/.env`). It is visible to its members only, people join by invitation or join link, and the Commons stays off.
+
+**This changes who sees what.** Every member of any circle becomes a member of the 7BP Home and sees its stream (announcements, meetings, events), its members and its circles. Circles themselves keep their own members, settings and posts.
+
+What it does (`apps/backend/lib/agora/mainGroup.js`), and only adds what is missing, so a second run changes nothing:
+
+1. Makes the main circle if it does not exist, in Hylo's own way (roles, menu and chat room like any circle). The maker is the first active account in `AGORA_ADMINS`, who becomes its Administrator. (The other Agora admins get the role through the admins-everywhere job, once that is merged.)
+2. Makes every other active circle a child of it. A circle that a steward took out of the main circle on purpose stays out and is listed as "kept apart".
+3. Makes every active account with a confirmed email address that is a member of at least one active circle a member of the main circle, with the role Member. Existing memberships stay as they are. Someone who left the main circle (or was removed) is not added again: Hylo records leaving as an inactive membership, and the job respects it. New memberships are quiet: no join form, notifications only for mentions and announcements, a weekly digest, and nobody is told "X joined". A member can change this in the circle's settings.
+4. Sets up the home page once: a welcome page as the home ("The home of 7 Billion Presidents: announcements, meetings and all our circles."), the stream with its announcements, events and meetings, members, chat, and a menu entry for each circle. It is remembered in the circle's settings, so a page a steward removes later stays removed, and only circles made later get a menu entry. A welcome page that already has text keeps it.
+
+On the server, from `/srv/agora/apps/backend` as the `agora` user (first look, then save):
+
+```
+node scripts/agora-main-group.js
+node scripts/agora-main-group.js --apply
+```
+
+The first command shows every change and saves nothing. Only this command, run by a person, makes the main circle. After that the cron job keeps it up to date every 10 minutes, so people who join any circle later also land in the 7BP Home and new circles become its children; until the circle exists, the cron job does nothing. No email goes out when the circle is made or when people are added. A failure is logged and never stops the other cron tasks.
+
+To undo: a steward can remove a circle from the 7BP Home in that circle's settings (it stays out), remove members, or delete the circle in its settings. If the main circle itself is deleted in its settings, the job does not make it again (it reports that the slug is taken by a switched-off circle). To stop the job altogether, take it out of `cron.js`.
+
+Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainGroup.test.js` (they empty that database).
 
 ## What is switched off
 

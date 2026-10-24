@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, useContext } 
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import { useTranslation } from 'react-i18next'
 import { createSelector } from 'reselect'
 import { debounce, groupBy, isEqual, isEmpty } from 'lodash'
@@ -836,7 +837,7 @@ function MapExplorer (props) {
   return (
     <div className={cn(classes.container, { [classes.noUser]: !currentUser, [classes.withoutNav]: withoutNav })}>
       <Helmet>
-        <title>Map | {group ? `${group.name} | ` : context === 'public' ? 'Public | ' : ' All My Groups | '}Hylo</title>
+        <title>{agoraTitle('Map', group ? group.name : context === 'public' ? 'Public' : 'All My Groups')}</title>
       </Helmet>
 
       {/* isolate: the deck.gl overlay lives in a Mapbox control (z-index 2). Without a

@@ -95,4 +95,22 @@ describe('Agora: what a logged-out person can read', () => {
     expect(result.errors).to.equal(undefined)
     expect(result.data.checkInvitation).to.deep.equal({ valid: true, groupName: 'Governance', groupSlug: 'governance' })
   })
+
+  describe('circle profiles (Murmurations)', () => {
+    it('are only for people who are logged in', () => {
+      // Sails rewrites the loaded policies while the server runs, so read the file itself
+      const text = require('fs').readFileSync(rootPath('config/policies.js'), 'utf8')
+      expect(text).to.match(/MurmurationsController: \{\s*group: 'sessionAuth'\s*\}/)
+    })
+
+    it('answer an unknown circle with not found, not an error', async () => {
+      const MurmurationsController = require(rootPath('api/controllers/MurmurationsController'))
+      const req = factories.mock.request()
+      req.params = { groupSlug: 'no-such-circle' }
+      const res = factories.mock.response()
+      res.notFound = spy()
+      await MurmurationsController.group(req, res)
+      expect(res.notFound).to.have.been.called()
+    })
+  })
 })

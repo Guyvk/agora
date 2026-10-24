@@ -182,36 +182,52 @@ async function rememberInvitation (user, held) {
 }
 
 /**
- * Makes the user a member of the circle of this invitation, with Hylo's own
- * join (the one behind the Join button), when the invitation can be used now.
- * Returns the membership, or null. Never throws: a sign-up must not fail
- * because joining did not work.
+ * Tries to make the user a member of the circle of this invitation, with Hylo's
+ * own join (the one behind the Join button), when the invitation can be used now.
+ * Never throws: a sign-up must not fail because joining did not work.
+ * Returns { membership, settled }. settled is true when there is nothing more to
+ * try (joined, or the invitation is not valid any more) and false when joining
+ * failed for another reason and may work later.
  */
-async function joinInvitedCircle (user, held) {
+async function tryJoinInvitedCircle (user, held) {
   try {
     const { invitationToken, accessCode } = invitation(held)
-    if (!user || (!invitationToken && !accessCode)) return null
+    if (!user || (!invitationToken && !accessCode)) return { membership: null, settled: true }
     const InvitationService = require('../../api/services/InvitationService')
     const check = await InvitationService.check(invitationToken, accessCode)
-    if (!check?.valid || !(await isActiveGroup(check.groupId))) return null
+    if (!check?.valid || !(await isActiveGroup(check.groupId))) return { membership: null, settled: true }
     // A space invitation joins its parent circle and the space together
     const groupId = (check.isSpace && check.parentGroupId) ? check.parentGroupId : check.groupId
     const { joinGroup } = require('../../api/graphql/mutations/group')
-    return await joinGroup(groupId, user.id, [], accessCode, invitationToken, false, {})
+    const membership = await joinGroup(groupId, user.id, [], accessCode, invitationToken, false, {})
+    return { membership: membership || null, settled: Boolean(membership) }
   } catch (error) {
     console.warn(`Agora: could not add user ${user?.id} to the circle of their invitation: ${error.message}`)
-    return null
+    return { membership: null, settled: false }
   }
 }
 
-/** Joins the circle of the invitation kept by rememberInvitation, once, and forgets it. */
+/** Returns the membership, or null. Never throws. */
+async function joinInvitedCircle (user, held) {
+  return (await tryJoinInvitedCircle(user, held)).membership
+}
+
+/**
+ * Joins the circle of the invitation kept by rememberInvitation. The invitation is
+ * forgotten only once it has been used or is not valid any more; when joining
+ * failed for another reason it is kept, so the next time the account is finished
+ * or logged in to, it is tried again.
+ */
 async function joinRememberedCircle (user) {
   const remembered = user && typeof user.getSetting === 'function' ? user.getSetting(REMEMBERED_INVITATION) : null
   if (!remembered) return null
-  const settings = { ...(user.get('settings') || {}) }
-  delete settings[REMEMBERED_INVITATION]
-  await user.save({ settings }, { patch: true })
-  return joinInvitedCircle(user, remembered)
+  const { membership, settled } = await tryJoinInvitedCircle(user, remembered)
+  if (settled) {
+    const settings = { ...(user.get('settings') || {}) }
+    delete settings[REMEMBERED_INVITATION]
+    await user.save({ settings }, { patch: true })
+  }
+  return membership
 }
 
 module.exports = {

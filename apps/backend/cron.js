@@ -88,7 +88,9 @@ const every10minutes = now => {
     Post.updateProposalStatuses(),
     // Agora: end meetings everybody has left (or that run 2 hours past the event), so their minutes get written
     MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} meetings nobody was in any more`)),
-    FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`))
+    FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`)),
+    // Agora: the 7BP Home holds every circle and every member; never throws (lib/agora/mainGroup.js)
+    require('./lib/agora/mainGroup').everyTenMinutesMainGroup()
   ]
 }
 

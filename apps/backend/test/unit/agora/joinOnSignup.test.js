@@ -113,6 +113,54 @@ describe('Agora: joining the circle of the invitation someone signed up with', (
     const user = await findByEmail('late@agora.test')
     expect(user.get('active')).to.equal(true)
     expect(await isMember(user, other)).to.equal(false)
+    // Nothing more to try: the invitation is forgotten
+    expect(user.getSetting(AgoraSignup.REMEMBERED_INVITATION)).to.equal(undefined)
+  })
+
+  it('keeps the invitation when joining fails for another reason, and joins the next time', async () => {
+    const InvitationService = require(rootPath('api/services/InvitationService'))
+    const originalCheck = InvitationService.check
+    const user = await factories.user({ email: 'retry@agora.test', active: true }).save()
+    const settings = { ...(user.get('settings') || {}), [AgoraSignup.REMEMBERED_INVITATION]: { accessCode: 'join-governance' } }
+    await user.save({ settings }, { patch: true })
+    try {
+      InvitationService.check = async () => { throw new Error('the database is busy') }
+      expect(await AgoraSignup.joinRememberedCircle(user)).to.equal(null)
+    } finally {
+      InvitationService.check = originalCheck
+    }
+    await user.refresh()
+    expect(await isMember(user, circle)).to.equal(false)
+    expect(user.getSetting(AgoraSignup.REMEMBERED_INVITATION)).to.deep.equal({ accessCode: 'join-governance' })
+    // The next time it works, and the invitation is used up
+    const membership = await AgoraSignup.joinRememberedCircle(user)
+    expect(membership).to.exist
+    await user.refresh()
+    expect(await isMember(user, circle)).to.equal(true)
+    expect(user.getSetting(AgoraSignup.REMEMBERED_INVITATION)).to.equal(undefined)
+  })
+
+  it('makes someone with an unfinished account who logs in with Apple a member of the circle of their invitation', async () => {
+    const email = 'stub-apple@agora.test'
+    await sendEmailVerification(null, { email, accessCode: 'join-governance' }, { req: { ip: '127.0.0.8' } })
+    const stub = await findByEmail(email)
+    expect(await isMember(stub, circle)).to.equal(false)
+    const originalVerify = appleSigninAuth.verifyIdToken
+    try {
+      appleSigninAuth.verifyIdToken = async () => ({ sub: `apple-${email}`, email, email_verified: 'true' })
+      const req = factories.mock.request()
+      req.params = {}
+      req.body = { user: `apple-${email}`, identityToken: 'token', fullName: { givenName: 'Stub', familyName: 'Person' } }
+      req.get = () => undefined
+      const res = factories.mock.response()
+      await SessionController.finishAppleOAuth(req, res)
+      expect(res.ok).to.have.been.called()
+      const user = await findByEmail(email)
+      expect(await isMember(user, circle)).to.equal(true)
+      expect(user.getSetting(AgoraSignup.REMEMBERED_INVITATION)).to.equal(undefined)
+    } finally {
+      appleSigninAuth.verifyIdToken = originalVerify
+    }
   })
 
   it('does not keep an invitation with an account that already exists', async () => {

@@ -4,6 +4,7 @@ import { matchPath, Route, Routes, Navigate, useLocation, useNavigate, useParams
 import { useDispatch, useSelector } from 'react-redux'
 import { IntercomProvider } from 'react-use-intercom'
 import { Helmet } from 'react-helmet'
+import { APP_NAME, DEMO_APP_NAME } from '@/agora/appName' // Agora: tab titles say Agora
 import { get, some } from 'lodash/fp'
 import { cn } from 'util/index'
 import {
@@ -828,7 +829,7 @@ export default function AuthLayoutRouter (props) {
     return (
       <div data-testid='loading-screen' className={cn('flex flex-row items-stretch bg-midground h-full', { 'h-[100dvh]': compactLayout && !isSandboxMode() })}>
         <Helmet>
-          <title>{isSandboxMode() ? 'Hylo Demo' : 'Hylo'}</title>
+          <title>{isSandboxMode() ? DEMO_APP_NAME : APP_NAME}</title>
           <meta name='description' content='Prosocial Coordination for a Thriving Planet' />
           {isSandboxMode() && <meta name='robots' content='noindex, nofollow' />}
         </Helmet>
@@ -972,7 +973,7 @@ export default function AuthLayoutRouter (props) {
         </div>
       )}
       <Helmet>
-        <title>{currentGroup ? `${currentGroup.name} | ` : ''}{isSandboxMode() ? 'Hylo Demo' : 'Hylo'}</title>
+        <title>{currentGroup ? `${currentGroup.name} | ` : ''}{isSandboxMode() ? DEMO_APP_NAME : APP_NAME}</title>
         <meta name='description' content='Prosocial Coordination for a Thriving Planet' />
         {isSandboxMode() && <meta name='robots' content='noindex, nofollow' />}
         {currentUser && (
