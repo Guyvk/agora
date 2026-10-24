@@ -70,7 +70,9 @@ async function thisWeek (userId, groupSlug, { now = new Date() } = {}) {
   if (!circles.some(c => c.id === String(main.id))) return off
   const circleIds = circles.map(c => c.id)
 
-  const base = () => inCircles(knex()('posts').where('posts.active', true).whereNot('posts.type', 'chat'), circleIds)
+  const base = () => inCircles(knex()('posts').where('posts.active', true)
+    .where(q => q.whereNull('posts.type').orWhereNot('posts.type', 'chat'))
+    .whereIn('posts.user_id', knex()('users').where('active', true).select('id')), circleIds)
 
   const [meetings, announcements, minutes, decisions] = await Promise.all([
     base().where('posts.type', 'event')

@@ -66,17 +66,19 @@ export default function ThisWeek ({ groupSlug }) {
 
   useEffect(() => {
     let stopped = false
+    setData(null)
+    setFailed(false)
     if (!groupSlug) return undefined
     load(groupSlug)
       .then(body => { if (!stopped) setData(body) })
-      .catch(() => { if (!stopped) setFailed(true) })
+      .catch(err => {
+        console.warn('This week in 7BP could not be loaded', err)
+        if (!stopped) setFailed(true)
+      })
     return () => { stopped = true }
   }, [groupSlug])
 
-  if (failed) {
-    return <p data-testid='agora-this-week-failed' className='text-sm text-foreground/60'>{t('This week in 7BP could not be loaded. Try again in a minute.')}</p>
-  }
-  if (!data || !data.enabled) return null
+  if (failed || !data || !data.enabled) return null
 
   const language = i18n.language
   return (

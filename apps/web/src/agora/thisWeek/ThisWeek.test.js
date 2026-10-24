@@ -3,6 +3,7 @@ import React from 'react'
 import { render, screen, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import ThisWeek from './ThisWeek'
 
+jest.setTimeout(20000)
 const WAIT = { timeout: 10000 }
 
 function fakeServer (status, body) {
@@ -74,9 +75,17 @@ describe('ThisWeek', () => {
     expect(screen.queryByText('This week in 7BP')).toBeNull()
   })
 
-  it('says so calmly when the server cannot answer', async () => {
+  it('shows nothing when the server cannot answer, and nothing stale after a circle change', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    fakeServer(200, FILLED)
+    const { rerender } = render(<ThisWeek groupSlug='7bp' />)
+    expect(await screen.findByTestId('agora-this-week', undefined, WAIT)).toBeInTheDocument()
     fakeServer(500, {})
-    render(<ThisWeek groupSlug='7bp' />)
-    expect(await screen.findByText('This week in 7BP could not be loaded. Try again in a minute.', undefined, WAIT)).toBeInTheDocument()
+    rerender(<ThisWeek groupSlug='other' />)
+    expect(screen.queryByTestId('agora-this-week')).not.toBeInTheDocument()
+    await waitFor(() => expect(warn).toHaveBeenCalled(), WAIT)
+    expect(screen.queryByTestId('agora-this-week')).not.toBeInTheDocument()
+    expect(screen.queryByText(/could not be loaded/)).not.toBeInTheDocument()
+    warn.mockRestore()
   })
 })

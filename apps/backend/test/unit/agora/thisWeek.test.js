@@ -146,6 +146,19 @@ describe('Agora This week in 7BP', () => {
     expect(r.announcements[1].circle.name).to.equal('7BP')
   })
 
+  it('announcements: a post with no type still shows; a post by a deactivated account does not', async () => {
+    const gone = await mk('Gone')
+    await post('Untyped news', [circleA], { announcement: true, type: null, created_at: at(-0.2) })
+    await post('Gone news', [circleA], { announcement: true, created_at: at(-0.1), user_id: gone.id })
+    let r = await thisWeek(String(ann.id), '7bp', { now })
+    expect(r.announcements.map(a => a.title)).to.include('Untyped news')
+    expect(r.announcements.map(a => a.title)).to.include('Gone news')
+    await knex()('users').where('id', gone.id).update({ active: false })
+    r = await thisWeek(String(ann.id), '7bp', { now })
+    expect(r.announcements.map(a => a.title)).to.include('Untyped news')
+    expect(r.announcements.map(a => a.title)).to.not.include('Gone news')
+  })
+
   it('minutes: only posts that a meeting session names, newest 3, with the circle', async () => {
     const make = async (title, days, circle = circleA) => {
       const id = await post(title, [circle], { created_at: at(days) })
