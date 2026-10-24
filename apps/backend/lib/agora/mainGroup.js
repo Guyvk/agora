@@ -120,7 +120,7 @@ async function activeCircles (exceptId) {
  *   changes         // total number of changes
  * }
  */
-async function ensureMainGroup ({ apply = false } = {}) {
+async function ensureMainGroup ({ apply = false, create = true } = {}) {
   const report = {
     blocked: null,
     main: { slug: mainGroupSlug(), name: mainGroupName(), exists: false, create: false, id: null, creator: null },
@@ -145,6 +145,11 @@ async function ensureMainGroup ({ apply = false } = {}) {
     report.main.id = String(main.id)
     report.main.name = main.get('name')
   } else {
+    if (!create) {
+      // Only a person makes the circle, after looking at the dry run
+      report.blocked = 'The main circle does not exist yet. Make it by hand: node scripts/agora-main-group.js, then with --apply.'
+      return report
+    }
     const creator = await firstActiveAgoraAdmin()
     if (!creator) {
       report.blocked = 'The main circle does not exist yet and there is no active account in AGORA_ADMINS to make it. Put an Agora admin\'s account number in AGORA_ADMINS first.'
@@ -190,8 +195,14 @@ async function ensureMainGroup ({ apply = false } = {}) {
   if (apply && mainId) {
     for (const link of report.links) {
       try {
-        const child = await Group.find(link.id)
-        await child.parentGroups().attach(mainId)
+        // A lock and a second look, so two runs at once never link a circle twice
+        await bookshelf.transaction(async trx => {
+          await trx.raw('select pg_advisory_xact_lock(hashtext(?))', ['agora-main-group-links'])
+          const existing = await trx('group_relationships').where({ parent_group_id: mainId, child_group_id: link.id }).first('id')
+          if (existing) return
+          const child = await Group.find(link.id, { transacting: trx })
+          await child.parentGroups().attach(mainId, { transacting: trx })
+        })
       } catch (err) {
         report.failures.push({ step: `link ${link.id}`, message: err.message })
       }
@@ -264,7 +275,8 @@ async function ensureHome (report, { apply, mainId, circles }) {
   const first = !done
 
   // The blocks a member needs, only on the first run
-  const missingBlocks = first ? HOME_VIEWS.filter(type => !views.some(v => v.type === type)) : []
+  // Before the circle exists, Group.create makes these pages itself
+  const missingBlocks = first && mainId ? HOME_VIEWS.filter(type => !views.some(v => v.type === type)) : []
   const welcome = views.find(v => v.type === 'welcome')
   const textNeeded = first && (!welcome || !String(welcome.page_content || '').trim())
 
@@ -298,8 +310,11 @@ async function ensureHome (report, { apply, mainId, circles }) {
       await GroupView.appendToMenu({ group_id: mainId, type: 'group', linked_group_id: circle.id }, { transacting: trx })
     }
     const circleIds = new Set([...handled, ...circles.map(c => String(c.id))])
-    const next = { ...settings, agoraHome: { circleIds: [...circleIds], setUpAt: (done && done.setUpAt) || new Date().toISOString() } }
-    await trx('groups').where('id', mainId).update({ settings: JSON.stringify(next) })
+    const agoraHome = { circleIds: [...circleIds], setUpAt: (done && done.setUpAt) || new Date().toISOString() }
+    // Merge, so a steward's settings saved in the meantime are kept
+    await trx('groups').where('id', mainId).update({
+      settings: trx.raw('coalesce(settings, \'{}\'::jsonb) || ?::jsonb', [JSON.stringify({ agoraHome })])
+    })
   })
 }
 
@@ -309,7 +324,8 @@ async function ensureHome (report, { apply, mainId, circles }) {
  */
 async function everyTenMinutesMainGroup () {
   try {
-    const report = await ensureMainGroup({ apply: true })
+    // Keeps the circle up to date; making it is left to a person
+    const report = await ensureMainGroup({ apply: true, create: false })
     if (report.blocked) {
       sails.log.debug(`Agora: main circle not checked: ${report.blocked}`)
     }

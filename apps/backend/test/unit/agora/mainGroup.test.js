@@ -53,6 +53,14 @@ describe('Agora main circle', () => {
     expect(await mainRow()).to.equal(undefined)
   })
 
+  it('the cron job never makes the circle itself', async () => {
+    expect(await everyTenMinutesMainGroup()).to.equal(0)
+    expect(await mainRow()).to.equal(undefined)
+    const r = await ensureMainGroup({ apply: true, create: false })
+    expect(r.blocked).to.match(/by hand/)
+    expect(await mainRow()).to.equal(undefined)
+  })
+
   it('a: makes the circle with the right name, slug, visibility and a Hylo chat room and roles', async () => {
     const r = await ensureMainGroup({ apply: true })
     expect(r.failures).to.deep.equal([])

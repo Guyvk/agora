@@ -469,7 +469,7 @@ node scripts/agora-main-group.js
 node scripts/agora-main-group.js --apply
 ```
 
-The first command shows every change and saves nothing. The cron job runs the same with `--apply` every 10 minutes, so people who join any circle later also land in the 7BP Home and new circles become its children. A failure is logged and never stops the other cron tasks.
+The first command shows every change and saves nothing. Only this command, run by a person, makes the main circle. After that the cron job keeps it up to date every 10 minutes, so people who join any circle later also land in the 7BP Home and new circles become its children; until the circle exists, the cron job does nothing. No email goes out when the circle is made or when people are added. A failure is logged and never stops the other cron tasks.
 
 To undo: a steward can remove a circle from the 7BP Home in that circle's settings (it stays out), remove members, or delete the circle in its settings. If the main circle itself is deleted in its settings, the job does not make it again (it reports that the slug is taken by a switched-off circle). To stop the job altogether, take it out of `cron.js`.
 
