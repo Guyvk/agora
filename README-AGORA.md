@@ -475,6 +475,23 @@ To undo: a steward can remove a circle from the 7BP Home in that circle's settin
 
 Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainGroup.test.js` (they empty that database).
 
+### This week in 7BP (top of the 7BP Home)
+
+At the top of the 7BP Home's welcome page, above the welcome text, every member sees a block "This week in 7BP" with four short lists:
+
+1. **Next meetings and events**: up to 6, the soonest first, so the ones in the next 7 days come before later ones. Each shows the date and time in the member's own time zone, the title, the circle name, a link to the post and, when the event has one, a "Meeting room" link. An event that is going on right now still counts.
+2. **Newest announcements**: the 3 newest posts that were sent as an announcement (Hylo's announcement switch on a post), with a short plain-text start.
+3. **Latest minutes**: the 3 newest meeting minutes. A minutes post is the post the Agora assistant writes when a meeting ends; it is recognised by the meeting that names it (`meeting_sessions.minutes_post_id`), not by its title or by a "minutes" tag anyone could type.
+4. **Recent decisions**: up to 3 proposals that ended in the last 14 days. A proposal with a voting period counts when its end time has passed (whatever its status says, because Hylo only updates the status in a regular job). A casual proposal, which has no voting period, counts when someone marked it completed. The outcome text is shown when someone wrote one. Proposals still open, and older than 14 days, are not shown.
+
+Every list has a calm text when it is empty ("No meetings this week").
+
+**Who sees what.** Only posts that are in a circle where the viewer is an active member, and only the 7BP Home and its active child circles count. A hidden circle the viewer is not in never shows anything. A post that is in several circles shows under a circle the viewer is in, never under another. Public posts of circles the viewer has not joined are left out on purpose.
+
+**How it works.** One small call, `GET /noo/agora/this-week?group=<slug>` (`apps/backend/lib/agora/thisWeek.js`, `api/controllers/AgoraThisWeekController.js`), for anyone logged in. It makes a fixed number of database queries, none per item. For every circle other than the main one, and for anyone who is not a member of the main circle, it answers `{ enabled: false }` and the web page (`apps/web/src/agora/thisWeek/ThisWeek.jsx`) shows nothing. It uses the same main circle setting as above (`AGORA_MAIN_GROUP_SLUG`). Every link opens inside the app (the post inside its circle, same tab); the meeting room is Agora's existing room page, opened in the same tab.
+
+Tests: backend `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/thisWeek.test.js` (empties that database), web `cd apps/web && yarn test --watchAll=false --testPathPattern=agora/thisWeek`. The new words are in all six language files in English, to be translated.
+
 ## What is switched off
 
 - **Tracking.** `DISABLE_SEGMENT=1` stops the server from sending usage events to Segment. The Mixpanel and Intercom keys are empty. The cookie banner still mentions them and needs to be changed.

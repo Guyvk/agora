@@ -20,6 +20,10 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
 | `apps/backend/cron.js` | Every 10 minutes also runs the 7BP Home job, which never throws (`lib/agora/mainGroup.js`). Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` | One new route, `GET /noo/agora/this-week`, for anyone logged in (This week in 7BP) |
+| `apps/web/src/routes/GroupWelcomePage/GroupWelcomePage.jsx` | Shows the "This week in 7BP" block above the welcome text; it shows nothing unless the circle is the main circle |
+| `apps/web/public/locales/*.json` | The words of "This week in 7BP" and one guide sentence, in English in every language file |
+| `apps/web/src/agora/guide/guideParts.json`, `apps/backend/lib/agora/helpGuide.md` | One sentence on the 7BP Home and its "This week" block in the guide (and so for Claude in Help) |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest; "still here" and "left" times per person), the meeting chat table, the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table and the table of Google document links in the kDrive Files page, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
@@ -134,6 +138,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
 - `apps/backend/lib/agora/mainGroup.js`, `apps/backend/scripts/agora-main-group.js`, `apps/backend/test/unit/agora/mainGroup.test.js` (the 7BP Home, the main circle)
+- `apps/backend/lib/agora/thisWeek.js`, `apps/backend/api/controllers/AgoraThisWeekController.js`, `apps/backend/test/unit/agora/thisWeek.test.js`, `apps/web/src/agora/thisWeek/ThisWeek.jsx`, `apps/web/src/agora/thisWeek/ThisWeek.test.js` (This week in 7BP)
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
 - `apps/web/src/agora/AgoraInvitationForOtherAccount.js`, `apps/web/src/agora/invitationAccount.test.js`, `apps/backend/test/unit/agora/inviteEmail.test.js` (an invitation email for another address, the invitation text, clean links in emails)
