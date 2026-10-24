@@ -107,6 +107,31 @@ async function isValidInvitation (held, email) {
   return false
 }
 
+/** The error when someone logged in with another address tries to use an email invitation. */
+const INVITATION_OTHER_ACCOUNT_ERROR = 'agora-invitation-other-account'
+
+/**
+ * True when someone logged in with userEmail may use an invitation that was
+ * sent to invitationEmail. An email invitation belongs to the address it was
+ * sent to, also for people who already have an account: Guy, logged in as
+ * himself, cannot use an invitation he sent to someone else, and so cannot
+ * take that person's place. A join link has no address and fits everyone.
+ * Only while sign-up is by invitation only, as everything in this file.
+ */
+function invitationFitsUser (invitationEmail, userEmail) {
+  if (!isInviteOnly() || !invitationEmail) return true
+  return sameAddress(invitationEmail, userEmail)
+}
+
+/** Throws when the invitation may not be used by this user (see invitationFitsUser). */
+function checkInvitationFitsUser (invitationEmail, user) {
+  const userEmail = user && typeof user.get === 'function' ? user.get('email') : user?.email
+  if (!invitationFitsUser(invitationEmail, userEmail)) {
+    const { GraphQLError } = require('graphql')
+    throw new GraphQLError(INVITATION_OTHER_ACCOUNT_ERROR)
+  }
+}
+
 /** True when a new account may be made for this address, holding this invitation (or none). */
 async function mayCreateAccount (held, email) {
   if (!isInviteOnly()) return true
@@ -128,6 +153,9 @@ function invitationFromRequest (req) {
 module.exports = {
   INVITE_ONLY_ERROR,
   INVITATION_INVALID_ERROR,
+  INVITATION_OTHER_ACCOUNT_ERROR,
+  invitationFitsUser,
+  checkInvitationFitsUser,
   isInviteOnly,
   hasInvitation,
   isValidInvitation,

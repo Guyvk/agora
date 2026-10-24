@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import Loading from 'components/Loading'
+import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a space, inside the app
 import { SpaceGroupSlugContext } from 'contexts/SpaceGroupContext'
 import useRouteParams from 'hooks/useRouteParams'
 import useGroupViews from 'hooks/useGroupViews'
@@ -222,6 +223,7 @@ export default function SpaceContent ({ parentGroup: parentGroupProp, isOneColum
         <Route path='manage-round/*' element={<ManageRoundView />} />
         <Route path='moderation/*' element={<Navigate to={`${spaceBase}/about/moderation`} replace />} />
         <Route path='about/*' element={<GroupAboutPage />} />
+        <Route path='files' element={<FilesPage groupSlug={spaceFullSlug} />} /> {/* Agora: the Files page of a space, inside the app */}
         <Route path={POST_DETAIL_MATCH} element={<PostDetail />} />
         <Route path='*' element={spaceIndexElement} />
       </Routes>

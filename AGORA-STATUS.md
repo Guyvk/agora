@@ -2,7 +2,42 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 17 October 2026, about 23:30, by Claude Code on the Mac (chat "lets continue working on agora"). Hosting changed to Infomaniak Public Cloud, order under way. The Mac runs everything merged on GitHub (#1 to #8).
+**Last updated:** 23 October 2026, evening, by the Agora coordinator session on the Mac. Older sections below are partly out of date; "Evening of 23 October" and "Latest" are current.
+
+## Evening of 23 October 2026
+
+- **Live on 0181ce8e5** (deployed 18:26 UTC): #38 meeting room fixes, #40 Files menu line and Google Doc links, #42 guide's Files part, #44 Files page inside the app with move, select several and sort, #46 David's quick fixes (sign-up password X, "Video meeting in Agora (with minutes)", room opens in the same tab and sends members back to the post 4 s after the end). #41 status note merged, #15 closed. #43: the uptime check no longer uses Issues and emails only when Agora is down.
+- AGORA_GUEST_LINK_KEY is deliberately not set: the key derived from COOKIE_SECRET is used, and setting one later would break guest links already shared.
+- Rule from Guy: every menu item and page opens inside the Agora app, never a separate page or new tab (also in AGORA-CLOUD.md).
+- Merges need Guy's explicit "merge N" per PR. Warn him before each deploy (about 15 s restart).
+- The 5-day plan (23 to 27 October, per-day to-do lists, credit rules, David's onboarding notes from help desk request 3) is a Claude doc: https://claude.ai/artifact/2vtNgBHgkuyiuxCWNDNbLx. Goal: the Governance meeting on Tuesday 27 October at 17:00 runs in Agora.
+- Next (Saturday): finish #39 (branch agora-admins-everywhere, WIP 632020ac0c; tests, description, Fable re-check), then merge and run the admins script. Guy: try one real move in Files (only tested against a pretend kDrive) and the meeting room; say why the 21 October comms meeting (post 12) did not run in Agora.
+- Mac tests: a hang at start-up is often a wrong DATABASE_URL database name in a worktree's apps/backend/.env, or the 50 s limit in test/setup/index.js; raise it to 400000 locally, never commit that. One test process at a time.
+
+## Latest (23 October 2026)
+
+**Online:** https://agora.guyvankoolwijk.nl on the Infomaniak Public Cloud server 83.228.228.200 (log in as `ubuntu` with Guy's Mac key). The server runs `agora` at 0c8dba7c2, which has:
+- #31 meeting room: chat next to the call, Agora's own end screen, meetings end by themselves (10 min empty).
+- #36 minutes post shows only the summary and who was there (transcript and chat only if no summary could be written).
+- #37 circle files in Infomaniak kDrive. Guy's key is set; `AGORA_KDRIVE_DRIVE_ID=4471619`, `AGORA_KDRIVE_ROOT_FOLDER_ID=7` (his private "Agora" folder). The Files page is at `/noo/agora/files/<circle>` (no menu item yet; #40 adds it).
+- Claude key: a workspace-scoped key (workspace "Agora" in platform.claude.com), checked working on 21 October.
+- Email via Infomaniak: agora@agora.guyvankoolwijk.nl (domain records in Hestia, SPF and DKIM verified).
+- Guy (user 1) is Administrator in all three circles and the only entry in `AGORA_ADMINS`.
+
+**How to put a change live:** merge on GitHub, then `ssh ubuntu@83.228.228.200 'sudo systemd-run --unit agora-update-<name> --collect /srv/agora/agora/vps/update.sh'`, wait with `systemctl is-active agora-update-<name>` (not pgrep, it matches itself), check the log for "Done: Agora now runs ...", that agora-api, agora-worker and agora-web are active, and that /login answers 200. update.sh backs up the database, builds, migrates and restarts.
+
+**Open pull requests and what each waits on** (Guy already said: merge and put live once the Fable review passes):
+- #38 meeting fixes (head 09376f07e4): never end a meeting while people are in it (8 h cap), transcript and chat fenced off from the minutes instructions, no chat on phones, every member can see and copy the guest link (secret derived with a per-link salt). Fable re-check: safe to merge. Waits on: reading the four test logs in /tmp/review38b-*.log (expected 41/30/5/14 passing), then merge; set `AGORA_GUEST_LINK_KEY` on the server (`openssl rand -hex 32` in /srv/agora/apps/backend/.env, then restart) and deploy.
+- #39 Agora admins are Administrator everywhere (head 632020ac0c, work in progress): admins always rejoin every circle and space; `AGORA_ADMINS` takes user numbers only (email entries were a privilege-escalation hole: users can change their own email without re-verification); per-group error isolation; `--remove <id>` offboarding. Waits on: running adminDashboard, help, stewardRoles and Group tests, README + AGORA-CHANGES + PR body (state note ~/agora-fix39-STATE.md), then a Fable re-check, then merge.
+- #40 Files item in every circle menu + "Add a Google Doc" links on the kDrive Files page (head a1113965e5). Fable: safe to merge after one fix: links and files sort in random order (`byFolderThenName` in lib/agora/kdriveCircles.js:261-264). Later: deleting a folder leaves its links hidden. Small text conflicts with #38 (schema.sql) and #39 (AGORA-CHANGES.md).
+- #32 Meetings vs Events + one calendar with a private feed + items for all of 7BP: seven review fixes in, partly tested; needs `agora` merged in, tests, and a Fable re-review. Guy approved merging after that review. Open question for Guy: should the "invite everyone" email go to people who switched email off?
+- #15, #33 and others from the other chat: see `gh pr list -R Guyvk/agora`.
+
+**Decided by Guy:** builders run on Sonnet, reviewers on Fable. Admins see everything except other people's direct messages and the chat of meetings they did not join. Google Doc links only in the kDrive Files version; 1000 links per circle is fine.
+
+**Waiting on Guy:** why the comms meeting of 21 October (post 12) did not happen in Agora (no meeting was started). Whether to make admins' email-change hole fixed in Hylo too (follow-up).
+
+**Mac:** Guy's main folder ~/agora is on branch `kdrive-test` (same as the old agora-kdrive branch) with uncommitted edits to AGORA-STATUS.md from another chat; switch back with `git checkout agora && git pull --ff-only fork agora` once those edits are saved. The Mac is short on memory: run one test process at a time, backend tests one file at a time with `--timeout 120000` and `BABEL_CACHE_PATH=/tmp/<own>.json`.
 
 ## What Agora is
 

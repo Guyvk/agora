@@ -643,9 +643,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
               </div>
               <a
                 className='inline-block border-2 border-selected/20 rounded-lg p-2 px-4 hover:border-selected/100 transition-all text-selected text-sm whitespace-nowrap'
-                href={meetingUrl}
-                target='_blank'
-                rel='noreferrer'
+                href={meetingUrl} // Agora: same tab; the meeting room sends people back to the post when the call ends
               >
                 {t('Join online')}
               </a>

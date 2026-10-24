@@ -4,7 +4,7 @@ import mockGraphqlServer from 'util/testing/mockGraphqlServer'
 import { graphql, HttpResponse } from 'msw'
 import orm from 'store/models'
 import extractModelsForTest from 'util/testing/extractModelsForTest'
-import { AllTheProviders, render, screen } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, render, screen, within } from 'util/testing/reactTestingLibraryExtended'
 import FinishRegistration from './FinishRegistration'
 
 function currentUserProvider () {
@@ -111,4 +111,28 @@ it('registers user if a name and valid password provided', async () => {
   await user.click(screen.getByText('Jump in to Hylo!'))
 
   expect(registerCalled).toHaveBeenCalledWith({ name: 'Smiley Person', password: '012345678' })
+})
+
+// Agora: the X in a password field clears that field and leaves the other one as it is
+it('the X in the password field clears only that field', async () => {
+  const user = userEvent.setup()
+
+  render(
+    <FinishRegistration />,
+    { wrapper: currentUserProvider() }
+  )
+
+  await user.type(screen.getByLabelText('password'), '012345678')
+  await user.type(screen.getByLabelText('passwordConfirmation'), '012345678')
+
+  const passwordWrapper = screen.getByLabelText('password').parentElement
+  await user.click(within(passwordWrapper).getByRole('button'))
+
+  expect(screen.getByLabelText('password')).toHaveValue('')
+  expect(screen.getByLabelText('passwordConfirmation')).toHaveValue('012345678')
+
+  const confirmWrapper = screen.getByLabelText('passwordConfirmation').parentElement
+  await user.click(within(confirmWrapper).getByRole('button'))
+
+  expect(screen.getByLabelText('passwordConfirmation')).toHaveValue('')
 })

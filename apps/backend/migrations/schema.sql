@@ -7616,3 +7616,138 @@ ALTER TABLE ONLY public.meeting_guests
 
 ALTER TABLE ONLY public.meeting_segments
     ADD CONSTRAINT meeting_segments_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: the chat next to the call, and who is still in a meeting.
+-- Added by migrations/20261020120000_add_agora_meeting_chat.js
+--
+
+ALTER TABLE ONLY public.meeting_participants ADD COLUMN last_seen_at timestamp with time zone;
+
+ALTER TABLE ONLY public.meeting_participants ADD COLUMN left_at timestamp with time zone;
+
+ALTER TABLE ONLY public.meeting_guests ADD COLUMN last_seen_at timestamp with time zone;
+
+CREATE TABLE public.meeting_chat_messages (
+    id bigint NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint,
+    guest_id bigint,
+    text text NOT NULL,
+    created_at timestamp with time zone NOT NULL
+);
+
+CREATE SEQUENCE public.meeting_chat_messages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.meeting_chat_messages_id_seq OWNED BY public.meeting_chat_messages.id;
+
+ALTER TABLE ONLY public.meeting_chat_messages ALTER COLUMN id SET DEFAULT nextval('public.meeting_chat_messages_id_seq'::regclass);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_member_or_guest CHECK (((user_id IS NULL) <> (guest_id IS NULL)));
+
+CREATE INDEX meeting_chat_messages_session_id_id_index ON public.meeting_chat_messages USING btree (session_id, id);
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_session_id_foreign FOREIGN KEY (session_id) REFERENCES public.meeting_sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.meeting_chat_messages
+    ADD CONSTRAINT meeting_chat_messages_guest_id_foreign FOREIGN KEY (guest_id) REFERENCES public.meeting_guests(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: circle files in Infomaniak kDrive.
+-- Added by migrations/20261021120000_add_agora_kdrive.js
+--
+
+CREATE TABLE public.agora_kdrive_folders (
+    group_id bigint NOT NULL,
+    folder_id bigint NOT NULL,
+    minutes_folder_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_pkey PRIMARY KEY (group_id);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_folder_id_unique UNIQUE (folder_id);
+
+ALTER TABLE ONLY public.agora_kdrive_folders
+    ADD CONSTRAINT agora_kdrive_folders_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_kdrive_items (
+    file_id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    user_id bigint,
+    kind character varying(10) NOT NULL,
+    created_at timestamp with time zone
+);
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_pkey PRIMARY KEY (file_id);
+
+CREATE INDEX agora_kdrive_items_group_id_index ON public.agora_kdrive_items USING btree (group_id);
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_kdrive_items
+    ADD CONSTRAINT agora_kdrive_items_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: links to Google documents in a circle's Files page (kDrive version).
+-- Added by migrations/20261023120000_add_agora_kdrive_links.js
+--
+
+CREATE TABLE public.agora_kdrive_links (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    folder_id bigint,
+    user_id bigint,
+    kind character varying(10) NOT NULL,
+    title character varying(255) NOT NULL,
+    url text NOT NULL,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_kdrive_links_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_kdrive_links_id_seq OWNED BY public.agora_kdrive_links.id;
+
+ALTER TABLE ONLY public.agora_kdrive_links ALTER COLUMN id SET DEFAULT nextval('public.agora_kdrive_links_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_kdrive_links_group_id_folder_id_index ON public.agora_kdrive_links USING btree (group_id, folder_id);
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_kdrive_links
+    ADD CONSTRAINT agora_kdrive_links_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: a random salt per guest link.
+-- Added by migrations/20261022120000_add_agora_guest_link_salt.js
+--
+
+ALTER TABLE ONLY public.meeting_guest_links ADD COLUMN token_salt character varying(64);

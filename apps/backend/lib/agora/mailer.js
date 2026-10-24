@@ -41,7 +41,8 @@ function escapeHtml (value) {
  */
 function plainText (html, max = 600) {
   const text = String(html == null ? '' : html)
-    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<br\s*\/?>[ \t]*\n?/gi, '\n')
     .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '\n')
     .replace(/<li[^>]*>/gi, '- ')
     .replace(/<[^>]*>/g, '')
@@ -64,9 +65,77 @@ function ourName (value) {
   return value == null ? value : String(value).replace(/\bHylo\b/g, APP_NAME)
 }
 
-/** "Lars (via Hylo)" becomes "Lars". */
+/**
+ * "Lars (via Hylo)" becomes "Lars". Also the other languages, like
+ * "Lars (über Hylo)" or "Lars (Hylo के माध्यम से)".
+ */
 function personName (senderName) {
-  return senderName ? String(senderName).replace(/\s*\(via [^)]*\)\s*$/i, '').trim() : ''
+  return senderName
+    ? String(senderName)
+      .replace(/\s*\(via [^)]*\)\s*$/i, '')
+      .replace(/\s*\([^)]*\b(Hylo|Agora)\b[^)]*\)\s*$/i, '')
+      .trim()
+    : ''
+}
+
+/**
+ * Hylo adds click counting to the links in its emails
+ * (?ctt=post_email&cti=<user id>&ctcn=<circle>). Agora counts nothing, and
+ * such links look long and spammy, so they are taken out. Everything else in
+ * a link, like the token of an invitation, stays.
+ */
+const TRACKING_PARAMS = /^(ctt|cti|ctcn|utm_[a-z]+)$/i
+
+function cleanLink (link) {
+  if (!link) return link
+  let parsed
+  try {
+    parsed = new URL(String(link))
+  } catch (err) {
+    return link
+  }
+  for (const key of [...parsed.searchParams.keys()]) {
+    if (TRACKING_PARAMS.test(key)) parsed.searchParams.delete(key)
+  }
+  return parsed.toString()
+}
+
+/**
+ * Where people change which emails they get. Hylo's link holds a login token
+ * of about 600 characters, the person's name and their user id. Agora links
+ * to the plain settings page instead: whoever is not logged in logs in first
+ * and then lands there. No secret, name or id is in the link.
+ */
+function settingsLink (data) {
+  if (!data || !data.email_settings_url) return null
+  try {
+    return new URL('/my/notifications', new URL(String(data.email_settings_url)).origin).toString()
+  } catch (err) {
+    return null
+  }
+}
+
+/**
+ * The text an invitation carries. Hylo stores it as HTML (Markdown turned
+ * into <p> paragraphs), so it is turned into plain paragraphs here, and
+ * compose() escapes it again: no HTML from the message reaches the email.
+ * Hylo's old default text said "on Hylo"; that becomes Agora.
+ */
+function invitationMessage (message) {
+  const text = plainText(ourName(message), 5000)
+  return text ? text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean) : []
+}
+
+/**
+ * The subject of an invitation. Invitations made before Agora had its own
+ * wording carry Hylo's "Join me in <circle> on Hylo!"; those get Agora's.
+ */
+function invitationSubject (data) {
+  const given = data.subject && String(data.subject).trim()
+  if (given && !/\bHylo\b/.test(given)) return given
+  return data.inviter_name
+    ? `${data.inviter_name} invites you to ${data.group_name} in ${APP_NAME}`
+    : `You are invited to ${data.group_name} in ${APP_NAME}`
 }
 
 /**
@@ -79,9 +148,13 @@ function personName (senderName) {
  * @param {{label: string, url: string}} [parts.button]  the one thing to click
  * @param {string} [parts.footer]
  */
-function compose ({ subject, lines, sections = [], button, footer }) {
+function compose ({ subject, lines, sections = [], button: givenButton, footer }) {
   const paragraphs = lines.filter(line => line != null && line !== '')
-  const lists = sections.filter(section => section && section.items && section.items.length > 0)
+  const lists = sections
+    .filter(section => section && section.items && section.items.length > 0)
+    .map(section => ({ ...section, items: section.items.map(item => ({ ...item, url: cleanLink(item.url) })) }))
+  // A short, clean link for the button and for its copy under the button
+  const button = givenButton && givenButton.url ? { ...givenButton, url: cleanLink(givenButton.url) } : null
 
   const text = [
     ...paragraphs,
@@ -129,9 +202,10 @@ function compose ({ subject, lines, sections = [], button, footer }) {
  */
 const TEMPLATES = {
   // A plain message with a subject and a body, used for alerts to the people who run the platform.
+  // Hylo writes some of these bodies with <br/> line breaks: they become plain lines.
   tem_jFYJ3bxMyfbbtbwgDGS4JGfK: data => compose({
-    subject: data.subject || `A message from ${APP_NAME}`,
-    lines: [data.body]
+    subject: ourName(data.subject) || `A message from ${APP_NAME}`,
+    lines: [/<[a-z][^>]*>/i.test(String(data.body || '')) ? plainText(ourName(data.body), 5000) : ourName(data.body)]
   }),
 
   // "I forgot my password"
@@ -169,14 +243,18 @@ const TEMPLATES = {
   }),
 
   // An invitation to join a group, written by a member
-  tem_GTwXKBfkTpTHRfHpmJWbYr9d: data => compose({
-    subject: data.subject || `${data.inviter_name} invites you to ${data.group_name} on ${APP_NAME}`,
-    lines: [
-      data.message || `${data.inviter_name} invites you to join ${data.group_name} on ${APP_NAME}.`
-    ],
-    button: { label: `Join ${data.group_name}`, url: data.invite_link },
-    footer: `This invitation was sent by ${data.inviter_name}. Reply to this email to reach them.`
-  }),
+  // Its message is HTML in Hylo's database: invitationMessage() makes plain, safe paragraphs of it.
+  tem_GTwXKBfkTpTHRfHpmJWbYr9d: data => {
+    const message = invitationMessage(data.message)
+    return compose({
+      subject: invitationSubject(data),
+      lines: message.length > 0
+        ? message
+        : [`${data.inviter_name} invites you to join ${data.group_name} in ${APP_NAME}.`],
+      button: { label: `Join ${data.group_name}`, url: data.invite_link },
+      footer: `This invitation was sent by ${data.inviter_name}. Reply to this email to reach them.`
+    })
+  },
 
   // Sent a little while after someone finishes signing up
   tem_jkdjbcSVK9cmGvwXbtX9PQbJ: data => compose({
@@ -356,8 +434,9 @@ function eventLines (data) {
 }
 
 function settingsFooter (data) {
-  return data.email_settings_url
-    ? `You get this email because of your notification settings. You can change them here: ${data.email_settings_url}`
+  const link = settingsLink(data)
+  return link
+    ? `You get this email because of your notification settings. You can change them here: ${link}`
     : null
 }
 
@@ -418,12 +497,18 @@ function usableReplyTo (address) {
   return address
 }
 
+/** "The Team at Hylo" in each of Hylo's languages, and its robot "Hylobot". */
+function isHyloTeamName (name) {
+  const { locales } = require('../i18n/locales')
+  return name === 'Hylobot' || Object.values(locales).some(strings => strings && strings.theTeamAtHylo === name)
+}
+
 function fromHeader (options) {
   const sender = options.sender || {}
   const rawName = sender.name || process.env.AGORA_EMAIL_SENDER_NAME || APP_NAME
   return {
     // Hylo's code signs emails as "The Team at Hylo" or "Name (via Hylo)".
-    name: rawName === 'The Team at Hylo' ? APP_NAME : rawName.replace(/\bHylo\b/g, APP_NAME),
+    name: isHyloTeamName(rawName) ? APP_NAME : rawName.replace(/\bHylo\b/g, APP_NAME),
     email: process.env.EMAIL_SENDER,
     replyTo: usableReplyTo(sender.reply_to)
   }
@@ -564,4 +649,4 @@ function send (options, callback) {
     .catch(err => done(err))
 }
 
-module.exports = { send, compose, plainText, fromHeader, TEMPLATES }
+module.exports = { send, compose, plainText, fromHeader, cleanLink, settingsLink, TEMPLATES }
