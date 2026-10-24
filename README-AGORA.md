@@ -357,14 +357,14 @@ The admin area is a page in Agora at `/admin` (for example https://agora.guyvank
 
 ### Who gets in
 
-Two settings in `apps/backend/.env`, each a list of user ids or email addresses separated by commas, for example `1,guy@example.org`:
+Two settings in `apps/backend/.env`, each a list of user ids (account numbers) separated by commas, for example `1,7`:
 
 | Setting | Who | What they see |
 | --- | --- | --- |
 | `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
 | `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
 
-For both: the account must be switched on, and an email address only counts when the account has confirmed it, so nobody gets in by signing up with an address from the list. Ids are the surest. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+For both: the account must be switched on. Only numbers count, never email addresses: Agora lets a logged-in person change their email address without confirming the new one, so an address in the list could be taken over by anyone who types it into their account settings. An entry that is not a number is ignored, and the log says so once. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
 
 ### Agora admins are Administrator everywhere
 
@@ -383,6 +383,8 @@ sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora
 ```
 
 That only shows what it would change and saves nothing. Add `--apply` at the end to save it. It also brings admins back into circles and spaces they left or were removed from. It only adds what is missing, so it is safe to run again; a second run says "Nothing to change".
+
+To take someone out for good: first remove their number from `AGORA_ADMINS` (and restart), then run the same command with `--remove <number>` (a dry run) and `--remove <number> --apply`. It removes the Administrator role and the membership in every circle and space that this feature put them in. Memberships and roles they had on their own stay.
 
 ### The six tabs
 

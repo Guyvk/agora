@@ -35,7 +35,7 @@ function idsOnly (name, entries) {
   const ids = []
   for (const entry of entries) {
     if (/^\d+$/.test(entry)) {
-      ids.push(entry)
+      ids.push(entry.replace(/^0+(?=\d)/, '')) // "01" and "1" are the same account
     } else if (!warned.has(`${name}:${entry}`)) {
       warned.add(`${name}:${entry}`)
       const message = `Agora: ${name} entry "${entry}" ignored: use the account's number`
