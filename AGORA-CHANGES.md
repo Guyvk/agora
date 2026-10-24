@@ -19,7 +19,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/config/env/production.js` | Live updates (sockets) also accept the addresses in CORS_ALLOWED_ORIGINS, such as Agora's own domain |
 | `apps/backend/knexfile.js` | The number of database connections per program can be set with `DB_POOL_MIN` and `DB_POOL_MAX`, for a small server whose database allows only a few connections. Without them nothing changes |
 | `apps/backend/api/services/Websockets.js` | Fixed an error on shutdown. This one is worth offering back to Hylo |
-| `apps/backend/cron.js` | Every 10 minutes also runs the 7BP Home job, which never throws (`lib/agora/mainGroup.js`). Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written |
+| `apps/backend/cron.js` | Every 10 minutes also runs the 7BP Home job, which never throws (`lib/agora/mainGroup.js`). Ends meetings everybody has left (or that run 2 hours past the event), so their minutes get written. Every hour, makes the Agora admins (`AGORA_ADMINS`) members and Administrator of every circle and space where that is missing, also where they left or were removed |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest; "still here" and "left" times per person), the meeting chat table, the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table and the table of Google document links in the kDrive Files page, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
@@ -60,7 +60,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` | No Commons button while The Commons is off. A Contacts button, with the number of my follow-ups that are due. The help menu links to Agora's guide instead of Hylo's user guide, and the own menu has an Agora guide line |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.test.js` | Checks that the Commons button is gone and the Contacts button is there |
 | `apps/web/src/routes/AuthLayoutRouter/components/TopNav/TopNav.jsx` | No Commons tab while The Commons is off. The help menu links to Agora's guide instead of Hylo's user guide |
-| `apps/backend/test/setup/core.js` | Tests keep their background jobs in their own queue (`q-test`), so the worker of an Agora running on the same computer never runs them. Uploads made by tests go to a temporary folder |
+| `apps/backend/test/setup/core.js` | Tests keep their background jobs in their own queue (`q-test`), so the worker of an Agora running on the same computer never runs them. Uploads made by tests go to a temporary folder. Tests start without `AGORA_ADMINS`, so a setting in `.env` never joins the circles tests make |
 | `apps/backend/lib/uploader/storage.js` | Without Amazon S3 (no bucket or no key), uploads, calendar files and deletions go to Agora's own disk (`lib/agora/diskUploads.js`) |
 | `apps/backend/api/models/Group.js`, `apps/backend/api/models/User.js` | The address of a circle's or person's calendar file points at Agora's own disk when S3 is not used |
 | `apps/backend/config/http.js` | Serves uploads kept on Agora's own disk at `/noo/uploads/...` |
@@ -100,6 +100,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/graphql/mutations/invitation.js` | Gives the inviter's name to the invitation subject |
 | `apps/backend/api/models/Invitation.js` | An email invitation can only be used by the account with the address it was sent to, while sign-up is by invitation only (`lib/agora/signup.js`) |
 | `apps/backend/api/graphql/mutations/group.js`, `apps/backend/api/graphql/mutations/spaces.js` | Joining a circle or space with an email invitation sent to another address counts as joining without an invitation, and does not use it up |
+| `apps/backend/api/models/Group.js` (`create`), `apps/backend/api/graphql/mutations/spaces.js` (`createSpace`) | After a circle or space is made, the Agora admins (`AGORA_ADMINS`) become members of it and Administrator (of the circle; a space uses the roles of its circle). This changes who administers circles. It never makes the creation fail |
 | `apps/web/src/routes/JoinGroup/JoinGroup.js` | Someone logged in who opens an invitation email sent to another address gets a page that says so, with "Log out and continue", instead of the circle |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
 | `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
@@ -135,6 +136,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`
 - `apps/backend/lib/agora/mainGroup.js`, `apps/backend/scripts/agora-main-group.js`, `apps/backend/test/unit/agora/mainGroup.test.js` (the 7BP Home, the main circle)
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
+- `apps/backend/lib/agora/adminsEverywhere.js`, `apps/backend/scripts/agora-admins-everywhere.js`, `apps/backend/test/unit/agora/adminsEverywhere.test.js` (Agora admins are Administrator in every circle and space)
 - `apps/web/src/agora/signup.js`, `apps/web/src/agora/AgoraInviteOnlyNotice.js`, `apps/web/src/agora/signup.test.js`
 - `apps/web/src/agora/AgoraInvitationForOtherAccount.js`, `apps/web/src/agora/invitationAccount.test.js`, `apps/backend/test/unit/agora/inviteEmail.test.js` (an invitation email for another address, the invitation text, clean links in emails)
 - `apps/backend/migrations/20261017120000_add_agora_drive_folders.js`

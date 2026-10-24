@@ -70,7 +70,7 @@ describe('Agora help', () => {
     guy = await new User({ name: 'Guy', email: 'guy@agora.test', active: true, email_validated: true }).save()
     unconfirmed = await new User({ name: 'Not confirmed', email: 'boss@agora.test', active: true, email_validated: false }).save()
     sleeping = await new User({ name: 'Gone', email: 'gone@agora.test', active: false, email_validated: true }).save()
-    process.env.AGORA_HELPDESK_ADMINS = `${guy.id}, boss@agora.test, GONE@agora.test`
+    process.env.AGORA_HELPDESK_ADMINS = `${guy.id}, boss@agora.test, GONE@agora.test, ${sleeping.id}`
   })
 
   after(() => {
@@ -103,7 +103,7 @@ describe('Agora help', () => {
       }
     })
 
-    it('knows Help desk admins by id, or by a confirmed email address of an active account', async () => {
+    it('knows Help desk admins by id of an active account, never by email address', async () => {
       expect(await Help.isAdmin(guy.id)).to.equal(true)
       expect(await Help.isAdmin(amara.id)).to.equal(false)
       expect(await Help.isAdmin(unconfirmed.id)).to.equal(false)
@@ -111,7 +111,7 @@ describe('Agora help', () => {
       const saved = process.env.AGORA_HELPDESK_ADMINS
       try {
         process.env.AGORA_HELPDESK_ADMINS = 'AMARA@agora.test'
-        expect(await Help.isAdmin(amara.id)).to.equal(true)
+        expect(await Help.isAdmin(amara.id)).to.equal(false)
         process.env.AGORA_HELPDESK_ADMINS = ''
         expect(await Help.isAdmin(guy.id)).to.equal(false)
       } finally {
@@ -123,7 +123,7 @@ describe('Agora help', () => {
       const saved = process.env.AGORA_HELPDESK_ADMINS
       try {
         process.env.AGORA_HELPDESK_ADMINS = ''
-        process.env.AGORA_ADMINS = `${lars.id}, boss@agora.test, gone@agora.test`
+        process.env.AGORA_ADMINS = `${lars.id}, boss@agora.test, gone@agora.test, ${sleeping.id}`
         expect(await Help.isAdmin(lars.id)).to.equal(true)
         expect(await Help.isAdmin(unconfirmed.id)).to.equal(false)
         expect(await Help.isAdmin(sleeping.id)).to.equal(false)

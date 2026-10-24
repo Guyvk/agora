@@ -30,10 +30,12 @@ describe('Agora main circle', () => {
     bob = await mk('Bob')
     unconfirmed = await mk('Unconfirmed', { email_validated: false })
     nobody = await mk('Nobody')
-    process.env.AGORA_ADMINS = `99999,${admin.id}`
+    // Agora: the circles are made before AGORA_ADMINS is set, because a new circle
+    // would otherwise also get the admins as members (lib/agora/adminsEverywhere.js)
     circleA = await Group.create(ann.id, { name: 'Circle A', slug: 'circle-a' })
     circleB = await Group.create(bob.id, { name: 'Circle B', slug: 'circle-b' })
     await circleA.addMembers([unconfirmed.id])
+    process.env.AGORA_ADMINS = `99999,${admin.id}`
   })
 
   after(() => {

@@ -357,14 +357,34 @@ The admin area is a page in Agora at `/admin` (for example https://agora.guyvank
 
 ### Who gets in
 
-Two settings in `apps/backend/.env`, each a list of user ids or email addresses separated by commas, for example `1,guy@example.org`:
+Two settings in `apps/backend/.env`, each a list of user ids (account numbers) separated by commas, for example `1,7`:
 
 | Setting | Who | What they see |
 | --- | --- | --- |
 | `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
 | `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
 
-For both: the account must be switched on, and an email address only counts when the account has confirmed it, so nobody gets in by signing up with an address from the list. Ids are the surest. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+For both: the account must be switched on. Only numbers count, never email addresses: Agora lets a logged-in person change their email address without confirming the new one, so an address in the list could be taken over by anyone who types it into their account settings. An entry that is not a number is ignored, and the log says so once. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+
+### Agora admins are Administrator everywhere
+
+Agora admins have full access everywhere and can see everything (Guy's decision, 23 October 2026). Every Agora admin (`AGORA_ADMINS`) is always a member and Administrator of every circle and every space, also hidden ones and paid (paywalled) spaces. A space uses the roles of the circle it sits in, so there they are Administrator of that circle. Only `AGORA_ADMINS` does this, not `AGORA_HELPDESK_ADMINS`.
+
+- When someone makes a circle or a space, the Agora admins join it straight away. The person who made it stays Administrator too. An entry in `AGORA_ADMINS` that matches no active account is skipped and named in the log; the circle is made anyway.
+- They join quietly: no join form, and nobody gets a "new member" notice. In those circles they get only important notices (mentions and announcements) and a weekly digest, not a notice for every post. Each admin can change that in the circle's own notification settings.
+- Every hour Agora checks all circles and spaces and adds what is missing, so someone you add to `AGORA_ADMINS` is Administrator everywhere within the hour. It writes a line in the log only when it changed something.
+- Admins are always in. If an admin leaves a circle or space, or a steward removes them or takes away their Administrator role, the next hourly check puts them back, and the log says "brought Agora admin ... back into group ...". To take someone out for good, remove them from `AGORA_ADMINS` first.
+- What admins still do not see: direct messages between other people, and the chat and end screen of a meeting they did not take part in (those are only for the people in that meeting).
+
+To do it at once for the circles and spaces that already exist, in `/srv/agora/apps/backend` on the server (or `apps/backend` on a Mac, without the `sudo` part):
+
+```
+sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-admins-everywhere.js
+```
+
+That only shows what it would change and saves nothing. Add `--apply` at the end to save it. It also brings admins back into circles and spaces they left or were removed from. It only adds what is missing, so it is safe to run again; a second run says "Nothing to change".
+
+To take someone out for good: first remove their number from `AGORA_ADMINS` (and restart), then run the same command with `--remove <number>` (a dry run) and `--remove <number> --apply`. It removes the Administrator role and the membership in every circle and space that this feature put them in. Memberships and roles they had on their own stay.
 
 ### The six tabs
 
