@@ -3251,5 +3251,18 @@
   "These files are kept in 7BP's kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.": "Estes arquivos ficam no kDrive do 7BP na Infomaniak, na Suíça. Aqui, só os membros deste círculo os veem. Quem adicionou um arquivo e os responsáveis pelo círculo podem renomeá-lo, movê-lo e excluí-lo.",
   "Loading the files…": "Carregando os arquivos…",
   "No folders in here.": "Não há pastas aqui.",
-  "Move here": "Mover para cá"
+  "Move here": "Mover para cá",
+  "This week in 7BP": "This week in 7BP",
+  "Next meetings and events": "Next meetings and events",
+  "No meetings this week": "No meetings this week",
+  "Meeting room": "Meeting room",
+  "Newest announcements": "Newest announcements",
+  "No announcements yet": "No announcements yet",
+  "Latest minutes": "Latest minutes",
+  "No minutes yet": "No minutes yet",
+  "Recent decisions": "Recent decisions",
+  "No decisions in the last two weeks": "No decisions in the last two weeks",
+  "Outcome: {{outcome}}": "Outcome: {{outcome}}",
+  "This week in 7BP could not be loaded. Try again in a minute.": "This week in 7BP could not be loaded. Try again in a minute.",
+  "The 7BP Home is the main circle that holds all the others. It opens on a welcome page. At the top, \"This week in 7BP\" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from every circle you are in. You only see what you are allowed to see.": "The 7BP Home is the main circle that holds all the others. It opens on a welcome page. At the top, \"This week in 7BP\" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from every circle you are in. You only see what you are allowed to see."
 }
