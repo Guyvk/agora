@@ -11,6 +11,7 @@ import { DEFAULT_BANNER, DEFAULT_AVATAR } from 'store/models/Group'
 import hasResponsibilityForGroup from 'store/selectors/hasResponsibilityForGroup'
 import { bgImageStyle, cn } from 'util/index'
 import { groupUrl } from '@hylo/navigation'
+import HomeBadge, { HomeHeaderAccent } from '@/agora/mainCircle/HomeBadges' // Agora: 7BP Home look
 
 /**
  * compact: a space's menu has taken over the context menu — the header ducks to
@@ -89,6 +90,7 @@ export default function GroupMenuHeader ({
       data-testid='group-header'
       data-tour='group-header'
     >
+      <HomeHeaderAccent group={group} />
       {!hideBanner && (
         <>
           <div className='absolute z-10 inset-0 bg-cover bg-center' style={{ ...bgImageStyle(bannerUrl), opacity: 0.5 }} />
@@ -172,6 +174,7 @@ export default function GroupMenuHeader ({
           )}
         </div>
         <div className={cn(`flex flex-col text-${textColor} drop-shadow-md overflow-hidden`, compact && centered ? 'flex-none max-w-[60%]' : 'flex-1')}>
+          <HomeBadge group={group} compact={compact} />
           <div className='flex items-center'>
             <h1
               ref={groupNameRef}
