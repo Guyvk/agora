@@ -11,6 +11,7 @@ import { getSignupComplete } from 'store/selectors/getSignupState'
 import checkInvitation from 'store/actions/checkInvitation'
 import joinSpace from 'store/actions/joinSpace'
 import { joinGroup } from 'routes/GroupDetail/GroupDetail.store' // Agora: join straight from the link
+import fetchGroupDetails from 'store/actions/fetchGroupDetails' // Agora: look for agreements and join questions first
 import Loading from 'components/Loading'
 import getMe from 'store/selectors/getMe'
 import { isInvitationForOtherAccount } from '@/agora/signup'
@@ -50,6 +51,21 @@ function buildSpaceRedirectUrl (parentGroupSlug, spaceSlug) {
   return spaceUrl(parentGroupSlug, localSpaceSlug(parentGroupSlug, spaceSlug))
 }
 
+/** Agora: true when the circle has agreements to accept or join questions to answer. */
+async function circleNeedsAnswers ({ dispatch, slug, accessCode, invitationToken }) {
+  try {
+    const result = await dispatch(fetchGroupDetails({ slug, accessCode, invitationToken, withExtensions: false, withTopics: false, withPrerequisites: false }))
+    const group = result?.payload?.data?.group ?? result?.payload?.getData?.()?.group
+    if (!group) return false
+    const count = list => (list?.items ?? list ?? []).length
+    const hasAgreements = count(group.agreements) > 0
+    const hasQuestions = !!group.settings?.askJoinQuestions && count(group.joinQuestions) > 0
+    return hasAgreements || hasQuestions
+  } catch (error) {
+    return false
+  }
+}
+
 /**
  * Agora: makes someone who is logged in a member of the circle of the
  * invitation, with the same join as the Join button on the About page (the
@@ -66,6 +82,9 @@ export async function joinFromInvitation ({ dispatch, myMemberships = [], groupI
   if (myMemberships.some(m => m.group?.slug === joinSlug)) return destination
   if (!joinId) return null
   try {
+    // Agora: a circle with agreements or join questions shows that step on its About page first.
+    // If the circle cannot be read here, join anyway: the welcome window asks them after joining.
+    if (await circleNeedsAnswers({ dispatch, slug: joinSlug, accessCode, invitationToken })) return null
     const result = await dispatch(joinGroup(joinId, [], accessCode, invitationToken, false))
     if (result?.error || !(result?.payload?.data?.joinGroup ?? result?.payload?.getData?.())) return null
     return destination

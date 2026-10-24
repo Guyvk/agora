@@ -245,6 +245,53 @@ it('does not join with an email invitation sent to another address', async () =>
   expect(joinSpy).not.toHaveBeenCalled()
 })
 
+// Agora: a circle with join questions shows that step first, nobody is joined behind their back
+it('opens the about page instead of joining when the circle has join questions', async () => {
+  const joinSpy = jest.fn()
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: { checkInvitation: { valid: true, groupId: '7', groupSlug: 'governance' } }
+      })
+    }),
+    graphql.query('GroupDetailsQuery', () => {
+      return HttpResponse.json({
+        data: {
+          group: {
+            id: '7',
+            slug: 'governance',
+            name: 'Governance',
+            settings: { askJoinQuestions: true },
+            joinQuestions: { items: [{ id: '1', questionId: '1', text: 'Why do you want to join?' }] },
+            agreements: { items: [] }
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinSpy()
+      return HttpResponse.json({ data: {} })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ accessCode: 'join-governance' })
+
+  render(
+    <Routes>
+      <Route path='/join-group' element={<JoinGroup />} />
+      <Route path='/groups/governance' element={<div>inside governance</div>} />
+      <Route path='/groups/governance/about' element={<div>governance about page</div>} />
+    </Routes>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('governance about page')).toBeInTheDocument()
+  })
+  expect(joinSpy).not.toHaveBeenCalled()
+})
+
 // Agora: when joining does not work, the About page with its Join button, as before
 it('falls back to the circle about page when joining does not work', async () => {
   mockGraphqlServer.use(

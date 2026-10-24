@@ -16,6 +16,7 @@ const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
 const SessionController = require(rootPath('api/controllers/SessionController'))
+const appleSigninAuth = require('apple-signin-auth').default
 
 describe('Agora: joining the circle of the invitation someone signed up with', () => {
   let steward, circle, originalSetting, originalClassMethod, queued
@@ -136,7 +137,6 @@ describe('Agora: joining the circle of the invitation someone signed up with', (
   })
 
   it('makes someone who logs in with Apple for the first time from a join link a member', async () => {
-    const appleSigninAuth = require('apple-signin-auth').default
     const originalVerify = appleSigninAuth.verifyIdToken
     try {
       const email = 'apple-joiner@agora.test'

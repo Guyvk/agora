@@ -201,6 +201,9 @@ import { agoraPlaybookTypeDefs, makeAgoraPlaybookQueries, makeAgoraPlaybookMutat
 const schemaText = readFileSync(join(__dirname, 'schema.graphql')).toString()
 let modelToTypeMap
 
+// Agora: the only fields of a circle a logged-out person can read
+const AGORA_LOGGED_OUT_GROUP_FIELDS = ['id', 'name', 'slug']
+
 /** Yoga calls makeSchema on every GraphQL request. Rebuilding that executable schema
  *  is the isolated-E2E OOM (heap hits the 4GB cap). Cache per auth identity; skip in
  *  unit tests so DataLoaders do not leak across cases. `GRAPHQL_CACHE_SCHEMA=0` disables.
@@ -315,6 +318,10 @@ async function buildGraphqlSchema (req) {
     }
   } else {
     // Not authenticated, only allow for public queries
+    // Agora: of a circle, a logged-out person only gets its name (see makePublicQueries)
+    for (const field of Object.keys(resolvers.Group || {})) {
+      if (!AGORA_LOGGED_OUT_GROUP_FIELDS.includes(field)) resolvers.Group[field] = () => null
+    }
     allResolvers = {
       Query: makePublicQueries({ fetchOne, fetchMany }),
       Mutation: makePublicMutations({ fetchOne }),
@@ -426,24 +433,23 @@ export function makePublicQueries ({ fetchOne, fetchMany }) {
   return {
     checkInvitation: (root, { invitationToken, accessCode }) =>
       InvitationService.check(invitationToken, accessCode),
-    // Can only access public communities and posts, unless a valid invitation is provided
+    // Agora: nothing is visible without logging in (Guy, 24 October 2026). The only thing a logged-out
+    // person gets is the name of the circle of a valid join link or invitation (the Group fields
+    // are cut down to the name in buildGraphqlSchema), so the sign-up page can say where they are going.
     group: async (root, { id, slug, accessCode, invitationToken }) => {
-      // If invitation credentials are provided, validate and bypass visibility filter
       if (accessCode || invitationToken) {
         const inviteCheck = await InvitationService.check(invitationToken, accessCode)
         if (invitationMatchesGroupQuery(inviteCheck, slug, id)) {
-          // Fetch group without visibility restriction
           return Group.where(slug ? { slug } : { id }).where({ active: true }).fetch()
         }
       }
-      // Default: only allow PUBLIC visibility groups
-      return fetchOne('Group', slug || id, slug ? 'slug' : 'id', { visibility: Group.Visibility.PUBLIC })
+      return null
     },
-    groups: (root, args) => fetchMany('Group', Object.assign(args, { visibility: Group.Visibility.PUBLIC })),
+    groups: () => ({ total: 0, hasMore: false, items: [] }), // Agora: nothing to see without logging in
     platformAgreements: (root, args) => PlatformAgreement.fetchAll(args),
-    person: (root, { id }) => fetchOne('Person', id, 'id'),
-    post: (root, { id }) => fetchOne('Post', id, 'id', { isPublic: true }),
-    posts: (root, args) => fetchMany('Post', Object.assign(args, { isPublic: true })),
+    person: () => null, // Agora: nothing to see without logging in
+    post: () => null, // Agora: nothing to see without logging in
+    posts: () => ({ total: 0, hasMore: false, items: [] }), // Agora: nothing to see without logging in
     publicStripeOfferings: (root, { groupId }) => publicStripeOfferings(null, { groupId }),
     publicStripeOffering: (root, { offeringId }) => publicStripeOffering(null, { offeringId })
   }
