@@ -1,5 +1,6 @@
 {
- "name": "App",
+ "name": "Agora",
+ "short_name": "Agora",
  "icons": [
   {
    "src": "\/android-icon-36x36.png",

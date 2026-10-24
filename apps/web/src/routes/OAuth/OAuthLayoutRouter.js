@@ -2,6 +2,7 @@ import React from 'react'
 import { Route, useLocation, Routes } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import Div100vh from 'react-div-100vh'
 import Particles from 'react-tsparticles'
 import getQuerystringParam from 'store/selectors/getQuerystringParam'
@@ -33,7 +34,7 @@ export default function OAuthLayoutRouter (props) {
   return (
     <Div100vh className='w-full h-full'>
       <Helmet>
-        <title>Hylo</title>
+        <title>{agoraTitle()}</title>
         <meta name='description' content='Prosocial Coordination for a Thriving Planet' />
       </Helmet>
       <div className='relative w-full h-full flex flex-col justify-center items-center p-2'>
