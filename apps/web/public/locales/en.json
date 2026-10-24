@@ -3613,5 +3613,10 @@
   "These files are kept in 7BP's kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.": "These files are kept in 7BP's kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.",
   "Loading the files…": "Loading the files…",
   "No folders in here.": "No folders in here.",
-  "Move here": "Move here"
+  "Move here": "Move here",
+  "7BP Home": "7BP Home",
+  "7BP Home: all circles": "7BP Home: all circles",
+  "Part of {{name}}": "Part of {{name}}",
+  "Every circle in {{name}}": "Every circle in {{name}}",
+  "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home.": "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home."
 }

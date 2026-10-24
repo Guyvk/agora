@@ -3251,5 +3251,10 @@
   "These files are kept in 7BP's kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.": "Diese Dateien liegen im kDrive von 7BP bei Infomaniak in der Schweiz. Hier sehen sie nur Mitglieder dieses Kreises. Wer eine Datei hinzugefügt hat und die Stewards des Kreises können sie umbenennen, verschieben und löschen.",
   "Loading the files…": "Die Dateien werden geladen…",
   "No folders in here.": "Hier sind keine Ordner.",
-  "Move here": "Hierher verschieben"
+  "Move here": "Hierher verschieben",
+  "7BP Home": "7BP Home",
+  "7BP Home: all circles": "7BP Home: alle Kreise",
+  "Part of {{name}}": "Teil von {{name}}",
+  "Every circle in {{name}}": "Alle Kreise in {{name}}",
+  "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home.": "Das 7BP Home ist der Kreis, der alle anderen enthält. Es steht links in der Leiste ganz oben, mit dem 7BP-Zeichen in einem Ring, und die Kreise darin folgen direkt darunter. Jeder dieser Kreise hat einen kleinen Link \"Teil von 7BP\", der dich zurück zum 7BP Home bringt."
 }
