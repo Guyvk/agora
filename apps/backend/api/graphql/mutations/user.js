@@ -49,6 +49,9 @@ export const sendEmailVerification = async (_, { email: providedEmail, invitatio
       user = await User.create({ email, active: false })
     }
 
+    // Agora: keep the invitation with a new account, so it joins that circle once finished (lib/agora/signup.js)
+    await AgoraSignup.rememberInvitation(user, { invitationToken, accessCode })
+
     const { code, token } = await UserVerificationCode.create(email)
     const verifyUrl = Frontend.Route.verifyEmail(email, token)
 
@@ -126,6 +129,9 @@ export const register = (fetchOne) => async (_, { name, password }, context) => 
       await LinkedAccount.create(context.currentUserId, { type: 'password', password }, { transacting })
       await Analytics.trackSignup(user.id, context.req)
     })
+
+    // Agora: a new account made from a join link or invitation joins that circle now (lib/agora/signup.js)
+    await AgoraSignup.joinRememberedCircle(user)
 
     return { me: fetchOne('Me', user.id) }
   } catch (error) {

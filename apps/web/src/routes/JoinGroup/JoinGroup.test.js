@@ -16,7 +16,7 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-function currentUserProvider (authStateComplete) {
+function currentUserProvider (authStateComplete, email) {
   const ormSession = orm.mutableSession(orm.getEmptyState())
   // Authorization/signup state is now driven by the `authSession` slice, not the ORM `me`.
   const reduxState = {
@@ -35,6 +35,7 @@ function currentUserProvider (authStateComplete) {
     me: {
       id: '1',
       name: 'Test User',
+      ...(email ? { email } : {}),
       hasRegistered: true,
       emailValidated: true,
       settings: {
@@ -58,17 +59,25 @@ function currentUserProvider (authStateComplete) {
   return AllTheProviders(reduxState, ['/join-group'])
 }
 
-it('redirects signed-up user to group about page with accessCode when invitation is valid', async () => {
+// Agora: someone logged in who is already a member lands in the circle itself
+it('sends a signed-up member of the circle straight into the circle', async () => {
+  const joinSpy = jest.fn()
   mockGraphqlServer.use(
     graphql.query('CheckInvitation', () => {
       return HttpResponse.json({
         data: {
           checkInvitation: {
             valid: true,
+            groupId: '3',
             groupSlug: 'test-group'
           }
         }
       })
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinSpy()
+      return HttpResponse.json({ data: {} })
     })
   )
 
@@ -78,9 +87,241 @@ it('redirects signed-up user to group about page with accessCode when invitation
     <>
       <Routes>
         <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/test-group' element={<div>inside test-group</div>} />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('inside test-group')).toBeInTheDocument()
+  })
+  expect(joinSpy).not.toHaveBeenCalled()
+})
+
+// Agora: someone logged in who opens a join link becomes a member right away
+it('joins a signed-up user to the circle of a join link and opens the circle', async () => {
+  let joinVariables
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: true,
+            groupId: '7',
+            groupSlug: 'governance'
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query, variables }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinVariables = variables
+      return HttpResponse.json({
+        data: {
+          joinGroup: {
+            id: '70',
+            group: { id: '7', name: 'Circle', slug: 'governance' },
+            person: { id: '1' },
+            lastViewedAt: null,
+            settings: { agreementsAcceptedAt: null, joinQuestionsAnsweredAt: null, showJoinForm: true }
+          }
+        }
+      })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ accessCode: 'join-governance' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/governance' element={<div>inside governance</div>} />
+        <Route path='/groups/governance/about' element={<div>governance about page</div>} />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('inside governance')).toBeInTheDocument()
+  })
+  expect(joinVariables).toMatchObject({ groupId: '7', accessCode: 'join-governance' })
+})
+
+// Agora: an email invitation for the address logged in joins too, with its token
+it('joins a signed-up user with an email invitation for their own address', async () => {
+  let joinVariables
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: true,
+            groupId: '7',
+            groupSlug: 'governance',
+            email: 'TEST@agora.test'
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query, variables }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinVariables = variables
+      return HttpResponse.json({
+        data: {
+          joinGroup: {
+            id: '70',
+            group: { id: '7', name: 'Circle', slug: 'governance' },
+            person: { id: '1' },
+            lastViewedAt: null,
+            settings: { agreementsAcceptedAt: null, joinQuestionsAnsweredAt: null, showJoinForm: true }
+          }
+        }
+      })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({})
+  jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/join-group', search: '?token=the-token' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/governance' element={<div>inside governance</div>} />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true, 'test@agora.test') }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('inside governance')).toBeInTheDocument()
+  })
+  expect(joinVariables).toMatchObject({ groupId: '7', invitationToken: 'the-token' })
+})
+
+// Agora: an email invitation for another address is not used, and nothing is joined
+it('does not join with an email invitation sent to another address', async () => {
+  const joinSpy = jest.fn()
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: true,
+            groupId: '7',
+            groupSlug: 'governance',
+            email: 'someone-else@agora.test'
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinSpy()
+      return HttpResponse.json({ data: {} })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({})
+  jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/join-group', search: '?token=the-token' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/governance' element={<div>inside governance</div>} />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true, 'test@agora.test') }
+  )
+
+  await waitFor(() => {
+    expect(screen.getAllByText(/someone-else@agora.test/).length).toBeGreaterThan(0)
+  })
+  expect(screen.queryByText('inside governance')).not.toBeInTheDocument()
+  expect(joinSpy).not.toHaveBeenCalled()
+})
+
+// Agora: a circle with join questions shows that step first, nobody is joined behind their back
+it('opens the about page instead of joining when the circle has join questions', async () => {
+  const joinSpy = jest.fn()
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: { checkInvitation: { valid: true, groupId: '7', groupSlug: 'governance' } }
+      })
+    }),
+    graphql.query('GroupDetailsQuery', () => {
+      return HttpResponse.json({
+        data: {
+          group: {
+            id: '7',
+            slug: 'governance',
+            name: 'Governance',
+            settings: { askJoinQuestions: true },
+            joinQuestions: { items: [{ id: '1', questionId: '1', text: 'Why do you want to join?' }] },
+            agreements: { items: [] }
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinSpy()
+      return HttpResponse.json({ data: {} })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ accessCode: 'join-governance' })
+
+  render(
+    <Routes>
+      <Route path='/join-group' element={<JoinGroup />} />
+      <Route path='/groups/governance' element={<div>inside governance</div>} />
+      <Route path='/groups/governance/about' element={<div>governance about page</div>} />
+    </Routes>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('governance about page')).toBeInTheDocument()
+  })
+  expect(joinSpy).not.toHaveBeenCalled()
+})
+
+// Agora: when joining does not work, the About page with its Join button, as before
+it('falls back to the circle about page when joining does not work', async () => {
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: true,
+            groupId: '7',
+            groupSlug: 'governance'
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      return HttpResponse.json({ errors: [{ message: 'You must be a member of group Other first' }], data: { joinGroup: null } })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ accessCode: 'join-governance' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/governance' element={<div>inside governance</div>} />
         <Route
-          path='/groups/test-group/about'
-          element={<div>/groups/test-group/about?accessCode=test-access-code</div>}
+          path='/groups/governance/about'
+          element={<div>/groups/governance/about?accessCode=join-governance</div>}
         />
       </Routes>
     </>,
@@ -88,7 +329,7 @@ it('redirects signed-up user to group about page with accessCode when invitation
   )
 
   await waitFor(() => {
-    expect(screen.getByText('/groups/test-group/about?accessCode=test-access-code')).toBeInTheDocument()
+    expect(screen.getByText('/groups/governance/about?accessCode=join-governance')).toBeInTheDocument()
   })
 })
 
@@ -180,7 +421,60 @@ it('auto-joins a space and opens it when the user is already a parent member', a
   })
 })
 
-it('redirects space invites to the parent group about page when the user is not a parent member', async () => {
+// Agora: a space invitation for someone outside the parent circle joins the parent circle (the server adds the space) and opens the space
+it('joins the parent circle for a space invitation when the user is not a parent member, and opens the space', async () => {
+  let joinVariables
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', () => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: true,
+            groupId: '99',
+            groupSlug: 'parent-group-the-space',
+            isSpace: true,
+            parentGroupId: '50',
+            parentGroupSlug: 'parent-group'
+          }
+        }
+      })
+    }),
+    graphql.operation(({ query, variables }) => {
+      if (!query.includes('joinGroup')) return undefined
+      joinVariables = variables
+      return HttpResponse.json({
+        data: {
+          joinGroup: {
+            id: '70',
+            group: { id: '50', name: 'Circle', slug: 'parent-group' },
+            person: { id: '1' },
+            lastViewedAt: null,
+            settings: { agreementsAcceptedAt: null, joinQuestionsAnsweredAt: null, showJoinForm: true }
+          }
+        }
+      })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({ accessCode: 'space-access-code' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route path='/groups/parent-group/spaces/the-space' element={<div>inside the space</div>} />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('inside the space')).toBeInTheDocument()
+  })
+  expect(joinVariables).toMatchObject({ groupId: '50', accessCode: 'space-access-code' })
+})
+
+it('redirects space invites to the parent group about page when the user is not a parent member and joining is not possible', async () => {
   mockGraphqlServer.use(
     graphql.query('CheckInvitation', () => {
       return HttpResponse.json({
