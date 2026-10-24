@@ -105,7 +105,11 @@ write('apps/backend/.env', {
   AGORA_KDRIVE_TOKEN: '',
   AGORA_KDRIVE_DRIVE_ID: '',
   AGORA_KDRIVE_ROOT_FOLDER_ID: '',
-  AGORA_KDRIVE_MAX_UPLOAD_MB: ''
+  AGORA_KDRIVE_MAX_UPLOAD_MB: '',
+  // The main circle, the 7BP Home (README-AGORA.md, "7BP Home (main circle)").
+  // Set these before running this script to use another slug or name.
+  AGORA_MAIN_GROUP_SLUG: process.env.AGORA_MAIN_GROUP_SLUG || '7bp',
+  AGORA_MAIN_GROUP_NAME: process.env.AGORA_MAIN_GROUP_NAME || '7BP'
 })
 
 write('apps/web/.env', {
