@@ -14,6 +14,7 @@ import getGroupForSlug from 'store/selectors/getGroupForSlug'
 import useGroupViews from 'hooks/useGroupViews'
 import MainCircleCards from '@/agora/mainCircle/MainCircleCards' // Agora: 7BP Home look
 import { spaceHomeRoutePath, spaceHomeUrl } from '@hylo/navigation'
+import ThisWeek from '@/agora/thisWeek/ThisWeek' // Agora: "This week in 7BP", shown on the main circle only
 
 /** True when welcome HTML has visible text or embedded media. */
 function welcomeHtmlHasContent (html) {
@@ -70,6 +71,8 @@ function GroupWelcomePage () {
 
   return (
     <div className='p-4 global-postContent hylo-page-html w-full max-w-[750px] mx-auto'>
+      {/* Agora: the block shows nothing unless this is the main circle (the server decides) */}
+      <ThisWeek groupSlug={group.slug} />
       {!hasWelcomeContent && (
         <h1 className='text-2xl font-bold mb-4'>
           {t('Welcome to {{group.name}}!', { group })}

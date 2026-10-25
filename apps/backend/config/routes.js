@@ -141,6 +141,9 @@ module.exports.routes = {
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
 
+  // Agora: "This week in 7BP" on the main circle's welcome page, for anyone logged in
+  'GET    /noo/agora/this-week':                          'AgoraThisWeekController.show',
+
   // Agora help: the Help window for everyone logged in, the Help desk for its admins
   'GET    /noo/agora/help/api/status':                    'AgoraHelpController.status',
   'GET    /noo/agora/help/api/mine':                      'AgoraHelpController.mine',

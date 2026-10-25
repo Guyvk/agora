@@ -3263,5 +3263,18 @@
   "7BP Home: all circles": "7BP Home: todos los círculos",
   "Part of {{name}}": "Parte de {{name}}",
   "Every circle in {{name}}": "Todos los círculos de {{name}}",
-  "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home.": "El 7BP Home es el círculo que contiene a todos los demás. Aparece primero en la barra de la izquierda, con la marca de 7BP en un anillo, y los círculos que contiene van justo debajo. Cada uno de ellos tiene un pequeño enlace \"Parte de 7BP\" que te lleva de vuelta al 7BP Home."
+  "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home.": "El 7BP Home es el círculo que contiene a todos los demás. Aparece primero en la barra de la izquierda, con la marca de 7BP en un anillo, y los círculos que contiene van justo debajo. Cada uno de ellos tiene un pequeño enlace \"Parte de 7BP\" que te lleva de vuelta al 7BP Home.",
+  "This week in 7BP": "This week in 7BP",
+  "Next meetings and events": "Next meetings and events",
+  "No meetings this week": "No meetings this week",
+  "Meeting room": "Meeting room",
+  "Newest announcements": "Newest announcements",
+  "No announcements yet": "No announcements yet",
+  "Latest minutes": "Latest minutes",
+  "No minutes yet": "No minutes yet",
+  "Recent decisions": "Recent decisions",
+  "No decisions in the last two weeks": "No decisions in the last two weeks",
+  "Outcome: {{outcome}}": "Outcome: {{outcome}}",
+  "This week in 7BP could not be loaded. Try again in a minute.": "This week in 7BP could not be loaded. Try again in a minute.",
+  "The 7BP Home is the main circle that holds all the others. It opens on a welcome page. At the top, \"This week in 7BP\" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from every circle you are in. You only see what you are allowed to see.": "The 7BP Home is the main circle that holds all the others. It opens on a welcome page. At the top, \"This week in 7BP\" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from every circle you are in. You only see what you are allowed to see."
 }
