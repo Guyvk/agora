@@ -11,8 +11,7 @@
  *
  * a. Makes the main circle when it does not exist, through Hylo's own
  *    Group.create (roles, menu and chat room are made like for any circle).
- *    The maker is the first active account in AGORA_ADMINS (an id, or an email
- *    address the account has confirmed). Visible to its members only, joining
+ *    The maker is the first active account in AGORA_ADMINS (ids only). Visible to its members only, joining
  *    by invitation or join link, like the other circles. Commons stays off.
  * b. Makes every other active circle a child of it (Hylo's group_relationships,
  *    active, parent and child). The children's own settings and members are not
@@ -39,7 +38,7 @@
  * every 10 minutes, so people who join any circle later also land in the main
  * circle and new circles become its children.
  */
-const { listFrom } = require('./admins')
+const { agoraAdminList } = require('./admins')
 
 const knex = () => bookshelf.knex
 
@@ -64,16 +63,11 @@ async function findMainGroup ({ transacting } = {}) {
 
 /**
  * The first account in AGORA_ADMINS that is active, as { id, name }, or null.
- * An email address counts only when the account has confirmed it.
+ * Ids only: an email address in the list is ignored (see admins.js).
  */
 async function firstActiveAgoraAdmin () {
-  for (const entry of listFrom(process.env.AGORA_ADMINS)) {
-    let query = knex()('users').where('active', true)
-    if (/^\d+$/.test(entry)) {
-      query = query.where('id', entry)
-    } else {
-      query = query.whereRaw('lower(email) = ?', [entry]).where('email_validated', true)
-    }
+  for (const entry of agoraAdminList()) {
+    const query = knex()('users').where('active', true).where('id', entry)
     const user = await query.first('id', 'name')
     if (user) return { id: String(user.id), name: user.name }
   }

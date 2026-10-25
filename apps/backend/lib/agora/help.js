@@ -14,13 +14,13 @@
  *   - a request can be read only by the person who sent it and by Help desk
  *     admins. Everyone else is told it does not exist;
  *   - the internal note and the builder task are for admins only;
- *   - Help desk admins are listed in AGORA_HELPDESK_ADMINS (user ids, or
- *     email addresses of accounts whose address is confirmed). Agora admins
+ *   - Help desk admins are listed in AGORA_HELPDESK_ADMINS (user ids only; email
+ *     addresses are ignored, see admins.js). Agora admins
  *     (AGORA_ADMINS) run the Help desk too. Without either setting nobody can
  *     open the Help desk.
  *
  * Settings (see .env.example):
- *   AGORA_HELPDESK_ADMINS        who runs the Help desk, e.g. "1,guy@example.org"
+ *   AGORA_HELPDESK_ADMINS        who runs the Help desk, e.g. "1,7"
  *   AGORA_HELP_REQUESTS_PER_DAY  new requests per person per day (default 20)
  *   AGORA_HELP_REPLY_EMAIL       "off" sends no email when the Help desk replies
  *   AGORA_VERSION                the version stored with a request; default: the git commit
@@ -54,8 +54,7 @@ const knex = () => bookshelf.knex
 
 /**
  * True for a Help desk admin: an active account whose id is in
- * AGORA_HELPDESK_ADMINS or AGORA_ADMINS, or whose confirmed email address is
- * (see admins.js).
+ * AGORA_HELPDESK_ADMINS or AGORA_ADMINS (see admins.js).
  */
 function isAdmin (userId) {
   return Admins.isHelpDeskAdmin(userId)

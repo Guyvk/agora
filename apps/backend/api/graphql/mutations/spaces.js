@@ -137,6 +137,10 @@ export async function createSpace (userId, { parentGroupId, name, slug, accepted
     throw new GraphQLError(`Creation of space failed: ${err.message}`)
   })
 
+  // Agora: the Agora admins (AGORA_ADMINS) become members of every new space, and Administrator
+  // of its circle. Never makes the creation fail; see lib/agora/adminsEverywhere.js
+  await require('../../../lib/agora/adminsEverywhere').addAgoraAdminsToNewGroup(space.id)
+
   notifyGroupUpdated(context, parentGroup, parentGroupId)
 
   if (autoAddMembers) {
