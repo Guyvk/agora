@@ -18,6 +18,9 @@
       "blocks": [
         { "text": "7BP works in circles: small teams with their own task, such as governance or communications. Each circle has its own place in Agora with its posts, chat, events and members." },
         { "text": "Agora is by invitation. A steward of a circle invites you by email or sends you the join link of the circle. You can be in several circles. Your circles are in the bar on the left." },
+        {
+          "text": "The 7BP Home is the circle that holds all the others. It comes first in the bar on the left, with the 7BP mark in a ring, and the circles inside it sit right below it. Each of those circles has a small \"Part of 7BP\" link to take you back to the 7BP Home."
+        },
         { "text": "Stewards invite new people in the settings of their circle, under Invite." },
         { "text": "The 7BP Home is the main circle that holds all the others. It opens on a welcome page. At the top, \"This week in 7BP\" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from every circle you are in. You only see what you are allowed to see." },
         { "link": "$circle", "label": "Open {{name}}", "otherwise": { "link": "/my/groups", "label": "See my circles" } }

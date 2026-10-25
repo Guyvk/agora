@@ -12,6 +12,7 @@ import { useEffectiveGroupSlug, useGroupRouteOpts } from 'contexts/SpaceGroupCon
 import fetchGroupViews from 'store/actions/fetchGroupViews'
 import getGroupForSlug from 'store/selectors/getGroupForSlug'
 import useGroupViews from 'hooks/useGroupViews'
+import MainCircleCards from '@/agora/mainCircle/MainCircleCards' // Agora: 7BP Home look
 import { spaceHomeRoutePath, spaceHomeUrl } from '@hylo/navigation'
 import ThisWeek from '@/agora/thisWeek/ThisWeek' // Agora: "This week in 7BP", shown on the main circle only
 
@@ -82,6 +83,7 @@ function GroupWelcomePage () {
           <HyloHTML html={welcomeHtml} />
         </ClickCatcher>
       )}
+      <MainCircleCards group={group} />
       {group.fundingRound?.id && (
         <div className='mt-6'>
           <FundingRoundAboutInfo

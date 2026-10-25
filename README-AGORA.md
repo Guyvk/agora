@@ -473,6 +473,14 @@ The first command shows every change and saves nothing. Only this command, run b
 
 To undo: a steward can remove a circle from the 7BP Home in that circle's settings (it stays out), remove members, or delete the circle in its settings. If the main circle itself is deleted in its settings, the job does not make it again (it reports that the slug is taken by a switched-off circle). To stop the job altogether, take it out of `cron.js`.
 
+**How the 7BP Home looks.** It is meant to be clearly different from the other circles and to read as the circle all circles fall into:
+
+- *Left bar:* the 7BP Home is always first, a bit larger, with a ring in the 7BP blue and the 7BP mark as its picture (if the circle has no picture of its own). Its label says "7BP Home: all circles". A thin line under it separates it from the rest. The circles that are active children of it follow, a little smaller and indented, with a thin vertical line along them, so they read as "inside 7BP". All other circles (for example one a steward took out of the 7BP Home) come after, as before. Pinning and dragging still work, but only order circles inside their own part (the 7BP Home and its children cannot be dragged out of their place). The same bar is used on phones.
+- *The 7BP Home's own pages:* a "7BP Home" pill with the mark on its header, a blue tint and a blue strip along the bottom of the header. Its welcome page has a section "Every circle in 7BP" below the welcome text, with a card per circle (picture or mark, name, number of members) that opens the circle inside the app. A circle hidden from you that you are not in is not listed.
+- *Each child circle:* a small "Part of 7BP" link in its header that goes to the 7BP Home. Circles that are not active children show nothing.
+
+The web reads the main circle and its active children from one query, `agoraMainCircle` (`apps/backend/lib/agora/mainCircle.js`, only for members of the 7BP Home; empty for everyone else), so nothing shows without logging in. The slug still comes from `AGORA_MAIN_GROUP_SLUG`. The web code is in `apps/web/src/agora/mainCircle/`. Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainCircle.test.js` (backend) and `yarn test --watchAll=false --testPathPattern=agora/mainCircle` (web).
+
 Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainGroup.test.js` (they empty that database).
 
 ### This week in 7BP (top of the 7BP Home)
