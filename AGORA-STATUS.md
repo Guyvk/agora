@@ -2,7 +2,18 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 23 October 2026, evening, by the Agora coordinator session on the Mac. Older sections below are partly out of date; "Evening of 23 October" and "Latest" are current.
+**Last updated:** 25 October 2026, by the Agora coordinator session on the Mac. "25 October" is current; older sections below are partly out of date.
+
+## 25 October 2026
+
+- **Live on 732c2e5572** (deployed 18:15 server time, unit agora-update-1025a): #39 admins everywhere, #49 join links + Join button at the top + nothing readable logged out, #50 "This week in 7BP", #51 7BP Home look. (#48 7BP Home and #30 were already live on 3502ba3393 from 24 October.)
+- Reviews: #39 Fable: one fix, `lib/agora/mainGroup.js` `firstActiveAgoraAdmin` still matched email entries; now ids only via `agoraAdminList()` (in the merge commit c28df2439e). #49 Fable re-check of the post-review fixes: safe. #51 Sonnet check: safe; its locale files conflicted with #50 and were merged keeping both key sets.
+- Server: `AGORA_ADMINS=1`, `AGORA_HELPDESK_ADMINS=1` (ids, so #39's ids-only rule changed nothing). `scripts/agora-admins-everywhere.js --apply` ran: Guy joined Test group (4) as Administrator; a second dry run finds nothing. The hourly cron keeps it so.
+- Checked live: /login 200; a logged-out `groups` query returns an empty list.
+- Side effect of #49 to know: `/noo/uploads` needs a login, so pictures inside notification emails no longer load.
+- Nits left (no fix needed): #39 `--remove` cannot take back a role given to an admin who was already a plain member; #49 a failed join on Apple/Google login is retried at every later login; #51 the 7BP look can be missing up to 60 s after login (cache race).
+- Plan for 23 to 27 October: Sunday done. Next: Monday #32 (Meetings and Events, calendar), the invite-by-email check. Guy still open: try the meeting room, why the 21 October comms meeting (post 12) did not start in Agora, ask Christiaan for agora@7bp.org, the switched-off routines, the Build Plan questions.
+- Old worktrees under ~/agora/.claude/worktrees can be cleaned up; ~/agora itself is on branch kdrive-test with someone's uncommitted AGORA-STATUS.md edits (leave them).
 
 ## Evening of 23 October 2026
 
