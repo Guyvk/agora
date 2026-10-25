@@ -1,7 +1,9 @@
 import { get } from 'lodash/fp'
 import { LOGIN } from 'store/constants'
+import { resetMainCircleCache } from '@/agora/mainCircle/mainCircle' // Agora
 
 export default function login (email, password) {
+  resetMainCircleCache() // Agora: never show one person's 7BP circles to the next
   return {
     type: LOGIN,
     graphql: {

@@ -1,8 +1,10 @@
 import { get } from 'lodash/fp'
 import qs from 'query-string'
 import { LOGIN } from 'store/constants'
+import { resetMainCircleCache } from '@/agora/mainCircle/mainCircle' // Agora
 
 export default function loginWithService (name) {
+  resetMainCircleCache() // Agora: never show one person's 7BP circles to the next
   return {
     type: LOGIN,
     payload: authWithService(name)

@@ -68,6 +68,9 @@ import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHo
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
 import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
+import useMainCircle, { arrangeNavGroups, ACCENT_BG, ACCENT_RING, ACCENT_LINE } from '@/agora/mainCircle/mainCircle' // Agora: 7BP Home look
+import MainCircleMark from '@/agora/mainCircle/MainCircleMark'
+import { DEFAULT_AVATAR } from 'store/models/Group'
 import { ADMIN_URL, useAgoraAdmin } from '@/agora/admin/api' // Agora: the admin area
 import { toggleNavMenu } from 'routes/AuthLayoutRouter/AuthLayoutRouter.store'
 import {
@@ -565,8 +568,13 @@ export default function GlobalNav (props) {
     [rawGroups, stackGroups]
   )
   const isNavOpen = useSelector(state => get('AuthLayoutRouter.isNavOpen', state))
-  const pinnedGroups = useMemo(() => sortedGroups.filter(group => group.navOrder != null), [sortedGroups])
-  const unpinnedGroups = useMemo(() => sortedGroups.filter(group => group.navOrder == null), [sortedGroups])
+  // Agora: the main circle (7BP Home) first, its active child circles right after it
+  // (indented), then the other circles as before. Pins only order circles inside their part.
+  const mainCircle = useMainCircle()
+  const { main: mainNavGroup, children: childNavGroups, others: otherNavGroups } = useMemo(() => arrangeNavGroups(sortedGroups, mainCircle), [sortedGroups, mainCircle])
+  const leadCount = (mainNavGroup ? 1 : 0) + childNavGroups.length
+  const pinnedGroups = useMemo(() => otherNavGroups.filter(group => group.navOrder != null), [otherNavGroups])
+  const unpinnedGroups = useMemo(() => otherNavGroups.filter(group => group.navOrder == null), [otherNavGroups])
   const compactLayout = isCompactLayoutDevice()
   // The store links only go anywhere on a phone or tablet, so don't offer the
   // download at all on desktop
@@ -1017,7 +1025,9 @@ export default function GlobalNav (props) {
 
         // Find the moved group in the new order and get its new position
         const movedGroup = newOrder.find(group => group.id === active.id)
-        const newNavOrder = newOrder.indexOf(movedGroup)
+        // Agora: the position among all pinned circles, as the server counts them
+        const allPinned = sortedGroups.filter(group => group.navOrder != null)
+        const newNavOrder = movedGroup ? Math.max(0, allPinned.findIndex(group => group.id === over.id)) : 0
 
         // Only update the moved group's navOrder - backend will handle updating others
         dispatch(updateGroupNavOrder(active.id, newNavOrder))
@@ -1138,6 +1148,61 @@ export default function GlobalNav (props) {
           </GlobalNavItem>
         )}
 
+        {/* Agora: 7BP Home, then the circles inside it */}
+        {mainNavGroup && (
+          <div
+            data-testid='agora-nav-main'
+            ref={(node) => { if (node) groupRefsMap.current.set(mainNavGroup.id, node) }}
+          >
+            <RightClickMenu>
+              <RightClickMenuTrigger onContextMenu={handleContextMenu}>
+                <GlobalNavItem
+                  badgeCount={mainNavGroup.newPostCount ? '-' : 0}
+                  img={mainNavGroup.avatarUrl && mainNavGroup.avatarUrl !== DEFAULT_AVATAR ? mainNavGroup.avatarUrl : undefined}
+                  tooltip={t('7BP Home: all circles')}
+                  url={`/groups/${mainNavGroup.slug}`}
+                  className={cn(isVisible(4), 'w-[68px] h-[68px] ring-4', ACCENT_RING, ACCENT_BG)}
+                  showTooltip={showLabels}
+                >
+                  {(!mainNavGroup.avatarUrl || mainNavGroup.avatarUrl === DEFAULT_AVATAR) && <MainCircleMark className='h-10' />}
+                </GlobalNavItem>
+              </RightClickMenuTrigger>
+              <RightClickMenuContent>
+                <RightClickMenuItem onClick={() => handleMarkGroupAsRead(mainNavGroup.id)}>{t('Mark as Read')}</RightClickMenuItem>
+              </RightClickMenuContent>
+            </RightClickMenu>
+          </div>
+        )}
+        {childNavGroups.length > 0 && (
+          <div data-testid='agora-nav-children' className='relative w-full flex flex-col items-center pl-3'>
+            {mainNavGroup && <div aria-hidden='true' className={cn('absolute left-1 -top-3 bottom-4 w-[3px] rounded-full', ACCENT_LINE)} />}
+            {childNavGroups.map((group, childIndex) => (
+              <div
+                key={group.id}
+                ref={(node) => { if (node) groupRefsMap.current.set(group.id, node) }}
+              >
+                <RightClickMenu>
+                  <RightClickMenuTrigger onContextMenu={handleContextMenu}>
+                    <GlobalNavItem
+                      badgeCount={group.newPostCount ? '-' : 0}
+                      img={group.avatarUrl}
+                      tooltip={group.name}
+                      url={`/groups/${group.slug}`}
+                      className={cn(isVisible(5 + childIndex), 'w-12 h-12')}
+                      showTooltip={showLabels}
+                      childGroups={group.childGroups}
+                    />
+                  </RightClickMenuTrigger>
+                  <RightClickMenuContent>
+                    <RightClickMenuItem onClick={() => handleMarkGroupAsRead(group.id)}>{t('Mark as Read')}</RightClickMenuItem>
+                  </RightClickMenuContent>
+                </RightClickMenu>
+              </div>
+            ))}
+          </div>
+        )}
+        {leadCount > 0 && <div className='rounded-lg bg-background/50 dark:bg-foreground/20 w-full mb-4 p-[2px]' />}
+
         {/* Pinned Groups Section - Sortable */}
         <DndContext
           sensors={sensors}
@@ -1154,7 +1219,7 @@ export default function GlobalNav (props) {
                   <SortableGlobalNavItem
                     group={group}
                     index={pinnedIndex}
-                    isVisible={isVisible(4 + pinnedIndex)}
+                    isVisible={isVisible(4 + leadCount + pinnedIndex)}
                     showTooltip={showLabels}
                     isContainerHovered={showLabels}
                     groupRefsMap={groupRefsMap}
@@ -1174,7 +1239,7 @@ export default function GlobalNav (props) {
 
         {/* Non-pinned Groups Section */}
         {unpinnedGroups.map((group, unpinnedIndex) => {
-          const actualIndex = pinnedGroups.length + unpinnedIndex
+          const actualIndex = leadCount + pinnedGroups.length + unpinnedIndex
           return (
             <div
               key={group.id}
