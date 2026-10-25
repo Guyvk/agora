@@ -87,6 +87,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora: "This week in 7BP", for anyone logged in. The answer only holds what the person may see.
+  AgoraThisWeekController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora admin dashboard: for anyone logged in, and each action checks for an Agora admin.
   AgoraAdminController: {
     '*': 'sessionAuth'
