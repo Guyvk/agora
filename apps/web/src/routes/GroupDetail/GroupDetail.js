@@ -355,6 +355,59 @@ function GroupDetail ({ forCurrentGroup = false }) {
       </div>
 
       <div className='p-4'>
+        {/* Agora: the Join button sits at the top, above the description, so it is the first thing people see (also on a phone) */}
+        {!isAboutCurrentGroup
+          ? group.paywall
+            ? (
+              <div>
+                <JoinSection
+                  accessCode={accessCode}
+                  currentUser={currentUser}
+                  fullPage={fullPage}
+                  group={group}
+                  groupsWithPendingRequests={groupsWithPendingRequests}
+                  invitationRole={invitationRole}
+                  invitationToken={invitationToken}
+                  joinGroup={joinGroupHandler}
+                  linkedSpaceName={linkedSpaceName}
+                  requestToJoinGroup={requestToJoinGroup}
+                  routeParams={routeParams}
+                  t={t}
+                />
+              </div>)
+            : !currentUser
+                ? (
+                  <div className={g.signupButton}>
+                    <Link to={'/login?returnToUrl=' + location.pathname} target={inIframe() ? '_blank' : ''} className={g.requestButton}>
+                      {t('Signup or Login to connect with')}{' '}
+                      <span className={g.requestGroup}>{group.name}</span>
+                    </Link>
+                  </div>)
+                : isMember
+                  ? (
+                    <div className={g.existingMember}>
+                      {t('You are a member of ')}
+                      <Link to={groupUrl(group.slug)}>{group.name}</Link>
+                    </div>)
+                  : (
+                    <div>
+                      <JoinSection
+                        accessCode={accessCode}
+                        currentUser={currentUser}
+                        fullPage={fullPage}
+                        group={group}
+                        groupsWithPendingRequests={groupsWithPendingRequests}
+                        invitationRole={invitationRole}
+                        invitationToken={invitationToken}
+                        joinGroup={joinGroupHandler}
+                        linkedSpaceName={linkedSpaceName}
+                        requestToJoinGroup={requestToJoinGroup}
+                        routeParams={routeParams}
+                        t={t}
+                      />
+                    </div>
+                    )
+          : ''}
         {group.type === GROUP_TYPES.default && defaultGroupBody({ group, isAboutCurrentGroup, t, responsibilityTitles })}
         {group.type === GROUP_TYPES.farm && (
           <FarmGroupDetailBody isMember={isMember} group={group} currentUser={currentUser} routeParams={routeParams} />
@@ -465,58 +518,6 @@ function GroupDetail ({ forCurrentGroup = false }) {
             </Button>
           </div>
         )}
-        {!isAboutCurrentGroup
-          ? group.paywall
-            ? (
-              <div>
-                <JoinSection
-                  accessCode={accessCode}
-                  currentUser={currentUser}
-                  fullPage={fullPage}
-                  group={group}
-                  groupsWithPendingRequests={groupsWithPendingRequests}
-                  invitationRole={invitationRole}
-                  invitationToken={invitationToken}
-                  joinGroup={joinGroupHandler}
-                  linkedSpaceName={linkedSpaceName}
-                  requestToJoinGroup={requestToJoinGroup}
-                  routeParams={routeParams}
-                  t={t}
-                />
-              </div>)
-            : !currentUser
-                ? (
-                  <div className={g.signupButton}>
-                    <Link to={'/login?returnToUrl=' + location.pathname} target={inIframe() ? '_blank' : ''} className={g.requestButton}>
-                      {t('Signup or Login to connect with')}{' '}
-                      <span className={g.requestGroup}>{group.name}</span>
-                    </Link>
-                  </div>)
-                : isMember
-                  ? (
-                    <div className={g.existingMember}>
-                      {t('You are a member of ')}
-                      <Link to={groupUrl(group.slug)}>{group.name}</Link>
-                    </div>)
-                  : (
-                    <div>
-                      <JoinSection
-                        accessCode={accessCode}
-                        currentUser={currentUser}
-                        fullPage={fullPage}
-                        group={group}
-                        groupsWithPendingRequests={groupsWithPendingRequests}
-                        invitationRole={invitationRole}
-                        invitationToken={invitationToken}
-                        joinGroup={joinGroupHandler}
-                        linkedSpaceName={linkedSpaceName}
-                        requestToJoinGroup={requestToJoinGroup}
-                        routeParams={routeParams}
-                        t={t}
-                      />
-                    </div>
-                    )
-          : ''}
       </div>
       {showSpaceSettings && parentGroup && (
         <SpaceSettingsModal

@@ -685,6 +685,8 @@ type CheckInvitationResult {
   isSpace: Boolean
   # Parent group slug when the invitation is for a space
   parentGroupSlug: String
+  # Agora: parent group id when the invitation is for a space (to join it straight from the link)
+  parentGroupId: ID
   # Parent group name when the invitation is for a space
   parentGroupName: String
   # The email address from the invitation (for token-based invites)

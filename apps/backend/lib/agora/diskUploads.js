@@ -197,6 +197,12 @@ export function serveUploads (req, res, next) {
     res.setHeader('Allow', 'GET, HEAD')
     return res.end()
   }
+  // Agora: nothing is visible without logging in
+  if (!req.session || !req.session.userId) {
+    res.statusCode = 401
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    return res.end('Log in first')
+  }
 
   const notFound = () => {
     res.statusCode = 404

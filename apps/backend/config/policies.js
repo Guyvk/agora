@@ -123,8 +123,9 @@ module.exports.policies = {
     typing:      ['isSocket', 'sessionAuth', 'checkAndSetMembership']
   },
 
+  // Agora: circle profiles are not public (Agora does not use Murmurations); nothing is visible without logging in
   MurmurationsController: {
-    group: true
+    group: 'sessionAuth'
   },
 
   PostController: {
