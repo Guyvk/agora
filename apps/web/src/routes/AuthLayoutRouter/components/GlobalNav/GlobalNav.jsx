@@ -1153,11 +1153,13 @@ export default function GlobalNav (props) {
         )}
 
         {/* Agora: 7BP Home and the circles inside it, together on one tinted panel.
-            Same tile size as the rest of the rail; the 7BP tile carries the logo. */}
+            Same tile size as the rest of the rail; the 7BP tile carries the logo.
+            Even room on every side (about 13px around the tiles, which show at 90%):
+            a little wider than the column, less on top, the last tile's gap trimmed. */}
         {leadCount > 0 && (
           <div
             data-testid='agora-nav-home-block'
-            className='w-full flex flex-col items-center rounded-2xl pt-3 mb-4'
+            className='w-[76px] flex flex-col items-center rounded-2xl pt-2.5 mb-4 [&>*:last-child]:-mb-1.5'
             style={{ background: MAIN_PANEL_BG }}
           >
             {mainNavGroup && (
