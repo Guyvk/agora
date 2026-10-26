@@ -15,9 +15,10 @@ export const MAIN_CIRCLE_QUERY = `query AgoraMainCircle {
 
 // The accent colour of the 7BP Home, as Tailwind classes (light and dark)
 export const ACCENT_BG = 'bg-[hsl(190_90%_36%)] dark:bg-[hsl(190_80%_46%)]'
-export const ACCENT_RING = 'ring-[hsl(190_90%_36%)] dark:ring-[hsl(190_80%_46%)]'
 export const ACCENT_TEXT = 'text-[hsl(190_90%_30%)] dark:text-[hsl(190_80%_60%)]'
-export const ACCENT_LINE = 'bg-[hsl(190_90%_36%)]/60 dark:bg-[hsl(190_80%_46%)]/60'
+// The panel behind the 7BP Home and its circles in the left bar (a plain colour:
+// see-through works on both the light and the dark rail)
+export const MAIN_PANEL_BG = 'hsl(190 85% 42% / 0.22)'
 
 let cache = null // { at, data }
 let inflight = null

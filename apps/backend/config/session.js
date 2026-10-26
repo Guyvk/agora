@@ -30,6 +30,15 @@ module.exports.session = {
     return (req.userId || 'anon') + ':' + uuidv4()
   },
 
+  // Agora: Sails skips the session for any path that looks like a file (".jpg"),
+  // but uploads at /noo/uploads are only for people who are logged in, so they
+  // need the session. Everything else keeps the Sails default.
+  isSessionDisabled: function (req) {
+    const path = req.path || ''
+    if (path.startsWith('/noo/uploads/')) return false
+    return !!path.match(req._sails.LOOKS_LIKE_ASSET_RX)
+  },
+
   /***************************************************************************
   *                                                                          *
   * Set the session cookie expire time                                       *
