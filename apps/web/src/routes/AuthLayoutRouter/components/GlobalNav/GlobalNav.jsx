@@ -1,6 +1,6 @@
 import { cn } from 'util/index'
 import { get } from 'lodash/fp'
-import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, Gauge /* Agora: admin area */ } from 'lucide-react'
+import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, Gauge /* Agora: admin area */, Home /* Agora: My Home without a picture */ } from 'lucide-react'
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTour, { driveTour, isTourTestMode } from 'tours/useTour'
@@ -68,7 +68,7 @@ import { createGroupModalUrl, createPostModalUrl, newMessageUrl, personUrl, myHo
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
 import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
-import useMainCircle, { arrangeNavGroups, ACCENT_BG, ACCENT_RING, ACCENT_LINE } from '@/agora/mainCircle/mainCircle' // Agora: 7BP Home look
+import useMainCircle, { arrangeNavGroups, ACCENT_BG, MAIN_PANEL_BG } from '@/agora/mainCircle/mainCircle' // Agora: 7BP Home look
 import MainCircleMark from '@/agora/mainCircle/MainCircleMark'
 import { DEFAULT_AVATAR } from 'store/models/Group'
 import { ADMIN_URL, useAgoraAdmin } from '@/agora/admin/api' // Agora: the admin area
@@ -1083,14 +1083,18 @@ export default function GlobalNav (props) {
         onTouchStart={handleContainerTouchStart}
         onTouchEnd={handleContainerTouchEnd}
       >
+        {/* Agora: a house on a dark tile when there is no profile picture, not an empty square */}
         <GlobalNavItem
           img={get('avatarUrl', currentUser)}
+          darkTile={!get('avatarUrl', currentUser)}
           tooltip={t('My Home')}
           url={myHomeLandingUrl()}
           className={isVisible(0)}
           showTooltip={showLabels}
           dataTour='my-home'
-        />
+        >
+          {!get('avatarUrl', currentUser) && <Home />}
+        </GlobalNavItem>
 
         <Suspense fallback={<GlobalNavItem className={isVisible(1)} showTooltip={showLabels}><Bell className='w-7 h-7' /></GlobalNavItem>}>
           <NotificationsDropdown renderToggleChildren={showBadge =>
@@ -1148,37 +1152,42 @@ export default function GlobalNav (props) {
           </GlobalNavItem>
         )}
 
-        {/* Agora: 7BP Home, then the circles inside it */}
-        {mainNavGroup && (
+        {/* Agora: 7BP Home and the circles inside it, together on one tinted panel.
+            Same tile size as the rest of the rail; the 7BP tile carries the logo. */}
+        {leadCount > 0 && (
           <div
-            data-testid='agora-nav-main'
-            ref={(node) => { if (node) groupRefsMap.current.set(mainNavGroup.id, node) }}
+            data-testid='agora-nav-home-block'
+            className='w-full flex flex-col items-center rounded-2xl pt-3 mb-4'
+            style={{ background: MAIN_PANEL_BG }}
           >
-            <RightClickMenu>
-              <RightClickMenuTrigger onContextMenu={handleContextMenu}>
-                <GlobalNavItem
-                  badgeCount={mainNavGroup.newPostCount ? '-' : 0}
-                  img={mainNavGroup.avatarUrl && mainNavGroup.avatarUrl !== DEFAULT_AVATAR ? mainNavGroup.avatarUrl : undefined}
-                  tooltip={t('7BP Home: all circles')}
-                  url={`/groups/${mainNavGroup.slug}`}
-                  className={cn(isVisible(4), 'w-[68px] h-[68px] ring-4', ACCENT_RING, ACCENT_BG)}
-                  showTooltip={showLabels}
-                >
-                  {(!mainNavGroup.avatarUrl || mainNavGroup.avatarUrl === DEFAULT_AVATAR) && <MainCircleMark className='h-10' />}
-                </GlobalNavItem>
-              </RightClickMenuTrigger>
-              <RightClickMenuContent>
-                <RightClickMenuItem onClick={() => handleMarkGroupAsRead(mainNavGroup.id)}>{t('Mark as Read')}</RightClickMenuItem>
-              </RightClickMenuContent>
-            </RightClickMenu>
-          </div>
-        )}
-        {childNavGroups.length > 0 && (
-          <div data-testid='agora-nav-children' className='relative w-full flex flex-col items-center pl-3'>
-            {mainNavGroup && <div aria-hidden='true' className={cn('absolute left-1 -top-3 bottom-4 w-[3px] rounded-full', ACCENT_LINE)} />}
+            {mainNavGroup && (
+              <div
+                data-testid='agora-nav-main'
+                ref={(node) => { if (node) groupRefsMap.current.set(mainNavGroup.id, node) }}
+              >
+                <RightClickMenu>
+                  <RightClickMenuTrigger onContextMenu={handleContextMenu}>
+                    <GlobalNavItem
+                      badgeCount={mainNavGroup.newPostCount ? '-' : 0}
+                      img={mainNavGroup.avatarUrl && mainNavGroup.avatarUrl !== DEFAULT_AVATAR ? mainNavGroup.avatarUrl : undefined}
+                      tooltip={t('7BP Home: all circles')}
+                      url={`/groups/${mainNavGroup.slug}`}
+                      className={cn(isVisible(4), ACCENT_BG)}
+                      showTooltip={showLabels}
+                    >
+                      {(!mainNavGroup.avatarUrl || mainNavGroup.avatarUrl === DEFAULT_AVATAR) && <MainCircleMark className='h-9' />}
+                    </GlobalNavItem>
+                  </RightClickMenuTrigger>
+                  <RightClickMenuContent>
+                    <RightClickMenuItem onClick={() => handleMarkGroupAsRead(mainNavGroup.id)}>{t('Mark as Read')}</RightClickMenuItem>
+                  </RightClickMenuContent>
+                </RightClickMenu>
+              </div>
+            )}
             {childNavGroups.map((group, childIndex) => (
               <div
                 key={group.id}
+                data-testid='agora-nav-child'
                 ref={(node) => { if (node) groupRefsMap.current.set(group.id, node) }}
               >
                 <RightClickMenu>
@@ -1188,7 +1197,7 @@ export default function GlobalNav (props) {
                       img={group.avatarUrl}
                       tooltip={group.name}
                       url={`/groups/${group.slug}`}
-                      className={cn(isVisible(5 + childIndex), 'w-12 h-12')}
+                      className={isVisible(5 + childIndex)}
                       showTooltip={showLabels}
                       childGroups={group.childGroups}
                     />
@@ -1201,7 +1210,6 @@ export default function GlobalNav (props) {
             ))}
           </div>
         )}
-        {leadCount > 0 && <div className='rounded-lg bg-background/50 dark:bg-foreground/20 w-full mb-4 p-[2px]' />}
 
         {/* Pinned Groups Section - Sortable */}
         <DndContext
