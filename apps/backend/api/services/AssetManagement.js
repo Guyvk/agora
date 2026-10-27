@@ -1,7 +1,9 @@
 import Promise from 'bluebird'
+import fs from 'fs'
 import request from 'request'
 import sharp from 'sharp'
 import { createS3StorageStream, safeBasename } from '../../lib/uploader/storage'
+import * as diskUploads from '../../lib/agora/diskUploads'
 
 module.exports = {
   copyAsset: function (instance, type, attr) {
@@ -29,7 +31,12 @@ function runPipeline (url, filename, type, id, pipeFn) {
   return new Promise((resolve, reject) => {
     sails.log.info('from: ' + url)
 
-    let stream = request.get({url, encoding: null})
+    // Agora: our own uploads are only served to people who are logged in, so read them from disk
+    const key = diskUploads.inUse() ? diskUploads.keyFromUrl(url) : null
+    let stream = key
+      ? fs.createReadStream(diskUploads.filePath(key))
+      : request.get({url, encoding: null})
+    if (key) stream.on('error', reject)
     if (pipeFn) stream = pipeFn(stream)
     stream = stream.pipe(createS3StorageStream(type, id, {filename}))
 
