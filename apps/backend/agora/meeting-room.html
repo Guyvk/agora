@@ -134,6 +134,7 @@
   .msg .who { font-weight: 600; font-size: 13px; }
   .msg .when { color: var(--muted); font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .msg .said { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .msg .said a { color: inherit; text-decoration: underline; }
   #side .foot { padding: 10px 16px 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
   #chatForm { display: flex; gap: 8px; align-items: flex-end; }
   #chatText { flex: 1; min-width: 0; font: inherit; resize: none; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-height: 120px; }
@@ -639,6 +640,26 @@ function timeOfDay(date) {
   return new Date(date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
+/* Writes a chat message into `el` as text, with web addresses as links. A link
+   opens in a new tab, so clicking it never takes someone out of the call. */
+function fillWithLinks(el, text) {
+  const pattern = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    // Leave closing punctuation out of the link: "see https://x.org." or "(https://x.org)"
+    const address = match[0].replace(/[.,;:!?'")\]]+$/, '');
+    el.append(text.slice(last, match.index));
+    const link = document.createElement('a');
+    link.href = /^www\./i.test(address) ? 'https://' + address : address;
+    link.textContent = address;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    el.append(link);
+    last = match.index + address.length;
+  }
+  el.append(text.slice(last));
+}
+
 /* Puts chat messages on the screen, in order, each once. */
 function addMessages(messages) {
   if (!messages || !messages.length) return;
@@ -660,7 +681,7 @@ function addMessages(messages) {
     when.textContent = timeOfDay(message.at);
     const said = document.createElement('p');
     said.className = 'said';
-    said.textContent = message.text;
+    fillWithLinks(said, message.text);
     item.append(who, when, said);
     // Keep the order of the server, also when our own message came back before someone else's
     const later = Array.from(box.querySelectorAll('.msg')).find(el => Number(el.dataset.id) > Number(message.id));
