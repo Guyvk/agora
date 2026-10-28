@@ -144,6 +144,15 @@ function isInfomaniak (url) {
 }
 
 /**
+ * Where kDrive hands out the contents of a file (since October 2026, for
+ * example 1-16-v3-12.download.kdrive.infomaniakusercontent.com). Its links
+ * are signed, so they work without the token, and never get it.
+ */
+function isInfomaniakDownload (url) {
+  return url.protocol === 'https:' && url.hostname.endsWith('.infomaniakusercontent.com')
+}
+
+/**
  * Sends one request and answers with the response, unread. body is a Buffer,
  * a string, a readable stream or null.
  */
@@ -349,7 +358,7 @@ async function openDownload (id) {
       drain(res)
       const next = new URL(res.headers.location, url)
       // Only on to Infomaniak's own https addresses.
-      if (!isInfomaniak(next)) throw new KdriveError('kdrive', 'Something went wrong with kDrive. Try again in a minute.')
+      if (!isInfomaniak(next) && !isInfomaniakDownload(next)) throw new KdriveError('kdrive', 'Something went wrong with kDrive. Try again in a minute.')
       url = next
       hop++
       continue

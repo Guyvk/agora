@@ -260,6 +260,25 @@ describe('Agora files in kDrive', () => {
       nock.cleanAll()
       nock(API).get(/.*/).reply(302, '', { Location: 'http://download.kdrive.infomaniak.com/file/901' })
       await expectCode(Kdrive.openDownload(901), 'kdrive')
+      nock.cleanAll()
+      nock(API).get(/.*/).reply(302, '', { Location: 'https://infomaniakusercontent.com.example.org/file/901' })
+      await expectCode(Kdrive.openDownload(901), 'kdrive')
+    })
+
+    it('follows a download to kDrive\'s file address, without the token', async () => {
+      nock.cleanAll()
+      const files = 'https://1-16-v3-12.download.kdrive.infomaniakusercontent.com'
+      nock(API).get(/.*/).reply(302, '', { Location: `${files}/2/download/abc` })
+      let sentToken = null
+      nock(files).get('/2/download/abc').reply(function () {
+        sentToken = this.req.headers.authorization || null
+        return [200, 'the minutes']
+      })
+      const res = await Kdrive.openDownload(901)
+      const parts = []
+      for await (const part of res) parts.push(part)
+      expect(Buffer.concat(parts).toString()).to.equal('the minutes')
+      expect(sentToken).to.equal(null)
     })
 
     it('allows 100 MB a file unless set otherwise', () => {
