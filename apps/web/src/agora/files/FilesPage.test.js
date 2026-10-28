@@ -61,6 +61,11 @@ function renderPage (path = '/groups/governance/files', props = {}) {
 }
 
 const rowOf = name => screen.getAllByTestId('files-row').find(r => r.textContent.includes(name))
+// Opens the "…" menu of a row and picks one of its items.
+async function pickFromMenu (name, label) {
+  fireEvent.keyDown(within(rowOf(name)).getByRole('button', { name: `Actions for ${name}` }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitem', { name: label }, WAIT))
+}
 const posts = suffix => calls.filter(c => c.method === 'POST' && c.url.endsWith(suffix))
 
 describe('FilesPage', () => {
@@ -82,11 +87,12 @@ describe('FilesPage', () => {
     expect(within(rows[3]).getByText('Mei')).toBeInTheDocument()
     expect(within(rows[5]).getByText('4.9 KB')).toBeInTheDocument()
     expect(screen.getByTestId('files-path').textContent).toEqual('Governance')
-    // the link opens the Google document in a new tab; a file downloads through Agora
+    // the link opens the Google document in a new tab
     const link = within(rows[4]).getAllByRole('link')[0]
     expect(link.getAttribute('href')).toEqual('https://docs.google.com/spreadsheets/d/abc/edit')
     expect(link.getAttribute('target')).toEqual('_blank')
-    expect(within(rows[5]).getAllByRole('link')[0].getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a1')
+    // a PDF opens in the viewer; its download is in the row's menu
+    expect(within(rows[5]).getByRole('button', { name: 'plan.pdf' })).toBeInTheDocument()
   })
 
   it('shows a plain file in a pop-up instead of downloading it', async () => {
@@ -101,6 +107,24 @@ describe('FilesPage', () => {
     const row = screen.getAllByTestId('files-row').find(r => r.textContent.includes('budget.xlsx'))
     expect(within(row).queryByRole('button', { name: 'View', hidden: true })).toBeNull()
     expect(within(row).getByRole('link', { name: 'budget.xlsx', hidden: true }).getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a3')
+  })
+
+  it('keeps the actions of a row in one menu', async () => {
+    fakeServer()
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    // the Minutes folder cannot be changed and is not a file: no menu at all
+    expect(within(rowOf('Minutes')).queryByRole('button', { name: 'Actions for Minutes' })).toBeNull()
+    fireEvent.keyDown(within(rowOf('plan.pdf')).getByRole('button', { name: 'Actions for plan.pdf' }), { key: 'Enter' })
+    const menu = await screen.findByRole('menu', {}, WAIT)
+    expect(within(menu).getAllByRole('menuitem').map(i => i.textContent)).toEqual(['View', 'Download', 'Rename', 'Move to…', 'Delete'])
+    expect(within(menu).getByRole('menuitem', { name: 'Download' }).getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a1')
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull(), WAIT)
+    // someone else's file: only view and download
+    fireEvent.keyDown(within(rowOf('agenda.txt')).getByRole('button', { name: 'Actions for agenda.txt' }), { key: 'Enter' })
+    const theirs = await screen.findByRole('menu', {}, WAIT)
+    expect(within(theirs).getAllByRole('menuitem').map(i => i.textContent)).toEqual(['View', 'Download'])
   })
 
   it('opens a folder in the same page and shows a clickable path', async () => {
@@ -147,7 +171,7 @@ describe('FilesPage', () => {
     fakeServer()
     renderPage()
     await screen.findByText('plan.pdf', {}, WAIT)
-    fireEvent.click(within(rowOf('plan.pdf')).getByRole('button', { name: 'Move to…' }))
+    await pickFromMenu('plan.pdf', 'Move to…')
     const picker = await screen.findByTestId('files-move-picker', {}, WAIT)
     await within(picker).findByRole('button', { name: 'Reports' }, WAIT)
     // Minutes is not offered, nor the item's own place
@@ -349,7 +373,7 @@ describe('FilesPage', () => {
     expect(posts('/kd/folder')[0].body).toEqual({ name: 'Drafts', folder: 'f1' })
     await screen.findByText('Folder made.', {}, WAIT)
 
-    fireEvent.click(within(rowOf('q3.pdf')).getByRole('button', { name: 'Rename' }))
+    await pickFromMenu('q3.pdf', 'Rename')
     fireEvent.change(screen.getByLabelText('New name'), { target: { value: 'q3 final.pdf' } })
     fireEvent.submit(screen.getByRole('form', { name: 'Rename' }))
     await waitFor(() => expect(posts('/kd/rename')).toHaveLength(1), WAIT)
