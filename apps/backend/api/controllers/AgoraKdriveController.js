@@ -114,9 +114,34 @@ function refuseBody (req, res, status, error) {
 }
 
 /** A file name for the Content-Disposition header, plain and encoded (RFC 6266). */
-function disposition (name) {
+function disposition (name, kind = 'attachment') {
   const plain = String(name || 'file').replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')
-  return `attachment; filename="${plain}"; filename*=UTF-8''${encodeURIComponent(String(name || 'file'))}`
+  return `${kind}; filename="${plain}"; filename*=UTF-8''${encodeURIComponent(String(name || 'file'))}`
+}
+
+// Files a browser can show without running anything, by the end of their name.
+// Only these open in the viewer of the Files page; everything else is a download.
+// Never HTML, SVG or XML: those can run as a page.
+const VIEWABLE = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  txt: 'text/plain; charset=utf-8',
+  md: 'text/plain; charset=utf-8',
+  csv: 'text/plain; charset=utf-8',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  mp4: 'video/mp4',
+  webm: 'video/webm'
+}
+
+function viewableType (name) {
+  const match = /\.([a-z0-9]{1,5})$/i.exec(String(name || ''))
+  return match ? VIEWABLE[match[1].toLowerCase()] || null : null
 }
 
 module.exports = {
@@ -141,12 +166,18 @@ module.exports = {
       return failure(res, err)
     }
     const { item, stream } = opened
-    // Always a download, never shown as a page of Agora: a file someone added
-    // could otherwise run as a web page under Agora's address.
-    res.set('Content-Type', 'application/octet-stream')
-    res.set('Content-Disposition', disposition(item.name))
+    // A download, never shown as a page of Agora: a file someone added could
+    // otherwise run as a web page under Agora's address. Only with ?view=1, and
+    // only for the plain types in VIEWABLE, is it shown, inside the Files page.
+    const type = req.param('view') ? viewableType(item.name) : null
+    res.set('Content-Type', type || 'application/octet-stream')
+    res.set('Content-Disposition', disposition(item.name, type ? 'inline' : 'attachment'))
     res.set('X-Content-Type-Options', 'nosniff')
-    res.set('Content-Security-Policy', "default-src 'none'; sandbox")
+    // The browser's own PDF viewer does not start in a sandbox, so a PDF gets
+    // the strict rules without it. It may only be shown inside Agora's own pages.
+    res.set('Content-Security-Policy', type === 'application/pdf'
+      ? "default-src 'none'; frame-ancestors 'self'"
+      : "default-src 'none'; sandbox; frame-ancestors 'self'")
     if (stream.headers && /^\d+$/.test(String(stream.headers['content-length'] || ''))) {
       res.set('Content-Length', stream.headers['content-length'])
     }

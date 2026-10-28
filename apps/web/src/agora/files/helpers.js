@@ -85,3 +85,28 @@ export function googleUrl (value) {
     return null
   }
 }
+
+// How the viewer shows a file, by the end of its name. The same list as
+// VIEWABLE in AgoraKdriveController; anything else is only downloaded.
+const VIEW_KINDS = {
+  pdf: 'pdf',
+  png: 'image',
+  jpg: 'image',
+  jpeg: 'image',
+  gif: 'image',
+  webp: 'image',
+  txt: 'text',
+  md: 'text',
+  csv: 'text',
+  mp3: 'audio',
+  m4a: 'audio',
+  wav: 'audio',
+  mp4: 'video',
+  webm: 'video'
+}
+
+/** 'pdf', 'image', 'text', 'audio' or 'video' when the viewer can show the file, otherwise null. */
+export function viewKind (name) {
+  const match = /\.([a-z0-9]{1,5})$/i.exec(String(name || ''))
+  return match ? VIEW_KINDS[match[1].toLowerCase()] || null : null
+}

@@ -22,9 +22,10 @@ import { Input } from 'components/ui/input'
 import Loading from 'components/Loading'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
 import { cn } from 'util/index'
+import FileViewer from './FileViewer'
 import FolderPicker from './FolderPicker'
 import { downloadUrl, listFolder, post, sendFile } from './api'
-import { SERVICES, formatDay, formatSize, googleUrl, selectionActions, sortItems } from './helpers'
+import { SERVICES, formatDay, formatSize, googleUrl, selectionActions, sortItems, viewKind } from './helpers'
 
 const smallButton = 'text-xs px-2 py-1 h-auto'
 
@@ -47,6 +48,7 @@ export default function FilesPage ({ groupSlug: slugProp }) {
   const [renaming, setRenaming] = useState(null) // { id, value }
   const [confirmDelete, setConfirmDelete] = useState(null) // the items to delete
   const [movingItems, setMovingItems] = useState([])
+  const [viewing, setViewing] = useState(null) // the file shown in the viewer
   const [dropTarget, setDropTarget] = useState(null)
   const [fileDrop, setFileDrop] = useState(false)
   const dragging = useRef(null)
@@ -476,7 +478,9 @@ export default function FilesPage ({ groupSlug: slugProp }) {
                               {item.kind === 'file' && <FileIcon className='w-4 h-4 shrink-0 text-muted-foreground' aria-label={t('File')} />}
                               {service && <span className='shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white' style={{ background: service.color }} title={service.name}>{service.label}</span>}
                               {isFolder && <button type='button' className='text-left text-foreground font-medium hover:underline break-words min-w-0' onClick={() => openFolder(item.id)}>{item.name}</button>}
-                              {item.kind === 'file' && <a href={downloadUrl(groupSlug, item.id)} download className='text-foreground hover:underline break-words min-w-0'>{item.name}</a>}
+                              {item.kind === 'file' && (viewKind(item.name)
+                                ? <button type='button' className='text-left text-foreground hover:underline break-words min-w-0' onClick={() => setViewing(item)}>{item.name}</button>
+                                : <a href={downloadUrl(groupSlug, item.id)} download className='text-foreground hover:underline break-words min-w-0'>{item.name}</a>)}
                               {item.kind === 'link' && (openUrl
                                 ? <a href={openUrl} target='_blank' rel='noopener noreferrer' className='text-foreground hover:underline break-words min-w-0'>{item.name} <Link2 className='inline w-3 h-3' /></a>
                                 : <span className='text-foreground break-words min-w-0'>{item.name}</span>)}
@@ -492,6 +496,9 @@ export default function FilesPage ({ groupSlug: slugProp }) {
                             <Button asChild size='sm' variant='outline' className={smallButton}>
                               <a href={openUrl} target='_blank' rel='noopener noreferrer'>{t('Open')} <ExternalLink className='w-3 h-3' /></a>
                             </Button>
+                          )}
+                          {item.kind === 'file' && viewKind(item.name) && (
+                            <Button size='sm' variant='outline' className={smallButton} onClick={() => setViewing(item)}>{t('View')}</Button>
                           )}
                           {item.kind === 'file' && (
                             <Button asChild size='sm' variant='outline' className={smallButton}>
@@ -518,6 +525,8 @@ export default function FilesPage ({ groupSlug: slugProp }) {
       <p className='text-sm text-muted-foreground'>
         {t('These files are kept in 7BP\'s kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.')}
       </p>
+
+      {viewing && <FileViewer groupSlug={groupSlug} item={viewing} onClose={() => setViewing(null)} />}
     </div>
   )
 }
