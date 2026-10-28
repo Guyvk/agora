@@ -3059,6 +3059,7 @@
   "Accept Payments": "Accept Payments",
   "Accept credit card and other payment methods": "Accept credit card and other payment methods",
   "Actions": "Actions",
+  "Actions for {{name}}": "Actions for {{name}}",
   "Analytics": "Analytics",
   "Are you sure you want to delete the group {{name}}? This will permanently delete the group and all of its content. This cannot be undone.": "Are you sure you want to delete the group {{name}}? This will permanently delete the group and all of its content. This cannot be undone.",
   "Are you sure you want to remove {{item}}?": "Are you sure you want to remove {{item}}?",

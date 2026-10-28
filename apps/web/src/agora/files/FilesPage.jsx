@@ -16,8 +16,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, ExternalLink, File as FileIcon, Folder, FolderOpen, Link2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Download, ExternalLink, Eye, File as FileIcon, Folder, FolderInput, FolderOpen, Link2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import Button from 'components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from 'components/ui/dropdown-menu'
 import { Input } from 'components/ui/input'
 import Loading from 'components/Loading'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
@@ -26,8 +27,6 @@ import FileViewer from './FileViewer'
 import FolderPicker from './FolderPicker'
 import { downloadUrl, listFolder, post, sendFile } from './api'
 import { SERVICES, formatDay, formatSize, googleUrl, selectionActions, sortItems, viewKind } from './helpers'
-
-const smallButton = 'text-xs px-2 py-1 h-auto'
 
 export default function FilesPage ({ groupSlug: slugProp }) {
   const { t, i18n } = useTranslation()
@@ -295,7 +294,7 @@ export default function FilesPage ({ groupSlug: slugProp }) {
   }
 
   const sortHead = (sortKey, label, className) => (
-    <th key={sortKey} scope='col' className={cn('text-left font-medium px-3 py-2', className)} aria-sort={sort.key === sortKey ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th key={sortKey} scope='col' className={cn('text-left font-medium px-3 py-2 whitespace-nowrap', className)} aria-sort={sort.key === sortKey ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <button type='button' className='inline-flex items-center gap-1 text-muted-foreground hover:text-foreground' onClick={() => toggleSort(sortKey)}>
         {label}
         {sort.key === sortKey && (sort.direction === 'asc' ? <ArrowUp className='w-3 h-3' /> : <ArrowDown className='w-3 h-3' />)}
@@ -490,29 +489,40 @@ export default function FilesPage ({ groupSlug: slugProp }) {
                       <td className='px-3 py-2 hidden sm:table-cell text-muted-foreground'>{item.addedBy || ''}</td>
                       <td className='px-3 py-2 hidden sm:table-cell text-muted-foreground whitespace-nowrap'>{formatDay(item.changedAt, locale)}</td>
                       <td className='px-3 py-2 hidden md:table-cell text-muted-foreground whitespace-nowrap'>{formatSize(item.size, locale)}</td>
-                      <td className='px-3 py-2'>
-                        <span className='flex flex-wrap gap-1 justify-end'>
-                          {item.kind === 'link' && openUrl && (
-                            <Button asChild size='sm' variant='outline' className={smallButton}>
-                              <a href={openUrl} target='_blank' rel='noopener noreferrer'>{t('Open')} <ExternalLink className='w-3 h-3' /></a>
-                            </Button>
-                          )}
-                          {item.kind === 'file' && viewKind(item.name) && (
-                            <Button size='sm' variant='outline' className={smallButton} onClick={() => setViewing(item)}>{t('View')}</Button>
-                          )}
-                          {item.kind === 'file' && (
-                            <Button asChild size='sm' variant='outline' className={smallButton}>
-                              <a href={downloadUrl(groupSlug, item.id)} download>{t('Download')}</a>
-                            </Button>
-                          )}
-                          {item.canChange && (
-                            <>
-                              <Button size='sm' variant='outline' className={smallButton} disabled={busy} onClick={() => { setRenaming({ id: item.id, value: item.name }); setConfirmDelete(null) }}>{t('Rename')}</Button>
-                              <Button size='sm' variant='outline' className={smallButton} disabled={busy} onClick={() => startMove([item])}>{t('Move to…')}</Button>
-                              <Button size='sm' variant='outline' className={cn(smallButton, 'text-destructive')} disabled={busy} onClick={() => { setConfirmDelete([item]); setPanel(null) }}>{t('Delete')}</Button>
-                            </>
-                          )}
-                        </span>
+                      <td className='px-3 py-2 w-12 text-right'>
+                        {(openUrl || item.kind === 'file' || item.canChange) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size='sm' variant='ghost' className='h-8 w-8 p-0' aria-label={t('Actions for {{name}}', { name: item.name })}>
+                                <MoreHorizontal className='w-4 h-4' />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align='end'>
+                              {item.kind === 'link' && openUrl && (
+                                <DropdownMenuItem asChild>
+                                  <a href={openUrl} target='_blank' rel='noopener noreferrer'><ExternalLink className='w-4 h-4' />{t('Open')}</a>
+                                </DropdownMenuItem>
+                              )}
+                              {item.kind === 'file' && viewKind(item.name) && (
+                                <DropdownMenuItem onSelect={() => setViewing(item)}><Eye className='w-4 h-4' />{t('View')}</DropdownMenuItem>
+                              )}
+                              {item.kind === 'file' && (
+                                <DropdownMenuItem asChild>
+                                  <a href={downloadUrl(groupSlug, item.id)} download><Download className='w-4 h-4' />{t('Download')}</a>
+                                </DropdownMenuItem>
+                              )}
+                              {item.canChange && (
+                                <>
+                                  {(openUrl || item.kind === 'file') && <DropdownMenuSeparator />}
+                                  <DropdownMenuItem disabled={busy} onSelect={() => { setRenaming({ id: item.id, value: item.name }); setConfirmDelete(null) }}><Pencil className='w-4 h-4' />{t('Rename')}</DropdownMenuItem>
+                                  <DropdownMenuItem disabled={busy} onSelect={() => startMove([item])}><FolderInput className='w-4 h-4' />{t('Move to…')}</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem disabled={busy} className='text-destructive focus:text-destructive' onSelect={() => { setConfirmDelete([item]); setPanel(null) }}><Trash2 className='w-4 h-4' />{t('Delete')}</DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </td>
                     </tr>
                   )
