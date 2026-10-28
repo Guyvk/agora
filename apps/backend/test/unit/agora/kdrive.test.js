@@ -944,6 +944,26 @@ describe('Agora files in kDrive', () => {
       expect(refused.text).to.equal('')
     })
 
+    it('shows plain files in the viewer, and never a web page', async () => {
+      const pdf = await upload(member.id, { name: 'Plan.PDF', contents: '%PDF-1.4' })
+      const shown = await download({ userId: other.id, query: { file: pdf.body.item.id, view: '1' } })
+      expect(shown.res.headers['Content-Type']).to.equal('application/pdf')
+      expect(shown.res.headers['Content-Disposition']).to.match(/^inline; filename="Plan.PDF"/)
+      expect(shown.res.headers['Content-Security-Policy']).to.equal("default-src 'none'; frame-ancestors 'self'")
+
+      const text = await upload(member.id, { name: 'notes.txt', contents: 'hello' })
+      const shownText = await download({ userId: other.id, query: { file: text.body.item.id, view: '1' } })
+      expect(shownText.res.headers['Content-Type']).to.equal('text/plain; charset=utf-8')
+      expect(shownText.res.headers['Content-Security-Policy']).to.include('sandbox')
+
+      const page = await upload(member.id, { name: 'page.html', contents: '<script>alert(1)</script>' })
+      const notShown = await download({ userId: other.id, query: { file: page.body.item.id, view: '1' } })
+      expect(notShown.res.headers['Content-Type']).to.equal('application/octet-stream')
+      expect(notShown.res.headers['Content-Disposition']).to.match(/^attachment;/)
+      const notAsked = await download({ userId: other.id, query: { file: pdf.body.item.id } })
+      expect(notAsked.res.headers['Content-Disposition']).to.match(/^attachment;/)
+    })
+
     it('gives a space its own folder inside its circle\'s folder, hidden from the circle', async () => {
       const circleList = await call('list', { userId: spaceMember.id })
       const spaceList = await call('list', { userId: spaceMember.id, params: { groupSlug: 'governance-budget' } })

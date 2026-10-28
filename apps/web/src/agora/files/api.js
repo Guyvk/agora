@@ -11,6 +11,9 @@ export const base = groupSlug => `/noo/agora/files/${encodeURIComponent(groupSlu
 
 export const downloadUrl = (groupSlug, fileId) => `${base(groupSlug)}/download?file=${encodeURIComponent(fileId)}`
 
+/** The same file, to be shown in the viewer instead of downloaded (only plain types; the server decides). */
+export const viewUrl = (groupSlug, fileId) => `${downloadUrl(groupSlug, fileId)}&view=1`
+
 const OFFLINE = 'Agora could not be reached. Check your connection and try again.'
 
 /** One folder: { ok, status, data }. folderId null: the circle's own folder. */

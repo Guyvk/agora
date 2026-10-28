@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom'
 import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import FilesPage from './FilesPage'
 import FolderPicker from './FolderPicker'
-import { sortItems, selectionActions, googleUrl } from './helpers'
+import { sortItems, selectionActions, googleUrl, viewKind } from './helpers'
 
 const WAIT = { timeout: 30000 }
 // A busy test computer can be very slow.
@@ -87,6 +87,20 @@ describe('FilesPage', () => {
     expect(link.getAttribute('href')).toEqual('https://docs.google.com/spreadsheets/d/abc/edit')
     expect(link.getAttribute('target')).toEqual('_blank')
     expect(within(rows[5]).getAllByRole('link')[0].getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a1')
+  })
+
+  it('shows a plain file in a pop-up instead of downloading it', async () => {
+    fakeServer()
+    drive.root.items.push(item('a3', 'budget.xlsx', 'file'))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'plan.pdf' }, WAIT))
+    const viewer = await screen.findByTestId('file-viewer', {}, WAIT)
+    expect(within(viewer).getByTitle('plan.pdf').getAttribute('src')).toEqual('/noo/agora/files/governance/kd/download?file=a1&view=1')
+    expect(within(viewer).getByRole('link', { name: 'Download' }).getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a1')
+    // a spreadsheet cannot be shown, so it stays a download
+    const row = screen.getAllByTestId('files-row').find(r => r.textContent.includes('budget.xlsx'))
+    expect(within(row).queryByRole('button', { name: 'View', hidden: true })).toBeNull()
+    expect(within(row).getByRole('link', { name: 'budget.xlsx', hidden: true }).getAttribute('href')).toEqual('/noo/agora/files/governance/kd/download?file=a3')
   })
 
   it('opens a folder in the same page and shows a clickable path', async () => {
@@ -404,6 +418,15 @@ describe('Files helpers', () => {
     expect(selectionActions([mine])).toEqual({ move: true, remove: true, download: true })
     expect(selectionActions([mine, theirs])).toEqual({ move: false, remove: false, download: true })
     expect(selectionActions([mine, folder])).toEqual({ move: true, remove: true, download: false })
+  })
+
+  it('shows only plain files in the viewer, never a web page', () => {
+    expect(viewKind('Plan.PDF')).toEqual('pdf')
+    expect(viewKind('photo.jpeg')).toEqual('image')
+    expect(viewKind('notes.md')).toEqual('text')
+    for (const name of ['page.html', 'logo.svg', 'data.xml', 'budget.xlsx', 'report.docx', 'pdf', '']) {
+      expect(viewKind(name)).toBeNull()
+    }
   })
 
   it('opens links only at Google', () => {
