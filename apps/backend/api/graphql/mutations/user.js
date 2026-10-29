@@ -23,7 +23,7 @@ const normalizeEmail = (email) => {
  */
 const findUserByEmail = (email) => User.query(q => q.whereRaw('lower(email) = ?', email)).fetch()
 
-export const sendEmailVerification = async (_, { email: providedEmail, invitationToken, accessCode }, context) => {
+export const sendEmailVerification = async (_, { email: providedEmail, invitationToken, accessCode, claimToken }, context) => {
   try {
     const email = normalizeEmail(providedEmail)
     if (!email) return { success: false, error: 'Invalid email address' }
@@ -39,7 +39,7 @@ export const sendEmailVerification = async (_, { email: providedEmail, invitatio
     // is made and no email is sent, but the answer is the same as for an address that has an
     // account, so it does not tell who has one. See lib/agora/signup.js.
     if (AgoraSignup.isInviteOnly()) {
-      const held = { invitationToken, accessCode }
+      const held = { invitationToken, accessCode, claimToken } // Agora: claimToken is a claim link for a profile (lib/agora/claims.js)
       const valid = AgoraSignup.hasInvitation(held) && await AgoraSignup.isValidInvitation(held, email)
       if (AgoraSignup.hasInvitation(held) && !valid) return { success: false, error: AgoraSignup.INVITATION_INVALID_ERROR }
       if (!user && !valid) return { success: true }

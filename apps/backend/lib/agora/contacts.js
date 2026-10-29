@@ -8,14 +8,22 @@
  *
  * "Agora member" means a person who belongs to at least one circle. Someone
  * who only made an account sees nothing.
+ *
+ * A contact of the kind "team" can also hold a short profile (country, what
+ * they do and can do, why they are here, skills, a photo), which the person
+ * can claim later through a claim link, see lib/agora/claims.js.
  */
 
-const KINDS = ['partner', 'press', 'funder', 'interested', 'other']
+const KINDS = ['team', 'partner', 'press', 'funder', 'interested', 'other']
 const STATUSES = ['new', 'in_touch', 'active', 'paused']
 const FIELDS = [
   'name', 'organisation', 'kind', 'email', 'phone', 'website', 'status', 'circle_id',
-  'source', 'consent', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id'
+  'source', 'consent', 'follow_up_on', 'follow_up_what', 'follow_up_owner_id',
+  'country', 'offers', 'why_here', 'skills'
 ]
+// Shown, but never changed through the page: the photo comes from the import
+// script, the claim fields from lib/agora/claims.js. The claim link's hash is never shown.
+const SHOWN_ONLY = ['photo_url', 'claimed_user_id', 'claimed_at', 'claim_token_created_at']
 
 class ContactError extends Error {
   constructor (status, message) {
@@ -53,6 +61,20 @@ function id (value, label) {
   return String(value)
 }
 
+/** Skills as one line, separated by commas: "Facilitation, Writing". Each at most 39 characters, as in Hylo. */
+function cleanSkills (value) {
+  const raw = Array.isArray(value) ? value.join(',') : (value == null ? '' : String(value))
+  const skills = []
+  for (const part of raw.split(',')) {
+    const skill = part.replace(/\s+/g, ' ').trim()
+    if (!skill) continue
+    if (skill.length > 39) throw new ContactError(400, `The skill "${skill.slice(0, 39)}..." is too long (at most 39 characters).`)
+    if (!skills.some(s => s.toLowerCase() === skill.toLowerCase())) skills.push(skill)
+  }
+  if (skills.length > 30) throw new ContactError(400, 'That is too many skills (at most 30).')
+  return skills.length ? skills.join(', ') : null
+}
+
 /** Checks and tidies what someone typed. Unknown fields are ignored. */
 async function clean (input = {}) {
   const c = {}
@@ -83,6 +105,11 @@ async function clean (input = {}) {
     throw new ContactError(400, 'The follow-up date is not valid.')
   }
   c.follow_up_what = text(input.follow_up_what, 'The next step', 1000)
+  c.country = text(input.country, 'The country', 255)
+  c.offers = text(input.offers, 'What they do and can do', 5000)
+  c.why_here = text(input.why_here, 'Why they are here', 5000)
+  c.skills = cleanSkills(input.skills)
+
   c.follow_up_owner_id = id(input.follow_up_owner_id, 'The person for the next step')
   if (c.follow_up_owner_id && !(await isMember(c.follow_up_owner_id))) {
     throw new ContactError(400, 'The person for the next step is not an Agora member.')
@@ -104,14 +131,18 @@ function baseQuery () {
   return knex()('agora_contacts as c')
     .leftJoin('groups as g', 'g.id', 'c.circle_id')
     .leftJoin('users as o', 'o.id', 'c.follow_up_owner_id')
-    .select('c.*', 'g.name as circle_name', 'o.name as follow_up_owner_name')
+    .leftJoin('users as cu', 'cu.id', 'c.claimed_user_id')
+    .select('c.*', 'g.name as circle_name', 'o.name as follow_up_owner_name', 'cu.name as claimed_user_name')
 }
 
 function present (row) {
   if (!row) return null
   const out = {}
-  for (const f of ['id', ...FIELDS, 'circle_name', 'follow_up_owner_name', 'created_at', 'updated_at']) out[f] = row[f]
+  for (const f of ['id', ...FIELDS, ...SHOWN_ONLY, 'circle_name', 'follow_up_owner_name', 'claimed_user_name', 'created_at', 'updated_at']) out[f] = row[f]
   out.id = String(row.id)
+  if (out.claimed_user_id) out.claimed_user_id = String(out.claimed_user_id)
+  // Whether a claim link is out; the link itself cannot be shown again
+  out.has_claim_link = Boolean(row.claim_token_hash)
   if (out.circle_id) out.circle_id = String(out.circle_id)
   if (out.follow_up_owner_id) out.follow_up_owner_id = String(out.follow_up_owner_id)
   if (row.follow_up_on instanceof Date) out.follow_up_on = row.follow_up_on.toISOString().slice(0, 10)
@@ -124,7 +155,8 @@ async function list ({ q, kind, status, circleId, mine, userId } = {}) {
   const query = baseQuery()
   if (q && String(q).trim()) {
     const like = `%${String(q).trim().replace(/[%_\\]/g, m => '\\' + m)}%`
-    query.where(w => w.whereRaw('c.name ilike ?', [like]).orWhereRaw('c.organisation ilike ?', [like]).orWhereRaw('c.email ilike ?', [like]))
+    query.where(w => w.whereRaw('c.name ilike ?', [like]).orWhereRaw('c.organisation ilike ?', [like]).orWhereRaw('c.email ilike ?', [like])
+      .orWhereRaw('c.country ilike ?', [like]).orWhereRaw('c.skills ilike ?', [like]))
   }
   if (kind && KINDS.includes(kind)) query.where('c.kind', kind)
   if (status && STATUSES.includes(status)) query.where('c.status', status)
@@ -207,13 +239,22 @@ async function addNote (userId, contactId, body) {
   })
 }
 
-/** Removes the contact and their notes for good. The change log keeps only that it happened. */
+/**
+ * Removes the contact and their notes for good. The change log keeps only that it happened.
+ * Its photo goes too, unless someone who claimed the profile uses it as their profile picture.
+ */
 async function remove (userId, contactId) {
-  return knex().transaction(async trx => {
+  const photoUrl = await knex().transaction(async trx => {
+    const current = await trx('agora_contacts').where({ id: contactId }).first('photo_url')
     const deleted = await trx('agora_contacts').where({ id: contactId }).del()
     if (!deleted) throw new ContactError(404, 'This contact does not exist.')
     await logChange(trx, { contactId, userId, action: 'deleted' })
+    return current && current.photo_url
   })
+  if (photoUrl) {
+    const inUse = await knex()('users').where({ avatar_url: photoUrl }).first('id')
+    if (!inUse) await require('./diskUploads').removeUrls([photoUrl])
+  }
 }
 
 /** What the page needs for its menus: the circles and the members. */
@@ -231,4 +272,4 @@ async function meta () {
   return { kinds: KINDS, statuses: STATUSES, circles: ids(circles), members: ids(members) }
 }
 
-module.exports = { KINDS, STATUSES, ContactError, today, isMember, list, dueCount, get, create, update, addNote, remove, meta }
+module.exports = { KINDS, STATUSES, ContactError, today, isMember, list, dueCount, get, create, update, addNote, remove, meta, logChange, clean, cleanSkills }

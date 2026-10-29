@@ -17,6 +17,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Each circle's files in kDrive | A Files page per circle shows its own folder in 7BP's kDrive at Infomaniak. Members of the circle open folders, download, add files and make folders; whoever added something, and the stewards, rename and delete it. Members can also add a link to a Google Doc, Sheet, Slides, Form or Drive file. Every circle's and space's menu has a Files line for its members. Meeting minutes are also saved there. Used instead of Google Drive once its settings are filled in | `api/controllers/AgoraKdriveController.js`, `lib/agora/kdrive.js`, `lib/agora/kdriveCircles.js`, `lib/agora/kdriveMinutes.js`, `lib/agora/googleLinks.js`, `apps/web/src/agora/files/FilesMenuLink.jsx` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with, team members as well as people outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
+| Profiles people can claim later | A team member's contact can hold the profile from their sheet at the activist council, with a photo. A steward gives the person a claim link; they make an account with their own email address and the profile becomes theirs | `apps/backend/lib/agora/claims.js`, `apps/web/src/agora/claim/`, `apps/backend/scripts/agora-import-profiles.js` |
 | Sign-up by invitation | A new account needs an invitation to a circle: the link in an invitation email, or a circle's join link. People who already have an account log in as before | `apps/backend/lib/agora/signup.js`, `apps/web/src/agora/signup.js` |
 | Playbook | A page in each group with every chapter of its playbook: owner, status, last change, a short text and a link. Stewards change it, members read it | `apps/web/src/agora/playbook/`, `apps/backend/lib/agora/playbook.js`, `apps/backend/api/graphql/agora/` |
 | Guide and welcome steps | A guide at `/guide` that explains in short parts what Agora can do, and four small welcome steps for a new member at the top of the page | `apps/web/src/agora/guide/` |
@@ -256,12 +257,67 @@ The Contacts button in the bar on the left opens the Contacts page (`/contacts`)
 
 These are people who never signed up to Agora, so their details are personal data under the GDPR. 7BP needs a reason to keep them, has to delete anyone who asks, and has to answer when someone asks what is kept about them. Before real contacts go in, an experienced developer looks at this part, and 7BP agrees who answers such questions. Until then, only the made-up demo contacts are in it.
 
+## Profiles people can claim later
+
+At the activist council, 35 people filled in a sheet: their name, country, what they do and can do, and why they are there. Each sheet can become a contact of the kind **Team** in Contacts, with a photo of the sheet. The person can then claim it: it becomes part of their own profile in Agora.
+
+**On the Contacts page.** A Team contact has a Profile part (country, what they do and can do, why they are here, skills separated by commas) and shows its photo. Under **Claim link**:
+
+- **Make claim link** shows the link once, with **Copy link**. Agora keeps only a fingerprint (a sha256 hash) of it, like guest links, so it cannot show it again. Give it to that one person, by email or chat.
+- **Make a new claim link** replaces the old one, which stops working at once. **Withdraw** stops it without a new one.
+- Once claimed, the contact says "Claimed by" with a link to the person's profile, and it can get no new link.
+- Only stewards make claim links: Agora admins (`AGORA_ADMINS`) and the stewards (Administration) of the main circle. Other members see the profile and whether it was claimed. The change log notes every link made, withdrawn and claimed.
+
+**What the person sees.** The link opens `/claim/<code>`: "This is the profile made from your sheet at the activist council", with the photo and the texts.
+
+- Not logged in: **Make my account** leads to sign-up. They use their own email address; the claim link counts as their invitation while sign-up is by invitation only. After the code from the email and choosing a name and password, Agora brings them back to the claim page. **I have an account: log in** does the same for someone who has an account.
+- Logged in: **Yes, this is me: add it to my profile**. Agora fills in what is still empty in their profile: the bio (from "what I do and can do"), the intention (from "why I am here"), the location (from the country), the picture (only if they still have the standard one) and the name (only if they have none). The skills are added to theirs. Nothing they wrote themselves is overwritten. They join the main circle, and the link is used up.
+
+**Safety.** A claim link is not tied to an email address, on purpose: the sheets have none. So whoever has the link can claim the profile, once, like a circle's join link. It does not change email invitations: those still only work for the address they were sent to. A claim link never invites to any circle by itself, a first login with Google or Apple never uses it, and someone who claimed one profile cannot claim a second. Showing a profile to someone with the link is limited to 30 times a minute per internet address. The page shows only the profile, never email, phone or notes.
+
+**The main circle** is the one with the address in `AGORA_MAIN_GROUP_SLUG` in `apps/backend/.env` (`7bp` when empty). Without such a circle, claiming still works and the person joins no circle.
+
+**Putting the sheets in.** A command in `apps/backend` reads a spreadsheet (CSV) with the columns `name`, `country`, `what_i_do_and_can_do`, `why_i_am_here`, `photo`, `original_file`, and a folder with the photos:
+
+```
+node scripts/agora-import-profiles.js <CSV file> --photos <photos folder> --dry-run
+node scripts/agora-import-profiles.js <CSV file> --photos <photos folder>
+```
+
+The first says what it would do and changes nothing. The second does it: a Team contact per row, with source `activist-council-2026` and no skills (the text holds them; a steward can add them). Running it again adds nobody twice: a contact with the same name and source is updated and keeps its photo, and a profile that was claimed is left alone. Each photo is turned upright, made at most 1200 pixels, saved without its hidden details (camera, date and GPS place) and stored with the other uploads under a random name. Like every upload, anyone with a photo's address can open it.
+
+**Not on the live site yet.** The sheets are about real people, and the Privacy notice says Contacts holds no real people yet. Loading them on agora.guyvankoolwijk.nl waits for two things: Guy's OK on privacy, and 7BP agreeing who looks after this data (who answers when someone asks what is kept, and who deletes it). The CSV and the photos stay out of git. Then, and only then:
+
+1. From the Mac, in the folder that holds the CSV and the `Photos` folder, copy them to the server:
+   ```
+   scp -r "Activist council profiles.csv" Photos ubuntu@<the IP address>:/tmp/activist-council/
+   ```
+   (Make the folder first: `ssh ubuntu@<the IP address> mkdir -p /tmp/activist-council`.)
+2. On the server, give them to Agora's user, in a folder only it can read:
+   ```
+   sudo install -d -o agora -g agora -m 700 /var/lib/agora/import
+   sudo mv /tmp/activist-council /var/lib/agora/import/
+   sudo chown -R agora:agora /var/lib/agora/import/activist-council
+   ```
+3. Update the server first (`sudo /srv/agora/agora/vps/update.sh`), which also adds the new columns. Then the dry run, in `/srv/agora/apps/backend`:
+   ```
+   cd /srv/agora/apps/backend
+   sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-import-profiles.js "/var/lib/agora/import/activist-council/Activist council profiles.csv" --photos /var/lib/agora/import/activist-council/Photos --dry-run
+   ```
+   It should say 35 rows, 35 would be added, 35 photos, 0 with a problem.
+4. The real run: the same command without `--dry-run`. Add `--by 1` to name Guy (user id 1) in the change log.
+5. Remove the copies: `sudo rm -rf /var/lib/agora/import/activist-council`, and on the Mac delete the files from `/tmp` if they are there.
+6. Update the Privacy notice (`agoraPrivacy.contacts.*` in `apps/web/public/locales/en.json`) in the same step, so it no longer says Contacts holds no real people.
+
+After that, a steward makes a claim link per person on the Contacts page and sends it to them.
+
 ## Who can sign up
 
 Agora is by invitation. Only someone who holds an invitation to a circle can make an account:
 
 - the link in an invitation email that a steward of a circle sent. It only makes an account for the email address it was sent to, so a forwarded link does not let anyone else in. It stops working once the person has joined the circle with it, or when the steward withdraws it. Or:
 - a circle's join link. Anyone who has it can make an account, with any email address, as many times as they like, until a steward makes a new link or the circle is deleted. Share it only with people you would invite anyway.
+- a claim link for a profile made from someone's sheet (see "Profiles people can claim later"). It makes one account, with any email address, and works until the profile is claimed or the link is withdrawn.
 
 **Opening an invitation email.** The link in an invitation email belongs to the address it was sent to:
 

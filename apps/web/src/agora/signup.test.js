@@ -29,6 +29,13 @@ describe('invitationFromPath', () => {
     expect(invitationFromPath('/groups/governance/about?token=t-0k3n')).toEqual({ invitationToken: 't-0k3n' })
   })
 
+  it('finds a claim link for a profile', () => {
+    const secret = 'abc_DEF-123'.padEnd(43, 'x')
+    expect(invitationFromPath(`/claim/${secret}`)).toEqual({ claimToken: secret })
+    expect(invitationFromPath('/claim/too-short')).toBe(null)
+    expect(invitationFromPath(`/somewhere/claim/${secret}`)).toBe(null)
+  })
+
   it('finds nothing without one', () => {
     expect(invitationFromPath(null)).toBe(null)
     expect(invitationFromPath('/groups/governance/about')).toBe(null)
@@ -58,6 +65,13 @@ describe('the sign-up page', () => {
     expect(await screen.findByText('Enter your email to get started:')).toBeInTheDocument()
   })
 
+  it('shows the email box to someone who came with a claim link', async () => {
+    fakeServer(true)
+    renderSignup('/claim/' + 'k'.repeat(43))
+    expect(await screen.findByText('Enter your email to get started:')).toBeInTheDocument()
+    expect(screen.queryByText('Agora is by invitation')).not.toBeInTheDocument()
+  })
+
   it('shows the email box to everyone when sign-up is open, as in Hylo', async () => {
     fakeServer(false)
     renderSignup()
@@ -82,7 +96,12 @@ describe('sending the sign-up email', () => {
   it('sends the invitation along', () => {
     const action = sendEmailVerification('new@agora.test', { accessCode: 'abc123' })
     expect(action.graphql.variables).toEqual({ email: 'new@agora.test', invitationToken: undefined, accessCode: 'abc123' })
-    expect(action.graphql.query).toContain('sendEmailVerification(email: $email, invitationToken: $invitationToken, accessCode: $accessCode)')
+    expect(action.graphql.query).toContain('sendEmailVerification(email: $email, invitationToken: $invitationToken, accessCode: $accessCode, claimToken: $claimToken)')
+  })
+
+  it('sends a claim link along', () => {
+    const claimToken = 'A'.repeat(43)
+    expect(sendEmailVerification('new@agora.test', { claimToken }).graphql.variables).toEqual({ email: 'new@agora.test', claimToken })
   })
 
   it('works without one, as before', () => {
