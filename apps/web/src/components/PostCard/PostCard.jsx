@@ -23,7 +23,7 @@ import { savePost, unsavePost } from 'components/PostCard/PostHeader/PostHeader.
 import getMe from 'store/selectors/getMe'
 import getResponsibilitiesForGroup from 'store/selectors/getResponsibilitiesForGroup'
 import { createSelector } from 'reselect'
-import { CONTEXT_MY, RESP_MANAGE_CONTENT } from 'store/constants'
+import { CONTEXT_MY, RESP_ADMINISTRATION, RESP_MANAGE_CONTENT } from 'store/constants'
 import { groupUrl, personUrl, editPostUrl } from '@hylo/navigation'
 import EventBody from './EventBody'
 import PostBody from './PostBody'
@@ -367,6 +367,8 @@ export default function PostCard (props) {
               currentUser={currentUser}
               event={post}
               slug={routeParams.groupSlug}
+              canEditEvent={isCreator || currentUserResponsibilities.includes(RESP_ADMINISTRATION)}
+              onEditEvent={() => navigate(editPostUrl(post.id, routeParams))}
               respondToEvent={handleRespondToEvent}
               constrained={constrained}
               isFlagged={flagObscured}
@@ -458,6 +460,8 @@ export default function PostCard (props) {
             currentUser={currentUser}
             event={post}
             slug={routeParams.groupSlug}
+            canEditEvent={isCreator || currentUserResponsibilities.includes(RESP_ADMINISTRATION)}
+            onEditEvent={() => navigate(editPostUrl(post.id, routeParams))}
             respondToEvent={handleRespondToEvent}
             constrained={constrained}
             isFlagged={isFlagged}

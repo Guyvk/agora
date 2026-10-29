@@ -798,6 +798,8 @@
   "Event": "आयोजन",
   "Event collaboration": "इवेंट सहयोग",
   "Event ended": "इवेंट समाप्त",
+  "This event has passed": "यह इवेंट हो चुका है",
+  "Set a new date": "नई तारीख़ तय करें",
   "Event time ({{timezone}})": "इवेंट का समय ({{timezone}})",
   "Events": "इवेंट्स",
   "Every 3 months (recurring)": "हर 3 महीने (पुनरावर्ती)",

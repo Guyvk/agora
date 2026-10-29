@@ -20,7 +20,7 @@ function EventBody (props) {
 
   const toggleInviteDialog = () => setShowInviteDialog(!showInviteDialog)
 
-  const { currentUser, event, isFlagged, flagCover = true, onRevealFlagged, respondToEvent, slug, expanded, className, constrained, onClick, togglePeopleDialog } = props
+  const { currentUser, event, canEditEvent, onEditEvent, isFlagged, flagCover = true, onRevealFlagged, respondToEvent, slug, expanded, className, constrained, onClick, togglePeopleDialog } = props
   const { id, startTime, endTime, timezone, eventInvitations, groups } = event
 
   const firstAttachment = event.attachments?.[0]
@@ -28,7 +28,9 @@ function EventBody (props) {
 
   const eventAttendees = filter(ei => ei.response === RESPONSES.YES, eventInvitations)
   const now = new Date()
-  const isPastEvent = endTime && new Date(endTime) < now
+  // Past = the end time (or the start time when there is no end) is behind us
+  const lastMoment = endTime || startTime
+  const isPastEvent = !!lastMoment && new Date(lastMoment) < now
   const isUpcoming = startTime && new Date(startTime) > now && (new Date(startTime) - now) <= 72 * 60 * 60 * 1000 // 72 hours in milliseconds
   const isHappeningNow = startTime && endTime && new Date(startTime) <= now && now <= new Date(endTime)
 
@@ -54,7 +56,16 @@ function EventBody (props) {
                   tooltipId={`event-time-${id}`}
                 />
                 {isPastEvent && (
-                  <span className={cn('text-sm text-foreground/50 ml-2 px-2 inline-block p-1 rounded-md bg-foreground/10 text-xs')}>{t('Event ended')}</span>
+                  <span className='ml-2 px-2 inline-block p-1 rounded-md bg-error/10 text-error text-xs font-bold' data-testid='event-passed'>{t('This event has passed')}</span>
+                )}
+                {isPastEvent && canEditEvent && onEditEvent && (
+                  <button
+                    type='button'
+                    onClick={(e) => { e.stopPropagation(); onEditEvent() }}
+                    className='px-2 p-1 rounded-md border border-foreground/20 text-foreground text-xs hover:border-foreground/60 transition-all'
+                  >
+                    {t('Set a new date')}
+                  </button>
                 )}
               </div>
               <PostTitle {...event} constrained={constrained} onClick={onClick} />

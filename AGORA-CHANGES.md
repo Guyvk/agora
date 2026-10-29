@@ -44,6 +44,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/public/locales/*.json (video meeting)` | Two new texts in every language: the hint on the event form and the name of the meeting room link ("Video meeting in Agora (with minutes)") |
 | `apps/web/public/locales/*.json (meeting room only)` | The texts of the video call link field are gone, and one new text says a video call link cannot be the location, in every language (Hindi in English for now) |
 | `apps/web/src/components/PostCard/EventBody/EventBody.js` | On the event's own page, the box where the event's maker and the circle's stewards make a guest link for people without an account |
+| `apps/web/src/components/PostCard/EventBody/EventBody.js`, `EventBody.test.js`, `apps/web/src/components/PostCard/PostCard.jsx`, `apps/web/src/routes/PostDetail/PostDetail.js`, `apps/web/public/locales/*.json` | An event whose end (or start, when it has no end) is in the past shows "This event has passed" next to its date, on the card and on the event page. The event's maker and the circle's administrators also get a "Set a new date" button that opens the post editor in the same page. The words are in all six language files |
 | `apps/web/public/locales/*.json (guest links)` | Twelve new texts for the guest link box, in every language |
 | `apps/web/src/server/proxy.js` | Without a landing site, visitors who are not logged in go to the login page |
 | `apps/web/src/routes/**` (11 files) | Browser tab titles end in "Agora" |

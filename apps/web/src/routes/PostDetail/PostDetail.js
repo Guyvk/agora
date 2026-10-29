@@ -51,7 +51,7 @@ import {
   createPersistentSelectionTracker,
   isTextInteractionTarget
 } from 'util/textSelectionTouch'
-import { removePostFromUrl } from '@hylo/navigation'
+import { removePostFromUrl, editPostUrl } from '@hylo/navigation'
 import { getPostDetailCloseDestination, shouldUseSmartPostClose } from 'util/postDetailCloseNavigation'
 import { getPostTypeIcon } from 'store/models/Post'
 import { DETAIL_COLUMN_ID, CENTER_COLUMN_ID, position } from 'util/scrolling'
@@ -629,6 +629,8 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
               currentUser={currentUser}
               slug={groupSlug}
               event={post}
+              canEditEvent={currentUser?.id === post?.creator?.id || hasTracksResponsibility}
+              onEditEvent={() => navigate(editPostUrl(post.id, { ...routeParams, groupSlug }))}
               respondToEvent={(response) => dispatch(respondToEvent(post, response))}
               togglePeopleDialog={handleTogglePeopleDialog}
               isFlagged={flagObscured}
