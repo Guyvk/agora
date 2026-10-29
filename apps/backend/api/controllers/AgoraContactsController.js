@@ -73,7 +73,7 @@ module.exports = {
     res.ok({ count: await Contacts.dueCount(userId) })
   }),
 
-  show: memberAction(async (req, res) => {
+  show: memberAction(async (req, res, userId) => {
     const contact = await Contacts.get(req.param('contactId'))
     if (!contact) return res.status(404).send({ error: 'This contact does not exist.' })
     res.ok({ contact: (await hideProposals([contact], userId))[0] })
