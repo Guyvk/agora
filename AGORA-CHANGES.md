@@ -33,6 +33,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/index.html` | Browser title says Agora. The loading screen shows the 7 Billion Presidents mark and the word Agora instead of the Hylo mark |
 | `apps/web/public/locales/en.json` | English texts say Agora where they said Hylo, the word "Contacts", the texts of the playbook page, and the message when a group cannot be deleted |
 | `apps/web/public/locales/de.json`, `es.json`, `fr.json`, `hi.json`, `pt.json` | The word "Contacts", the texts of the playbook page and the message when a group cannot be deleted, in each language |
+| `apps/web/public/locales/*.json` | The words of the new Contacts table and side panel (views, columns, Propose dropdown, activity), in each language. The Contacts page is now a table with a side panel; its list also returns the date of the latest note (`last_contact_at`) |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.js` | Events show a link to their Agora meeting room, and never a video call link to another platform; the link has a video icon, reads "Video meeting in Agora (with minutes)" and opens in the same tab |
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.test.js` | Checks that a link to another platform is not shown |
 | `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message. A one-line hint says every meeting gets its own video room |

@@ -3700,5 +3700,21 @@
   "Propose to a member": "Propose to a member",
   "Clear proposal": "Clear proposal",
   "Same first name": "Same first name",
-  "Only that member sees the proposal and decides if it is theirs.": "Only that member sees the proposal and decides if it is theirs."
+  "Only that member sees the proposal and decides if it is theirs.": "Only that member sees the proposal and decides if it is theirs.",
+  "Activist council": "Activist council",
+  "Unclaimed": "Unclaimed",
+  "Proposed": "Proposed",
+  "Last contact": "Last contact",
+  "Follow-up": "Follow-up",
+  "Propose": "Propose",
+  "Details": "Details",
+  "Write a note…": "Write a note…",
+  "Contact": "Contact",
+  "Owner of the next step": "Owner of the next step",
+  "No members found.": "No members found.",
+  "Sort by {{column}}": "Sort by {{column}}",
+  "Suggested (same first name)": "Suggested (same first name)",
+  "Kind": "Kind",
+  "Next step": "Next step",
+  "Phone": "Phone"
 }
