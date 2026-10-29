@@ -375,4 +375,112 @@ describe('Agora profiles people can claim later', () => {
       expect(await AgoraSignup.isValidInvitation({ invitationToken: token }, 'piet@agora.test')).to.equal(false)
     })
   })
+
+  describe('proposing a profile to a member', () => {
+    const proposed = userId => knex()('agora_contacts').where({ proposed_user_id: userId }).pluck('id')
+
+    it('guesses from names only when they are unique, ignoring accents, case and notes in brackets', () => {
+      const members = [{ id: 1, name: 'Mariam Svanidze' }, { id: 2, name: 'José Pérez' }, { id: 3, name: 'Anna Een' }, { id: 4, name: 'Anna Twee' }]
+      const contacts = [{ id: 10, name: 'Mariam (Svanidze, the sender)' }, { id: 11, name: 'JOSE perez' }, { id: 12, name: 'Anna' }]
+      expect(Claims.guessProposal({ user: members[0], contacts, members })).to.equal('10')
+      expect(Claims.guessProposal({ user: members[1], contacts, members })).to.equal('11')
+      // two members called Anna: not unique, so no guess
+      expect(Claims.guessProposal({ user: members[2], contacts, members })).to.equal(null)
+      // two sheets with the same first word: no guess
+      const twice = [...contacts, { id: 13, name: 'Mariam K.' }]
+      expect(Claims.guessProposal({ user: members[0], contacts: twice, members })).to.equal(null)
+      // a full name that matches wins over a first word shared with another sheet
+      const full = [{ id: 20, name: 'Jose Perez' }, { id: 21, name: 'Jose' }]
+      expect(Claims.guessProposal({ user: members[1], contacts: full, members })).to.equal('20')
+      // not available (dismissed): no guess
+      expect(Claims.guessProposal({ user: members[0], contacts, available: [], members })).to.equal(null)
+    })
+
+    it('lets only stewards propose, clear and pick; logs it; and hides it from other members', async () => {
+      const id = await profile({ name: 'Zeno Proposal' })
+      let res = await call(AgoraContactsController, 'propose', { params: { contactId: id }, body: { userId: String(member.id) }, userId: member.id })
+      expect(res.statusCode).to.equal(403)
+      res = await call(AgoraContactsController, 'memberChoices', { params: { contactId: id }, userId: member.id })
+      expect(res.statusCode).to.equal(403)
+      res = await call(AgoraContactsController, 'propose', { params: { contactId: id }, body: { userId: String(member.id) }, userId: steward.id, fromPage: false })
+      expect(res.statusCode).to.equal(400)
+
+      res = await call(AgoraContactsController, 'propose', { params: { contactId: id }, body: { userId: String(member.id) }, userId: steward.id })
+      expect(res.statusCode).to.equal(200)
+      expect(await proposed(member.id)).to.have.length(1)
+
+      res = await call(AgoraContactsController, 'show', { params: { contactId: id }, userId: member.id })
+      expect(res.body.contact.proposed_user_id).to.equal(undefined)
+      res = await call(AgoraContactsController, 'show', { params: { contactId: id }, userId: steward.id })
+      expect(res.body.contact.proposed_user_name).to.equal('Plain Member')
+
+      res = await call(AgoraContactsController, 'clearProposal', { params: { contactId: id }, body: {}, userId: steward.id })
+      expect(res.statusCode).to.equal(200)
+      expect(await proposed(member.id)).to.have.length(0)
+      expect(await changesOf(id)).to.deep.equal(['proposed', 'proposal_cleared'])
+    })
+
+    it('puts members with the same first word first in the picker', async () => {
+      const id = await profile({ name: 'Plain (note)' })
+      const res = await call(AgoraContactsController, 'memberChoices', { params: { contactId: id }, userId: steward.id })
+      expect(res.body.suggested.map(m => m.name)).to.deep.equal(['Plain Member'])
+      expect(res.body.members.map(m => m.name)).to.not.include('Plain Member')
+    })
+
+    it('shows a proposal only to the proposed member, who can claim without a link', async () => {
+      const person = await factories.user({ name: 'Wendel Fresh', email: 'wendel@agora.test', active: true }).save()
+      await person.joinGroup(main)
+      const id = await profile({ name: 'Unrelated Sheet Name' })
+      await call(AgoraContactsController, 'propose', { params: { contactId: id }, body: { userId: String(person.id) }, userId: steward.id })
+      let res = await call(AgoraClaimController, 'myProposal', { userId: steward.id })
+      expect(res.body.proposal).to.equal(null)
+      res = await call(AgoraClaimController, 'myProposal', { userId: person.id })
+      expect(res.body.proposal.contactId).to.equal(id)
+      expect(res.body.proposal.profile.name).to.equal('Unrelated Sheet Name')
+
+      // the steward cannot claim it, and a wrong id does not work for the member
+      res = await call(AgoraClaimController, 'claimProposal', { body: { contactId: id }, userId: steward.id })
+      expect(res.statusCode).to.equal(404)
+      res = await call(AgoraClaimController, 'claimProposal', { body: { contactId: '999999' }, userId: person.id })
+      expect(res.statusCode).to.equal(404)
+
+      res = await call(AgoraClaimController, 'claimProposal', { body: { contactId: id }, userId: person.id })
+      expect(res.statusCode).to.equal(200)
+      expect(res.body.filled).to.include('skills')
+      const row = await knex()('agora_contacts').where({ id }).first()
+      expect(String(row.claimed_user_id)).to.equal(String(person.id))
+      expect(row.proposed_user_id).to.equal(null)
+      expect(await changesOf(id)).to.deep.equal(['proposed', 'claimed_by_proposal'])
+    })
+
+    it('remembers "This isn\'t me" so the profile is not proposed again, also for guesses', async () => {
+      const [other] = [await factories.user({ name: 'Quirin Unique', email: 'quirin@agora.test', active: true }).save()]
+      await other.joinGroup(main)
+      const id = await profile({ name: 'Quirin (the drummer)' })
+      let res = await call(AgoraClaimController, 'myProposal', { userId: other.id })
+      expect(res.body.proposal.contactId).to.equal(id)
+
+      res = await call(AgoraClaimController, 'dismissProposal', { body: { contactId: id }, userId: other.id })
+      expect(res.statusCode).to.equal(200)
+      res = await call(AgoraClaimController, 'myProposal', { userId: other.id })
+      expect(res.body.proposal).to.equal(null)
+      expect(await changesOf(id)).to.deep.equal(['proposal_declined'])
+
+      // a steward's proposal also goes away when declined
+      await call(AgoraContactsController, 'propose', { params: { contactId: id }, body: { userId: String(other.id) }, userId: steward.id })
+      res = await call(AgoraClaimController, 'myProposal', { userId: other.id })
+      expect(res.body.proposal.contactId).to.equal(id)
+    })
+
+    it('a steward\'s proposal wins over a guess', async () => {
+      const mina = await factories.user({ name: 'Mina Echt', email: 'mina@agora.test', active: true }).save()
+      await mina.joinGroup(main)
+      const guessed = await profile({ name: 'Mina' })
+      const chosen = await profile({ name: 'Somebody Else' })
+      await call(AgoraContactsController, 'propose', { params: { contactId: chosen }, body: { userId: String(mina.id) }, userId: steward.id })
+      const res = await call(AgoraClaimController, 'myProposal', { userId: mina.id })
+      expect(res.body.proposal.contactId).to.equal(chosen)
+      expect(guessed).to.not.equal(chosen)
+    })
+  })
 })

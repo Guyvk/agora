@@ -7775,3 +7775,32 @@ ALTER TABLE ONLY public.agora_kdrive_links
 --
 
 ALTER TABLE ONLY public.meeting_guest_links ADD COLUMN token_salt character varying(64);
+
+--
+-- Agora: proposing a claimable profile to a member, and remembering "This isn't me".
+-- Added by migrations/20261029120000_add_agora_claim_proposals.js
+--
+
+ALTER TABLE public.agora_contacts
+    ADD COLUMN proposed_user_id bigint,
+    ADD COLUMN proposed_at timestamp with time zone;
+
+CREATE INDEX agora_contacts_proposed_user_id_index ON public.agora_contacts USING btree (proposed_user_id);
+
+ALTER TABLE ONLY public.agora_contacts
+    ADD CONSTRAINT agora_contacts_proposed_user_id_foreign FOREIGN KEY (proposed_user_id) REFERENCES public.users(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE public.agora_claim_dismissals (
+    user_id bigint NOT NULL,
+    contact_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE ONLY public.agora_claim_dismissals
+    ADD CONSTRAINT agora_claim_dismissals_pkey PRIMARY KEY (user_id, contact_id);
+
+ALTER TABLE ONLY public.agora_claim_dismissals
+    ADD CONSTRAINT agora_claim_dismissals_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_claim_dismissals
+    ADD CONSTRAINT agora_claim_dismissals_contact_id_foreign FOREIGN KEY (contact_id) REFERENCES public.agora_contacts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;

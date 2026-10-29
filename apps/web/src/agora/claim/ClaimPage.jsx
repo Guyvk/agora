@@ -68,6 +68,10 @@ export default function ClaimPage ({ loggedIn = false }) {
   const [done, setDone] = useState(null)
   const [removed, setRemoved] = useState(false)
   const here = `/claim/${token}`
+  // "/claim/proposal": the profile proposed to me, no link needed (login only)
+  const isProposal = token === 'proposal'
+  const [contactId, setContactId] = useState(null)
+  const [declined, setDeclined] = useState(false)
 
   // Back here after signing up or logging in: this page is where they were going
   useEffect(() => {
@@ -76,8 +80,15 @@ export default function ClaimPage ({ loggedIn = false }) {
 
   useEffect(() => {
     let stopped = false
-    claimApi(`/${encodeURIComponent(token || '')}`)
-      .then(data => { if (!stopped) setProfile(data.profile) })
+    claimApi(isProposal ? '/proposal' : `/${encodeURIComponent(token || '')}`)
+      .then(data => {
+        if (stopped) return
+        if (isProposal) {
+          if (!data.proposal) return setError('gone')
+          setContactId(data.proposal.contactId)
+          setProfile(data.proposal.profile)
+        } else setProfile(data.profile)
+      })
       .catch(e => { if (!stopped) setError(e.status === 404 ? 'gone' : e.message) })
     return () => { stopped = true }
   }, [token])
@@ -86,7 +97,23 @@ export default function ClaimPage ({ loggedIn = false }) {
     setBusy(true)
     setError(null)
     try {
-      setDone(await claimApi(`/${encodeURIComponent(token)}/claim`, {}))
+      setDone(isProposal
+        ? await claimApi('/proposal/claim', { contactId })
+        : await claimApi(`/${encodeURIComponent(token)}/claim`, {}))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // "This isn't me": the profile is never proposed to this person again
+  const notMe = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await claimApi('/proposal/dismiss', { contactId })
+      setDeclined(true)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -109,7 +136,14 @@ export default function ClaimPage ({ loggedIn = false }) {
   }
 
   let body
-  if (done) {
+  if (declined) {
+    body = (
+      <div role='status' className='flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-foreground'>
+        <p className='m-0'>{t('Thank you. We will not suggest this profile to you again.')}</p>
+        <div><Button asChild variant='outline'><a href='/'>{t('Back to Agora')}</a></Button></div>
+      </div>
+    )
+  } else if (done) {
     body = (
       <div role='status' className='flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/10 p-4 text-foreground'>
         <p className='m-0 font-semibold'>{t('Done. The profile from your sheet is now part of your profile in Agora.')}</p>
@@ -133,8 +167,14 @@ export default function ClaimPage ({ loggedIn = false }) {
   } else if (error === 'gone') {
     body = (
       <div role='alert' className='rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-foreground'>
-        <p className='m-0 font-semibold'>{t('This claim link does not work.')}</p>
-        <p className='m-0 mt-1'>{t('It may have been used already, or a steward made a new one. Ask the 7BP team for a new link.')}</p>
+        {isProposal
+          ? <p className='m-0 font-semibold'>{t('There is no profile proposed to you now.')}</p>
+          : (
+            <>
+              <p className='m-0 font-semibold'>{t('This claim link does not work.')}</p>
+              <p className='m-0 mt-1'>{t('It may have been used already, or a steward made a new one. Ask the 7BP team for a new link.')}</p>
+            </>
+            )}
       </div>
     )
   } else if (!profile && !error) {
@@ -150,8 +190,9 @@ export default function ClaimPage ({ loggedIn = false }) {
             {me && me.name && <p className='m-0 text-sm text-muted-foreground'>{t('You are logged in as {{name}}.', { name: me.name })}</p>}
             <div className='flex flex-wrap gap-2'>
               <Button onClick={claim} disabled={busy}>{t('Yes, this is me: add it to my profile')}</Button>
+              {isProposal && <Button variant='outline' onClick={notMe} disabled={busy}>{t("This isn't me")}</Button>}
             </div>
-            <p className='m-0 text-sm text-muted-foreground'>{t('Not your sheet? Then close this page and tell the person who sent you the link.')}</p>
+            {!isProposal && <p className='m-0 text-sm text-muted-foreground'>{t('Not your sheet? Then close this page and tell the person who sent you the link.')}</p>}
           </div>
         )}
         {profile && !loggedIn && (

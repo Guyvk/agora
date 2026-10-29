@@ -38,6 +38,15 @@ function memberAction (fn, { change = false } = {}) {
   }
 }
 
+/** Who a profile is proposed to is for stewards only: other members do not see it. */
+async function hideProposals (contacts, userId) {
+  if (await Claims.canManage(userId)) return contacts
+  return contacts.map(c => {
+    const { proposed_user_id: a, proposed_at: b, proposed_user_name: n, ...rest } = c
+    return rest
+  })
+}
+
 module.exports = {
   /** The old address of the page: sends people on to the page in the web app. */
   page: async function (req, res) {
@@ -46,11 +55,10 @@ module.exports = {
 
   list: memberAction(async (req, res, userId) => {
     const q = req.query || {}
-    res.ok({
-      contacts: await Contacts.list({
-        q: q.q, kind: q.kind, status: q.status, circleId: q.circle, mine: q.mine === '1', userId
-      })
+    const contacts = await Contacts.list({
+      q: q.q, kind: q.kind, status: q.status, circleId: q.circle, mine: q.mine === '1', userId
     })
+    res.ok({ contacts: await hideProposals(contacts, userId) })
   }),
 
   meta: memberAction(async (req, res, userId) => {
@@ -68,7 +76,7 @@ module.exports = {
   show: memberAction(async (req, res) => {
     const contact = await Contacts.get(req.param('contactId'))
     if (!contact) return res.status(404).send({ error: 'This contact does not exist.' })
-    res.ok({ contact })
+    res.ok({ contact: (await hideProposals([contact], userId))[0] })
   }),
 
   create: memberAction(async (req, res, userId) => {
@@ -101,6 +109,24 @@ module.exports = {
   withdrawClaimLink: memberAction(async (req, res, userId) => {
     if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can withdraw claim links.' })
     await Claims.withdrawLink({ contactId: req.param('contactId'), userId })
+    res.ok({ ok: true })
+  }, { change: true }),
+
+  // Proposing a profile to a member (lib/agora/claims.js): stewards only
+  memberChoices: memberAction(async (req, res, userId) => {
+    if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can propose a profile.' })
+    res.ok(await Claims.memberChoices({ contactId: req.param('contactId'), q: (req.query || {}).q }))
+  }),
+
+  propose: memberAction(async (req, res, userId) => {
+    if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can propose a profile.' })
+    await Claims.propose({ contactId: req.param('contactId'), memberId: (req.body || {}).userId, userId })
+    res.ok({ ok: true })
+  }, { change: true }),
+
+  clearProposal: memberAction(async (req, res, userId) => {
+    if (!(await Claims.canManage(userId))) return res.status(403).send({ error: 'Only stewards can clear a proposal.' })
+    await Claims.clearProposal({ contactId: req.param('contactId'), userId })
     res.ok({ ok: true })
   }, { change: true })
 }

@@ -4,6 +4,9 @@
  *
  *   GET  /noo/agora/claim/api/:token          the profile behind a claim link, for anyone who has the link
  *   POST /noo/agora/claim/api/:token/claim    the person who is logged in claims it
+ *   GET  /noo/agora/claim/api/proposal            the profile proposed to me (a steward, or guessed from names), login needed
+ *   POST /noo/agora/claim/api/proposal/claim      claim it without a link (X-Agora header)
+ *   POST /noo/agora/claim/api/proposal/dismiss    "This isn't me": never propose it to me again
  *   POST /noo/agora/claim/api/remove-sheet-data   the person who claimed deletes the sheet data in Contacts
  *
  * Reading needs no login: the person may not have an account yet, and the
@@ -54,6 +57,39 @@ module.exports = {
     try {
       const result = await Claims.claim({ secret: req.param('token'), userId: req.session.userId })
       return res.ok(result)
+    } catch (err) {
+      if (err instanceof Contacts.ContactError) return res.status(err.status).send({ error: err.message })
+      throw err
+    }
+  },
+
+  // The profile proposed to the person who is logged in: only to them
+  myProposal: async function (req, res) {
+    noStore(res)
+    if (tooMany(req)) return res.status(429).send({ error: 'Too many tries. Wait a minute.' })
+    return res.ok({ proposal: await Claims.myProposal(req.session.userId) })
+  },
+
+  claimProposal: async function (req, res) {
+    noStore(res)
+    if (req.headers['x-agora'] !== '1') return res.status(400).send({ error: 'Bad request.' })
+    if (tooMany(req)) return res.status(429).send({ error: 'Too many tries. Wait a minute.' })
+    try {
+      const contactId = (req.body || {}).contactId
+      if (contactId == null) return res.status(400).send({ error: 'Bad request.' })
+      return res.ok(await Claims.claim({ userId: req.session.userId, proposalContactId: contactId }))
+    } catch (err) {
+      if (err instanceof Contacts.ContactError) return res.status(err.status).send({ error: err.message })
+      throw err
+    }
+  },
+
+  dismissProposal: async function (req, res) {
+    noStore(res)
+    if (req.headers['x-agora'] !== '1') return res.status(400).send({ error: 'Bad request.' })
+    if (tooMany(req)) return res.status(429).send({ error: 'Too many tries. Wait a minute.' })
+    try {
+      return res.ok(await Claims.dismissProposal({ userId: req.session.userId, contactId: (req.body || {}).contactId }))
     } catch (err) {
       if (err instanceof Contacts.ContactError) return res.status(err.status).send({ error: err.message })
       throw err

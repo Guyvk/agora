@@ -139,8 +139,16 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
   'POST   /noo/agora/contacts/api/:contactId/claim-link': 'AgoraContactsController.createClaimLink',
   'POST   /noo/agora/contacts/api/:contactId/claim-link/withdraw': 'AgoraContactsController.withdrawClaimLink',
+  // Agora: proposing a profile to a member (stewards only)
+  'GET    /noo/agora/contacts/api/:contactId/member-choices': 'AgoraContactsController.memberChoices',
+  'POST   /noo/agora/contacts/api/:contactId/propose':        'AgoraContactsController.propose',
+  'POST   /noo/agora/contacts/api/:contactId/propose/clear':  'AgoraContactsController.clearProposal',
 
   // Agora: claiming a profile made from someone's sheet (lib/agora/claims.js)
+  // (the fixed addresses come before :token)
+  'GET    /noo/agora/claim/api/proposal':                 'AgoraClaimController.myProposal',
+  'POST   /noo/agora/claim/api/proposal/claim':           'AgoraClaimController.claimProposal',
+  'POST   /noo/agora/claim/api/proposal/dismiss':         'AgoraClaimController.dismissProposal',
   'GET    /noo/agora/claim/api/:token':                   'AgoraClaimController.show',
   'POST   /noo/agora/claim/api/:token/claim':             'AgoraClaimController.claim',
   'POST   /noo/agora/claim/api/remove-sheet-data':        'AgoraClaimController.removeSheetData',

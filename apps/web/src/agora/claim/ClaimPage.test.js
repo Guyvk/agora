@@ -81,4 +81,28 @@ describe('ClaimPage', () => {
     expect(post.options.method).toBe('POST')
     expect(post.options.headers['X-Agora']).toBe('1')
   })
+
+  it('claims a proposed profile without a link, with the same confirm step', async () => {
+    fakeServer()
+    const inner = global.fetch
+    global.fetch = jest.fn(async (url, options = {}) => {
+      if (url === '/noo/agora/claim/api/proposal') {
+        calls.push({ url, options })
+        return { ok: true, status: 200, json: async () => ({ proposal: { contactId: '7', profile } }) }
+      }
+      if (url === '/noo/agora/claim/api/proposal/claim') {
+        calls.push({ url, options })
+        return { ok: true, status: 200, json: async () => ({ contactId: '7', userId: '42', filled: ['bio'], joinedGroup: null }) }
+      }
+      return inner(url, options)
+    })
+    useParams.mockReturnValue({ token: 'proposal' })
+    render(<ClaimPage loggedIn />, { wrapper: AllTheProviders({}, ['/claim/proposal']) })
+    expect(await screen.findByText('Ilse Voorbeeld')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "This isn't me" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, this is me: add it to my profile' }))
+    await waitFor(() => expect(screen.getByText(/is now part of your profile/)).toBeInTheDocument())
+    const post = calls.find(c => c.url === '/noo/agora/claim/api/proposal/claim')
+    expect(JSON.parse(post.options.body)).toEqual({ contactId: '7' })
+  })
 })

@@ -88,6 +88,7 @@ import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook 
 import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
+import ProposedProfileBanner from '@/agora/claim/ProposedProfileBanner' // Agora: a profile proposed to this member
 import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
 import AdminPage, { OldHelpDeskAddress } from '@/agora/admin/AdminPage' // Agora: the admin area, with the Help desk
 import ThreadList from 'routes/Messages/ThreadList'
@@ -950,6 +951,7 @@ export default function AuthLayoutRouter (props) {
   return (
     <IntercomProvider appId={isTest || isSandboxMode() ? '' : config.intercom.appId} shouldInitialize={!!config.intercom.appId /* Agora: without an Intercom key, never contact Intercom */} autoBoot={!isSandboxMode()} autoBootProps={intercomProps}>
       <SiteBanners />
+      {!isSandboxMode() && <ProposedProfileBanner />} {/* Agora: "We found your profile", dismissible */}
       {!isSandboxMode() && <HelpWindow />} {/* Agora: the Help button at the bottom right of every page */}
       {/* Pull-to-refresh indicator - shows during and after gesture */}
       {(isPulling || isRefreshing) && (
