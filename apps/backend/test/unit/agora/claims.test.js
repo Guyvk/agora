@@ -259,6 +259,29 @@ describe('Agora profiles people can claim later', () => {
       expect(await Claims.isValidToken(secondSecret)).to.equal(true)
     })
 
+    it('lets the person who claimed delete the sheet data, and only them', async () => {
+      const id = await profile({ name: 'Kees Proef' })
+      const secret = secretOf((await makeLink(id)).body.link)
+      const kees = await factories.user({ name: 'Kees', email: 'kees@agora.test', active: true, bio: null }).save()
+      const other = await factories.user({ email: 'not.kees@agora.test', active: true }).save()
+      expect((await call(AgoraClaimController, 'claim', { params: { token: secret }, userId: kees.id, body: {} })).statusCode).to.equal(200)
+
+      // Someone who claimed nothing, and a request from outside the page, get nowhere
+      expect((await call(AgoraClaimController, 'removeSheetData', { userId: other.id, body: {} })).statusCode).to.equal(404)
+      expect((await call(AgoraClaimController, 'removeSheetData', { userId: kees.id, body: {}, fromPage: false })).statusCode).to.equal(400)
+
+      const res = await call(AgoraClaimController, 'removeSheetData', { userId: kees.id, body: {} })
+      expect(res.statusCode).to.equal(200)
+      const row = await knex()('agora_contacts').where({ id }).first()
+      for (const column of ['country', 'offers', 'why_here', 'skills', 'photo_url']) expect(row[column]).to.equal(null)
+      expect(row.name).to.equal('Kees Proef')
+      expect(String(row.claimed_user_id)).to.equal(String(kees.id))
+      expect(await changesOf(id)).to.deep.equal(['claim_link', 'claimed', 'sheet_data_removed'])
+      // What was copied into their own profile stays theirs
+      await kees.refresh()
+      expect(kees.get('bio')).to.equal('Facilitates circles; can teach drawing')
+    })
+
     it('gives a claimed profile no new link', async () => {
       const id = await profile({ name: 'Kees Proef' })
       const secret = secretOf((await makeLink(id)).body.link)

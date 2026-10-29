@@ -1,16 +1,18 @@
 /**
  * Agora: who runs Agora.
  *
- * Two settings in apps/backend/.env name people by user id or by email address,
- * separated by commas, for example "1,guy@example.org":
+ * Two settings in apps/backend/.env name people by user id (the account's
+ * number), separated by commas, for example "1,7":
  *
  *   AGORA_ADMINS            Agora admins: they open the admin dashboard at /admin,
  *                           and they also run the Help desk
  *   AGORA_HELPDESK_ADMINS   people who run only the Help desk
  *
- * Someone in either list must have an active account. An email address only
- * counts when the account has confirmed it, so nobody becomes an admin by
- * signing up with an address that is in the list. Ids are the surest.
+ * Someone in either list must have an active account. Only ids count, never
+ * email addresses: Hylo lets a logged-in person change their email address
+ * without confirming the new one again, so an address in the list could be
+ * taken over by anyone who types it into their account settings. An entry
+ * that is not a number is ignored, and the log says so once.
  */
 
 const knex = () => bookshelf.knex
@@ -23,23 +25,43 @@ function listFrom (value) {
     .filter(Boolean)
 }
 
+const warned = new Set()
+
+/**
+ * Keeps only the ids of a setting. Other entries (email addresses, nonsense)
+ * are ignored, and the log says so once per entry.
+ */
+function idsOnly (name, entries) {
+  const ids = []
+  for (const entry of entries) {
+    if (/^\d+$/.test(entry)) {
+      ids.push(entry.replace(/^0+(?=\d)/, '')) // "01" and "1" are the same account
+    } else if (!warned.has(`${name}:${entry}`)) {
+      warned.add(`${name}:${entry}`)
+      const message = `Agora: ${name} entry "${entry}" ignored: use the account's number`
+      if (typeof sails !== 'undefined' && sails.log) sails.log.warn(message)
+      else console.warn(message)
+    }
+  }
+  return ids
+}
+
 function agoraAdminList () {
-  return listFrom(process.env.AGORA_ADMINS)
+  return idsOnly('AGORA_ADMINS', listFrom(process.env.AGORA_ADMINS))
 }
 
 /** Help desk admins are the people in either list. */
 function helpDeskAdminList () {
-  return [...new Set([...listFrom(process.env.AGORA_HELPDESK_ADMINS), ...agoraAdminList()])]
+  return [...new Set([...idsOnly('AGORA_HELPDESK_ADMINS', listFrom(process.env.AGORA_HELPDESK_ADMINS)), ...agoraAdminList()])]
 }
 
-/** True when this user is named in the list, by id or by a confirmed address, and the account is active. */
+/** True when this user is named in the list (by id) and the account is active. */
 async function isListed (userId, list) {
   if (!userId || list.length === 0) return false
   if (!/^\d+$/.test(String(userId))) return false
-  const user = await knex()('users').where({ id: userId }).first('id', 'email', 'active', 'email_validated')
-  if (!user || user.active !== true) return false
-  if (list.includes(String(user.id))) return true
-  return Boolean(user.email_validated && user.email && list.includes(String(user.email).toLowerCase()))
+  if (!list.includes(String(userId))) return false
+  const user = await knex()('users').where({ id: userId }).first('id', 'active')
+  return Boolean(user && user.active === true)
 }
 
 /** An Agora admin: may open the admin dashboard. */

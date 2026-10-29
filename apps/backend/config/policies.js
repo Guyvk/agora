@@ -51,11 +51,14 @@ module.exports.policies = {
   // Agora: guests in a meeting have no login. Each call checks the guest link's
   // secret and the guest's own secret instead (lib/agora/meetingGuests.js).
   // These are the only actions; there is none to read the notes or end the meeting.
+  // The chat and the end screen only show the meeting the guest is in.
   MeetingGuestController: {
     page: true,
     join: true,
     segment: true,
     status: true,
+    chat: true,
+    summary: true,
     end: true
   },
 
@@ -63,6 +66,12 @@ module.exports.policies = {
   // Adding files also checks that the person is a member of the circle.
   AgoraFilesController: {
     page: true,
+    '*': 'sessionAuth'
+  },
+
+  // Agora: circle files in kDrive. Every action also checks that the person is
+  // an active member of the circle.
+  AgoraKdriveController: {
     '*': 'sessionAuth'
   },
 
@@ -76,12 +85,18 @@ module.exports.policies = {
   // may have no account yet); claiming it needs a login (lib/agora/claims.js).
   AgoraClaimController: {
     show: true,
-    claim: 'sessionAuth'
+    claim: 'sessionAuth',
+    removeSheetData: 'sessionAuth'
   },
 
   // Agora help: for anyone logged in. Each action checks who may see which request,
   // and the Help desk actions check for a Help desk admin.
   AgoraHelpController: {
+    '*': 'sessionAuth'
+  },
+
+  // Agora: "This week in 7BP", for anyone logged in. The answer only holds what the person may see.
+  AgoraThisWeekController: {
     '*': 'sessionAuth'
   },
 
@@ -116,8 +131,9 @@ module.exports.policies = {
     typing:      ['isSocket', 'sessionAuth', 'checkAndSetMembership']
   },
 
+  // Agora: circle profiles are not public (Agora does not use Murmurations); nothing is visible without logging in
   MurmurationsController: {
-    group: true
+    group: 'sessionAuth'
   },
 
   PostController: {

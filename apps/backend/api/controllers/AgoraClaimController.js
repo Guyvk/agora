@@ -4,6 +4,7 @@
  *
  *   GET  /noo/agora/claim/api/:token          the profile behind a claim link, for anyone who has the link
  *   POST /noo/agora/claim/api/:token/claim    the person who is logged in claims it
+ *   POST /noo/agora/claim/api/remove-sheet-data   the person who claimed deletes the sheet data in Contacts
  *
  * Reading needs no login: the person may not have an account yet, and the
  * link's secret is the permission. It shows only the profile (name, country,
@@ -53,6 +54,19 @@ module.exports = {
     try {
       const result = await Claims.claim({ secret: req.param('token'), userId: req.session.userId })
       return res.ok(result)
+    } catch (err) {
+      if (err instanceof Contacts.ContactError) return res.status(err.status).send({ error: err.message })
+      throw err
+    }
+  },
+
+  // The person who claimed a profile deletes the sheet data in Contacts (login + X-Agora header, like claim)
+  removeSheetData: async function (req, res) {
+    noStore(res)
+    if (req.headers['x-agora'] !== '1') return res.status(400).send({ error: 'Bad request.' })
+    if (tooMany(req)) return res.status(429).send({ error: 'Too many tries. Wait a minute.' })
+    try {
+      return res.ok(await Claims.removeSheetData({ userId: req.session.userId }))
     } catch (err) {
       if (err instanceof Contacts.ContactError) return res.status(err.status).send({ error: err.message })
       throw err

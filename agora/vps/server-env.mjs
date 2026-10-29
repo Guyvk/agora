@@ -67,6 +67,8 @@ write('apps/backend/.env', {
   REDIS_URL: 'redis://127.0.0.1:6379',
   COOKIE_SECRET: secret(32),
   JWT_SECRET: secret(32),
+  // Agora: the key for guest link secrets (lib/agora/meetingGuests.js), apart from the cookie secret.
+  AGORA_GUEST_LINK_KEY: secret(32),
   OIDC_KEYS: Buffer.from(privateKey).toString('base64'),
   INBOUND_EMAIL_SALT: secret(16),
   PLAY_APP_SECRET: secret(16),
@@ -96,7 +98,18 @@ write('apps/backend/.env', {
   DISABLE_SEGMENT: '1',
   // New accounts need an invitation to a circle. The first person gets in with
   // scripts/agora-allow-signup.js (see README-AGORA.md).
-  AGORA_INVITE_ONLY: 'on'
+  AGORA_INVITE_ONLY: 'on',
+  // Circle files in Infomaniak kDrive. Guy types the token, the drive number
+  // and the top folder in himself; all three are needed (see "Files in kDrive"
+  // in README-AGORA.md).
+  AGORA_KDRIVE_TOKEN: '',
+  AGORA_KDRIVE_DRIVE_ID: '',
+  AGORA_KDRIVE_ROOT_FOLDER_ID: '',
+  AGORA_KDRIVE_MAX_UPLOAD_MB: '',
+  // The main circle, the 7BP Home (README-AGORA.md, "7BP Home (main circle)").
+  // Set these before running this script to use another slug or name.
+  AGORA_MAIN_GROUP_SLUG: process.env.AGORA_MAIN_GROUP_SLUG || '7bp',
+  AGORA_MAIN_GROUP_NAME: process.env.AGORA_MAIN_GROUP_NAME || '7BP'
 })
 
 write('apps/web/.env', {

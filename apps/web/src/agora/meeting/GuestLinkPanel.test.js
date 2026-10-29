@@ -65,6 +65,44 @@ describe('GuestLinkPanel', () => {
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument()
   })
 
+  it('lets a member of the circle see and copy the link, without revoking or replacing it', async () => {
+    fakeServer({ 'GET /noo/meeting/5/guest-link': { status: 200, body: { canUse: true, canManage: false, available: true, link: LINK, url: URL } } })
+    const writeText = jest.fn(() => Promise.resolve())
+    Object.assign(navigator, { clipboard: { writeText } })
+    render(<GuestLinkPanel postId='5' />)
+    const field = await screen.findByLabelText('Guest link', undefined, WAIT)
+    expect(field).toHaveValue(URL)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(URL), WAIT)
+    expect(screen.queryByRole('button', { name: 'Revoke' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Make a new guest link' })).toBeNull()
+  })
+
+  it('lets a member of the circle make a link when there is none', async () => {
+    fakeServer({
+      'GET /noo/meeting/5/guest-link': { status: 200, body: { canUse: true, canManage: false, available: true, link: null, url: null } },
+      'POST /noo/meeting/5/guest-link': { status: 200, body: { url: URL, link: LINK } }
+    })
+    render(<GuestLinkPanel postId='5' />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Make a guest link' }, WAIT))
+    expect(await screen.findByLabelText('Guest link', undefined, WAIT)).toHaveValue(URL)
+  })
+
+  it('tells a member to ask the meeting\'s maker or a steward after a revoke, without a make button', async () => {
+    fakeServer({ 'GET /noo/meeting/5/guest-link': { status: 200, body: { canUse: true, canManage: false, available: true, link: { revoked: true }, url: null } } })
+    render(<GuestLinkPanel postId='5' />)
+    expect(await screen.findByText(/ask the person who made the meeting or a steward/, undefined, WAIT)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make a guest link' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Revoke' })).toBeNull()
+  })
+
+  it('lets a steward make a new link after a revoke', async () => {
+    fakeServer({ 'GET /noo/meeting/5/guest-link': { status: 200, body: { canUse: true, canManage: true, available: true, link: { revoked: true }, url: null } } })
+    render(<GuestLinkPanel postId='5' />)
+    expect(await screen.findByRole('button', { name: 'Make a guest link' }, WAIT)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Revoke' })).toBeNull()
+  })
+
   it('shows the reason when the server refuses', async () => {
     fakeServer({
       'GET /noo/meeting/5/guest-link': { status: 200, body: { canManage: true, available: true, link: null } },

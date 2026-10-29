@@ -241,7 +241,35 @@ async function claim ({ secret, userId, now = new Date() }) {
   return { ...result, userId: String(userId), joinedGroup }
 }
 
+/**
+ * The person who claimed a profile deletes what the sheet left in Contacts:
+ * country, what they do, why they are here, skills and the photo. Their name
+ * stays (the contact is still their line in the list), and so does what was
+ * copied into their own profile when they claimed it: that is theirs now and
+ * they change it in their profile settings. Only the claimer can do this.
+ * Returns { contactId, cleared: true }.
+ */
+async function removeSheetData ({ userId, now = new Date() }) {
+  if (!userId) throw new ContactError(401, 'Log in first.')
+  return knex().transaction(async trx => {
+    const contact = await trx('agora_contacts').where({ claimed_user_id: userId }).forUpdate().first('id')
+    if (!contact) throw new ContactError(404, 'There is no claimed profile for you.')
+    await trx('agora_contacts').where({ id: contact.id }).update({
+      country: null,
+      offers: null,
+      why_here: null,
+      skills: null,
+      photo_url: null,
+      updated_by_id: userId,
+      updated_at: now
+    })
+    await Contacts.logChange(trx, { contactId: contact.id, userId, action: 'sheet_data_removed' })
+    return { contactId: String(contact.id), cleared: true }
+  })
+}
+
 module.exports = {
+  removeSheetData,
   SECRET_PATTERN,
   hashSecret,
   isSecret,

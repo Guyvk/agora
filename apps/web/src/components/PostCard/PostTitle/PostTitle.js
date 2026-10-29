@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { CircleCheckBig, NotebookPen } from 'lucide-react' // Agora: Video is no longer used
+import { CircleCheckBig, Video } from 'lucide-react' // Agora: Video is for the meeting room line
 import { DateTime } from 'luxon'
 import { LocationHelpers } from '@hylo/shared'
 import Highlight from 'components/Highlight'
@@ -61,15 +61,13 @@ export default function PostTitle ({
         {/* Agora: every event has a meeting room that writes its own minutes */}
         {type === 'event' && post.id && (
           <div className={cn('text-xs text-foreground/50 flex min-w-0 items-start gap-1', { [classes.constrained]: constrained })}>
-            <NotebookPen className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-AgoraMeeting' />
+            <Video className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-AgoraMeeting' />
             <a
               className='min-w-0 break-words'
-              href={`/noo/meeting/${post.id}/room`}
-              target='_blank'
-              rel='noopener noreferrer'
+              href={`/noo/meeting/${post.id}/room`} // Agora: opens in this same tab, and the room sends people back here when the call ends
               onClick={(e) => e.stopPropagation()}
             >
-              {t('Meet in Agora, with minutes')}
+              {t('Video meeting in Agora (with minutes)')}
             </a>
           </div>
         )}

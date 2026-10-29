@@ -66,6 +66,7 @@ export default function ClaimPage ({ loggedIn = false }) {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(null)
+  const [removed, setRemoved] = useState(false)
   const here = `/claim/${token}`
 
   // Back here after signing up or logging in: this page is where they were going
@@ -93,6 +94,20 @@ export default function ClaimPage ({ loggedIn = false }) {
     }
   }
 
+  // The person who claimed deletes what the sheet left in Contacts (their profile keeps what was copied)
+  const removeSheetData = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await claimApi('/remove-sheet-data', {})
+      setRemoved(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   let body
   if (done) {
     body = (
@@ -104,6 +119,15 @@ export default function ClaimPage ({ loggedIn = false }) {
           <Button asChild><a href={`/members/${done.userId}`}>{t('See my profile')}</a></Button>
           {done.joinedGroup && <Button asChild variant='outline'><a href={`/groups/${done.joinedGroup.slug}`}>{t('Open {{circle}}', { circle: done.joinedGroup.name })}</a></Button>}
         </div>
+        {removed
+          ? <p className='m-0 font-semibold'>{t('The sheet data in Contacts is deleted.')}</p>
+          : (
+            <div className='flex flex-col gap-2 border-t border-border pt-3'>
+              <p className='m-0 text-sm text-muted-foreground'>{t('You can also delete what the sheet left in Contacts (country, what you do, why you are here, skills and photo). What is already in your profile stays.')}</p>
+              {error && <p role='alert' className='m-0 text-sm text-destructive'>{error}</p>}
+              <div><Button variant='outline' onClick={removeSheetData} disabled={busy}>{t('Remove my sheet data')}</Button></div>
+            </div>
+            )}
       </div>
     )
   } else if (error === 'gone') {

@@ -7,6 +7,7 @@ import PropTypes from 'prop-types'
 import { get, throttle, find } from 'lodash/fp'
 import { Video } from 'lucide-react'
 import { Helmet } from 'react-helmet'
+import { agoraTitle, APP_NAME } from '@/agora/appName' // Agora: tab titles say Agora
 import { AnalyticsEvents, TextHelpers } from '@hylo/shared'
 import { PROJECT_CONTRIBUTIONS } from 'config/featureFlags'
 import ActionCompletionResponsesDialog from 'components/ActionCompletionResponsesDialog'
@@ -558,7 +559,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
     marginTop: STICKY_HEADER_SCROLL_OFFSET + 'px'
   }
   const shareDescription = TextHelpers.presentHTMLToText(post.details, { truncate: MAX_DETAILS_LENGTH })
-  const shareTitle = post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 80 }) || 'Hylo'
+  const shareTitle = post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 80 }) || APP_NAME
   const shareImageUrl = post.imageAttachments?.[0]?.url
 
   return (
@@ -572,11 +573,11 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
     >
       <Helmet>
         <title>
-          {`${post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 20 })} | Agora`}
+          {agoraTitle(post.title || TextHelpers.presentHTMLToText(post.details, { truncate: 20 }))}
         </title>
         <meta name='description' content={shareDescription} />
         {post.isPublic && <meta property='og:type' content='article' />}
-        {post.isPublic && <meta property='og:site_name' content='Hylo' />}
+        {post.isPublic && <meta property='og:site_name' content={APP_NAME} />}
         {post.isPublic && <meta property='og:title' content={shareTitle} />}
         {post.isPublic && <meta property='og:description' content={shareDescription} />}
         {post.isPublic && shareImageUrl && <meta property='og:image' content={shareImageUrl} />}
@@ -642,9 +643,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
               </div>
               <a
                 className='inline-block border-2 border-selected/20 rounded-lg p-2 px-4 hover:border-selected/100 transition-all text-selected text-sm whitespace-nowrap'
-                href={meetingUrl}
-                target='_blank'
-                rel='noreferrer'
+                href={meetingUrl} // Agora: same tab; the meeting room sends people back to the post when the call ends
               >
                 {t('Join online')}
               </a>

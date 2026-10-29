@@ -20,17 +20,19 @@ module.exports = bookshelf.Model.extend({
    */
   upsert: async function ({ sessionId, userId, notesConsent }) {
     const existing = await MeetingParticipant.where({ session_id: sessionId, user_id: userId }).fetch()
+    const now = new Date()
     if (existing) {
-      if (existing.get('notes_consent') !== notesConsent) {
-        await existing.save({ notes_consent: notesConsent }, { patch: true })
-      }
+      // Joining again: back in the call (last_seen_at and left_at are how
+      // Agora knows who is still here, see lib/agora/meetingChat.js)
+      await existing.save({ notes_consent: notesConsent, last_seen_at: now, left_at: null }, { patch: true })
       return existing
     }
     return new MeetingParticipant({
       session_id: sessionId,
       user_id: userId,
       notes_consent: notesConsent,
-      joined_at: new Date()
+      joined_at: now,
+      last_seen_at: now
     }).save()
   }
 })

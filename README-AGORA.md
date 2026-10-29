@@ -14,6 +14,7 @@ This file explains what Agora adds to Hylo, how to run it on a Mac, and how to c
 | Our own email sender | Hylo's emails are stored in Hylo's own account, so a copy of Hylo cannot send them. Agora has its own texts for sign-up, password reset, invitations, join requests, new posts and mentions, event invitations and replies (with the calendar file), and the daily and weekly digest. Reply addresses that only Hylo's mail server reads are left out. Sends through Brevo or through any mail server (SMTP), such as a 7BP mailbox | `apps/backend/lib/agora/mailer.js` |
 | Our own name | The browser title, the loading screen (with the 7 Billion Presidents mark) and the English texts say Agora | `apps/web/public/locales/en.json`, `apps/web/index.html`, `apps/web/public/agora-7bp-logo.png` |
 | No landing site | Visitors who are not logged in go straight to the login page | `apps/web/src/server/proxy.js` |
+| Each circle's files in kDrive | A Files page per circle shows its own folder in 7BP's kDrive at Infomaniak. Members of the circle open folders, download, add files and make folders; whoever added something, and the stewards, rename and delete it. Members can also add a link to a Google Doc, Sheet, Slides, Form or Drive file. Every circle's and space's menu has a Files line for its members. Meeting minutes are also saved there. Used instead of Google Drive once its settings are filled in | `api/controllers/AgoraKdriveController.js`, `lib/agora/kdrive.js`, `lib/agora/kdriveCircles.js`, `lib/agora/kdriveMinutes.js`, `lib/agora/googleLinks.js`, `apps/web/src/agora/files/FilesMenuLink.jsx` |
 | Each circle's Google Drive | A Files page per circle lists its Drive folder live: names, who changed a file and when. Files open in Drive. Members of the circle can add files and folders, which go straight into Drive | `apps/backend/agora/files.html`, `api/controllers/AgoraFilesController.js`, `lib/agora/drive.js` |
 | Contacts | One shared list of the people and organisations 7BP works with, team members as well as people outside Agora, with notes, follow-ups and a log of every change | `apps/web/src/agora/contacts/`, `apps/backend/api/controllers/AgoraContactsController.js`, `apps/backend/lib/agora/contacts.js` |
 | Profiles people can claim later | A team member's contact can hold the profile from their sheet at the activist council, with a photo. A steward gives the person a claim link; they make an account with their own email address and the profile becomes theirs | `apps/backend/lib/agora/claims.js`, `apps/web/src/agora/claim/`, `apps/backend/scripts/agora-import-profiles.js` |
@@ -69,7 +70,7 @@ It installs PostgreSQL 17 with PostGIS, Redis and Node 24, creates the databases
 
 ## Meetings
 
-Open any event and choose **Meet in Agora, with minutes**. The meeting room asks whether your voice may be part of the notes, then opens the call.
+Open any event and choose **Video meeting in Agora (with minutes)**. The meeting room asks whether your voice may be part of the notes, then opens the call.
 
 Video calls in Agora always go through the event's own meeting room. There is no field for a video call link on an event: Agora gives every event its meeting room as its link, and that link also appears in invitations, emails and calendar entries, so everyone lands in the same room. A link to another platform (Zoom, Google Meet, Teams, Webex, Whereby and the like) cannot be added. The event form has no field for it, the server replaces whatever an app or the API sends, and such a link is refused as an event's location. When `AGORA_MEET_DOMAIN` is empty there is no call server, so events have no video call link at all.
 
@@ -85,8 +86,11 @@ How it works:
 
 1. The call itself runs on a Jitsi server, shown inside the room. The server is set with `AGORA_MEET_DOMAIN`. The default is kMeet by Infomaniak.
 2. While you are unmuted, your browser records short pieces of your own speech and skips silence. Because each person records only their own microphone, Agora always knows who said what.
-3. Each piece is sent to a speech-to-text service and becomes a line in the notes. The sound is deleted as soon as it has become text.
-4. When someone ends the meeting, or when it has been quiet for 45 minutes, Claude reads the transcript and writes the minutes: a summary, decisions, actions and open questions. The assistant posts them in the group, with the full transcript underneath.
+3. Each piece is sent to a speech-to-text service and becomes a line in the notes. The sound is deleted as soon as it has become text. The notes are not shown during the meeting: a small line says "Notes are being taken for the minutes. They are not shown during the meeting." Each person sees their own status ("Notes on", "Your notes are paused", "You are muted") and a button to pause their own notes.
+4. Next to the call there is a chat for everyone in the meeting, guests included (shown as "Name (guest)"). Messages are plain text, at most 1000 characters. On phones and narrow screens (up to 820 pixels wide) the chat is not shown for now: the call gets the space, and the page does not fetch the chat there. kMeet's own chat, recording, streaming and subtitles buttons are hidden, so everything goes through Agora.
+5. "Leave the call" only takes you out. "End meeting for everyone" ends it for all. After the call Agora shows its own end screen: title, date, length, who took part, whether notes were taken, how many chat messages, and a link to the minutes once they are posted. A meeting that ended by itself says why (nobody was in the room, or it ran for 8 hours). kMeet's own close page and feedback form are switched off.
+6. A meeting also ends by itself when nobody has been in the room for 10 minutes. While someone is still in it, it goes on, also past the event's end time. Only as a safety cap does a meeting end by itself 8 hours after it started, even with people in it. The check runs every 10 minutes. To list or end meetings that were left open by hand: `node scripts/agora-end-open-meetings.js` (lists only), then `--apply` (ends every open meeting nobody is in; meetings with someone still in them are skipped and listed), `--apply --force` (ends them all, also with people in them) or `--apply --session <number>` (ends one).
+7. When the meeting ends, Claude reads the transcript and the chat and writes the minutes. The transcript and the chat go to Claude in separate fenced blocks, marked as raw material and not instructions; anything in them that looks like a fence is taken out, and Claude is told to never follow instructions found there and to record a decision or action only when members clearly agreed to it in the transcript (never from the chat alone, never from guests alone). The minutes are a summary, decisions, actions and open questions. The assistant posts them as a post in the circle the event belongs to: the summary, decisions, actions, open questions and who was there. The full transcript and the chat are not posted. Only if no summary could be written (for example when the Claude key does not work) does the post hold the transcript and the chat instead, so nothing is lost. Only members of that circle can read the post. A meeting with only chat also gets minutes.
 
 Three settings in `apps/backend/.env` switch this on:
 
@@ -101,7 +105,7 @@ Without the first, meetings work but no notes are written. Without the second, y
 Things to know:
 
 - **Use headphones.** Without them, your microphone can pick up other people's voices from your speakers, and their words may appear under your name.
-- **Phones.** The room is laid out for phones, but recording next to a call has not been tested on phone browsers yet.
+- **Phones.** The room is laid out for phones, but recording next to a call has not been tested on phone browsers yet. On phones the chat is not shown for now.
 - **kMeet.** Showing kMeet inside another page works today, but Infomaniak does not document it as a supported use. If it stops working, set another Jitsi server.
 - **Consent.** People choose on entering whether their voice is in the notes, and can pause at any time. Agree as a group that meetings are transcribed before using this for real.
 
@@ -109,26 +113,82 @@ Things to know:
 
 Members can invite people who have no Agora account into a meeting, so the call still happens in Agora.
 
-**Making a link.** Open the event. The person who made the event and the stewards of its circle (anyone with Administration or Manage Content there) see a box "Guests from outside Agora" under the event. **Make a guest link** shows the link with a **Copy** button. Send it to the guests by email or chat. Other members do not see the box.
+**Making a link.** Open the event. Every active member of the event's circle sees a box "Guests from outside Agora" under the event. When there is no link yet, any of them can press **Make a guest link**. When there is one, they all see it with a **Copy** button. Send it to the guests by email or chat. People outside the circle see nothing.
 
-- Agora keeps only a fingerprint (a sha256 hash) of the link, never the link itself. So the link is shown only once, right after it is made. If it is lost, make a new one: the old one stops working at once, and guests who came in through it are sent out within seconds.
+**Who can revoke or replace it.** Only the person who made the event, the person who made the link and the stewards of the circle (anyone with Administration or Manage Content there) see **Revoke** and **Make a new guest link**. After a link was revoked, only they can make a new one.
+
+- Agora keeps only a fingerprint (a sha256 hash) of the link, never the link itself. The link's secret is worked out from a random salt that every link gets (new each time a link is made or replaced), the link's own details, and a key that only the server has. So Agora can show the link again to members, while someone who only has the database cannot rebuild it.
+- The key is `AGORA_GUEST_LINK_KEY` in `apps/backend/.env`. New servers get a random one from `agora/vps/server-env.mjs`. When it is empty, Agora uses a separate key worked out from `COOKIE_SECRET` (never the cookie secret itself). On the server that is already running, you can set it once: put 64 random hex characters there (for example from `openssl rand -hex 32`) and restart Agora. Setting or changing the key does not break a link, but Agora can then no longer show links made before; make a new one if needed. Links made before this change (they have no salt) keep working but cannot be shown again either. Making a new link stops the old one at once, and guests who came in through it are sent out within seconds.
 - The link works until two hours after the event ends (an event without an end time counts as one hour long). Change the event's time before making the link, or make a new link after changing it.
 - **Revoke** closes the link. Guests in the call are sent out within seconds.
 - There is one link per event. It only works while members are in the meeting: a guest who comes early waits, and the page tries again by itself.
 - Guest links need the call inside Agora (`AGORA_MEET_DOMAIN`). Without it the box says so.
 
-**What the guest sees.** The link opens a page that asks for their name (at most 60 letters, digits and spaces) and explains, in plain words, that the meeting is held in Agora by 7 Billion Presidents, that if they agree their speech is turned into text by Infomaniak (Switzerland), that the minutes are written by Claude (Anthropic, United States) and posted inside the circle with their name followed by "(guest)". They choose **Join, and agree to be in the notes** or **Join without being in the notes**. Without the notes their microphone is never recorded by Agora. Then they get the same kMeet call as members, with "(guest)" after their name. They see the call and a Leave button. They never see the notes, the transcript, the minutes, the event page or anything else in Agora.
+**What the guest sees.** The link opens a page that asks for their name (at most 60 letters, digits and spaces) and explains, in plain words, that the meeting is held in Agora by 7 Billion Presidents, that if they agree their speech is turned into text by Infomaniak (Switzerland), that the minutes are written by Claude (Anthropic, United States) and posted inside the circle with their name followed by "(guest)". They choose **Join, and agree to be in the notes** or **Join without being in the notes**. Without the notes their microphone is never recorded by Agora. Then they get the same kMeet call as members, with "(guest)" after their name. They see the call, the chat next to it (not on phones for now) and a Leave button. After the call they get the same end screen as members, without links into Agora. They never see the notes, the transcript, the minutes, the event page or anything else in Agora.
 
 **What members see.** Guests appear in the "Here:" line and in the notes as "Name (guest)". The minutes post lists them on a separate line, "Guests (joined through the guest link, not members of Agora)".
 
 **Safety checks** (in `lib/agora/meetingGuests.js` and `api/controllers/MeetingGuestController.js`, tested in `test/unit/agora/meetingGuests.test.js`):
 
-- The link's secret is 32 random bytes. It is checked against the stored hash in constant time. Wrong, old, revoked and expired links are refused.
+- The link's secret is 32 bytes: an HMAC-SHA256 of the link's random salt (32 bytes), the event, the person who made the link and the moment it was made, with the server's key (32 random bytes if the server has no key). It is checked against the stored hash in constant time. Wrong, old, revoked and expired links are refused.
 - Each guest who joins gets a second secret of their own, so one guest cannot speak under another guest's name.
-- Guests can only do five things: open the page, join, send their own speech (only if they agreed), ask whether the meeting is still going, and leave. Leaving never ends the meeting for others. The member calls (notes, ending the meeting, making links) still need a login.
-- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech and 40 status checks a minute. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
+- Guests can only do seven things: open the page, join, send their own speech (only if they agreed), ask whether the meeting is still going (with the new chat messages), write in the chat, see the end screen, and leave. Leaving never ends the meeting for others. The member calls (notes, ending the meeting, making links) still need a login.
+- Calls are counted per internet address: 30 page views, 10 joins, 10 leaves a minute (and 60 joins a minute for all guests of one link together), and per guest 60 pieces of speech, 40 status checks, 30 chat calls and 20 end screen (summary) calls a minute. On top of that, everyone (member or guest) can send at most 20 chat messages a minute and 500 per meeting. An address that tries 20 wrong links in 10 minutes is refused for a while. At most 50 guests per meeting. The counts live in the server's memory, so a restart resets them.
 - The guest page tells the browser never to send its address on to other sites (`Referrer-Policy: no-referrer`) and never to keep it.
 - The link sits in the page's address, so it can show up in the web server's access log on the server. Treat those logs as private.
+
+## Files in kDrive
+
+7BP keeps its files in kDrive, Infomaniak's file storage in Switzerland (1000 GB). Once Agora has a key to it, every circle has its own folder there, and its Files page in Agora shows that folder. This replaces Google Drive (below): as soon as the three kDrive settings (token, drive number and top folder) are filled in, the Files pages use kDrive. The Google Drive code stays, for if it is ever wanted.
+
+**Where the page is.** Each circle's Files page is inside the app, at `/groups/<circle>/files` (for example `/groups/governance/files`), and a space's at `/groups/<circle>/spaces/<space>/files`, so the circle menu and the top bar stay around it. The old address `/noo/agora/files/<circle>` now sends people there. Every circle's menu, and every space's menu, has a **Files** line that opens it in the same page. It shows for members of that circle or space only (people who are not members do not see the line; the page and its calls check membership on the server again). Nothing needs to be set up for it: no steward has to add the link.
+
+**What members can do there:**
+
+- See the folders and files of their circle: name, size, date, and who added it (when it was added through Agora).
+- Open folders, and go back through the line of folders at the top.
+- **Download** a file. It comes through Agora: the browser never gets a kDrive link or key.
+- **Add files**: pick one or more, or drop them on the list. Up to 100 MB a file (`AGORA_KDRIVE_MAX_UPLOAD_MB`). Empty files are refused. A file with a name that is already there gets a new name (`plan (1).pdf`), so nothing is overwritten.
+- **New folder**: makes a folder in the folder that is open.
+- **Add a Google Doc**: opens a small form. The member pastes the address of a Google Doc, Sheet, Slides, Form, or a file or folder in Google Drive, and may give a title (without one the list says "Google Doc", "Google Sheet", "Google Slides", "Google Form" or "Google Drive file/folder"). Agora keeps only the address and the title, in its own database (the table `agora_kdrive_links`); nothing goes into kDrive, and Agora never calls Google about it. The link is listed in the folder that is open, among the files, with a coloured Docs, Sheets, Slides, Forms or Drive label, the title, who added it and when. Clicking it opens the original in a new tab. Rename (changes the title only) and Delete follow the same rule as for files: the member who added it, and the circle's stewards; Delete removes the link from the list but never touches the Google document. Agora only accepts `https` addresses at exactly `docs.google.com` or `drive.google.com` (no other website, no `http`, no user name in the address, no other port) for a document, spreadsheet, presentation, form or Drive file or folder, up to 2000 characters, and takes tracking parts (`utm_...`, `usp=sharing` and the like) out of the address. A circle can hold up to 1000 links. The links are only in the kDrive version of the Files page; the Google Drive version of the page does not have them.
+- **Comments and suggestions stay in Google Docs.** The form and the page say so. Tell members to check the document's sharing setting in Google: **Commenter** is usually the right one, so people can comment and suggest but not change the text directly. Agora does not see or change that setting.
+- **Move**: drag a file, link or folder onto a folder in the list, or onto a part of the line of folders at the top; or choose **Move to…** on a row, which opens a small folder picker. Same rule as Rename: the member who added it, and the stewards. Nothing is moved into the `Minutes` folder, a folder never goes into itself or a folder inside itself, and an item is never put where something has the same name (Agora says so). Moving a file or folder uses kDrive's own move call; moving a link only changes the folder it is listed in. Who added it stays.
+- **Select several**: a tick box on every row, and one to select all. With a selection the page offers **Move to…**, **Download** (the files one by one) and **Delete** (one question for all), but only what the person may do with every selected item.
+- **Sort**: the columns Name, Added by, Date and Size can be clicked to sort. Folders always stay on top; files and links are mixed.
+- **Rename** and **Delete**: only for the member who added that file or folder in Agora, and for the circle's stewards (Administration or Manage Content). Deleting moves it to kDrive's bin, where a kDrive administrator can put it back for a while. The circle's `Minutes` folder is only for the minutes: nobody can rename or delete it from Agora or add anything to it, and nothing else at the top of the circle's folder (file or folder) can be called Minutes. If a file called Minutes was put there in kDrive itself, Agora keeps the minutes in `Minutes (Agora)` instead.
+
+**Who sees what.** Only active members of the circle see its files. The server checks this for every list, download, upload and change, not only the page. Agora never shows or touches anything outside the circle's folder: every file or folder is checked to be inside it. A space (a smaller group inside a circle) gets its own folder inside the circle's folder; members of the circle do not see it from the circle's page, only members of the space do, from the space's own Files page. These are files of 7BP people, so treat them as personal data: travel receipts with bank numbers, for example, do not belong here until 7BP has agreed how it handles such data.
+
+**Meeting minutes.** When the assistant posts a meeting's minutes, Agora also saves them as a text file (Markdown) in the circle's folder, in a folder called `Minutes`, named `2026-10-21 <meeting title>.md`, with the same content as the post: the summary and who was there, or, when no summary could be written, the transcript and the chat. If kDrive does not answer, the minutes post still appears; Agora writes the problem to its log and tries the copy once more 15 minutes later.
+
+**How the folders are made.** Agora makes a circle's folder the first time a member opens its Files page (or the first time its minutes are saved), called `<circle name> (<circle address>)`, for example `Governance (governance)`, and remembers its number. Renaming the circle or the folder later changes nothing. All circle folders go into one top folder, the one in `AGORA_KDRIVE_ROOT_FOLDER_ID`. That setting is required: without it Agora does not use kDrive, and it never makes a top folder itself. You make the folder and decide who in 7BP's kDrive itself can open it: everyone who can open it in kDrive (outside Agora) sees all circles' files.
+
+**Big files.** Agora passes files on to kDrive as they arrive and never keeps a copy. Files above 64 MB go to kDrive in pieces of 16 MB, so Agora's server never holds more than one piece in its memory. On a slow connection a very big upload can take long; keep the page open until it says "Added".
+
+### Setting it up
+
+Once, by Guy (or another kDrive administrator of 7BP):
+
+1. **Make the key (the API token).** Log in at [manager.infomaniak.com](https://manager.infomaniak.com) with the account that manages 7BP's kDrive. Click your name or picture at the top right, choose **My profile**, then **Developer** (some screens call it **API tokens** or **Token management**). Choose **Create a token**. Give it the name `Agora`, choose the scope (Infomaniak calls it a "scope" or "rights") **drive** only, and the longest validity offered. Click **Create**. Infomaniak shows the token **once**: copy it straight away and put it in the password manager. Never paste it into a chat, an email or GitHub.
+2. **Find the drive number.** Open kDrive in your browser. Its address looks like `https://ksuite.infomaniak.com/kdrive/app/drive/123456/files` (or `kdrive.infomaniak.com/app/drive/123456/...`): the number after `/drive/` is the drive number.
+3. **The top folder (required).** In kDrive, make a folder for Agora, for example `Agora`, and share it in kDrive only with the people who should also see all circles' files outside Agora. Open it: the number at the end of the address (`.../files/7`) is its number.
+4. **Tell Agora.** On the server, in `/srv/agora/apps/backend/.env` (on a Mac: `apps/backend/.env`), type in yourself:
+
+   | Setting | What to put there |
+   | --- | --- |
+   | `AGORA_KDRIVE_TOKEN` | The token from step 1. Secret |
+   | `AGORA_KDRIVE_DRIVE_ID` | The drive number from step 2 |
+   | `AGORA_KDRIVE_ROOT_FOLDER_ID` | The folder number from step 3. Required |
+   | `AGORA_KDRIVE_MAX_UPLOAD_MB` | The largest file a member may add, in MB. Empty means 100 |
+
+5. **Update the database and restart.** On the server, `agora/vps/update.sh` does both: it runs `yarn migrate` (which adds the two tables that remember the circle folders and who added what) and restarts Agora. On a Mac: `yarn migrate` in `apps/backend`, then restart with `./agora/start.sh`.
+6. **Check.** Open a circle's Files page as a member. The first time it makes the circle's folder; you see it appear in kDrive. The admin area (`/admin`, System) shows "kDrive (circle files): Yes", or "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing" when only the top folder is missing.
+
+The token works for everything the account that made it can reach in kDrive. Agora only uses it inside its own top folder, but whoever has the token could do more, so keep it as secret as a password. If it leaks, delete it in the same Developer page and make a new one.
+
+The key is never shown: not in Agora's pages, not in the admin area, not in error messages and not in the log. Agora sends it only to Infomaniak's own addresses.
+
+**Limits.** kDrive limits how many calls a key may make (about 60 a minute, according to others who use it). Agora makes at most 50 a minute from the website and 50 from the worker, and waits and tries again when kDrive says it is busy. With many people on the Files pages at once, a page can then say "kDrive is busy. Try again in a minute."
 
 ## Google Drive
 
@@ -265,6 +325,12 @@ Agora is by invitation. Only someone who holds an invitation to a circle can mak
 - Logged in with that address: the invitation is accepted, as in Hylo.
 - Logged in with another account (for example the steward who sent it, trying it out): the invitation is not used. A page says "This invitation is for guyvankool@gmail.com. You are logged in as Guy van Koolwijk (info@guyvankoolwijk.nl). Log out to accept it as guyvankool@gmail.com." The button "Log out and continue" logs out and opens the invitation link again. The server refuses such a use too, so it cannot be skipped. A circle's join link has no address and works for everyone.
 
+**Landing in the circle.** Someone who signs up through a circle's join link or an invitation email becomes a member of that circle as soon as the account is finished (name and password chosen), also when they open the email link in another browser or come back later. The server keeps the invitation with the new account for this and checks it again at that moment: a join link that was replaced or an invitation that was withdrawn in between does nothing, and the person still has an account but is in no circle. Someone who is already logged in and opens a join link or invitation joins at once and lands in the circle, without an extra click. When the circle has agreements or join questions, they see its About page first, with those steps, instead. A circle without a valid link still asks people to join themselves.
+
+**Logged out, nothing is visible.** Someone who is not logged in and opens a circle's join link or invitation sees only the sign-up or login page. The server gives a logged-out visitor nothing to read, except the name and address of the circle of a valid link: no description, members, posts or counts. Pictures and files (`/noo/uploads`) and circle profiles are also only for people who are logged in. Meeting guest links are separate and work as before.
+
+**The Join button.** On the page of a circle you are not a member of, the Join button is at the top, below the banner and above the description, so it is the first thing you see, also on a phone.
+
 Someone who opens the sign-up page without one reads "Agora is by invitation" and is asked to get an invitation from a 7BP steward. The server checks this too, so it cannot be skipped by going around the web page. A first login with Google, Facebook or LinkedIn is always refused while sign-up is by invitation (Agora does not show those buttons). People who already have an account are not affected and log in as before.
 
 The setting is `AGORA_INVITE_ONLY` in `apps/backend/.env`: `on` or `off`. Left empty, it is on for a server and off on your own computer, so demo sign-ups keep working there. `off` brings back Hylo's way: anyone who finds the address can sign up.
@@ -353,14 +419,34 @@ The admin area is a page in Agora at `/admin` (for example https://agora.guyvank
 
 ### Who gets in
 
-Two settings in `apps/backend/.env`, each a list of user ids or email addresses separated by commas, for example `1,guy@example.org`:
+Two settings in `apps/backend/.env`, each a list of user ids (account numbers) separated by commas, for example `1,7`:
 
 | Setting | Who | What they see |
 | --- | --- | --- |
 | `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
 | `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
 
-For both: the account must be switched on, and an email address only counts when the account has confirmed it, so nobody gets in by signing up with an address from the list. Ids are the surest. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+For both: the account must be switched on. Only numbers count, never email addresses: Agora lets a logged-in person change their email address without confirming the new one, so an address in the list could be taken over by anyone who types it into their account settings. An entry that is not a number is ignored, and the log says so once. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+
+### Agora admins are Administrator everywhere
+
+Agora admins have full access everywhere and can see everything (Guy's decision, 23 October 2026). Every Agora admin (`AGORA_ADMINS`) is always a member and Administrator of every circle and every space, also hidden ones and paid (paywalled) spaces. A space uses the roles of the circle it sits in, so there they are Administrator of that circle. Only `AGORA_ADMINS` does this, not `AGORA_HELPDESK_ADMINS`.
+
+- When someone makes a circle or a space, the Agora admins join it straight away. The person who made it stays Administrator too. An entry in `AGORA_ADMINS` that matches no active account is skipped and named in the log; the circle is made anyway.
+- They join quietly: no join form, and nobody gets a "new member" notice. In those circles they get only important notices (mentions and announcements) and a weekly digest, not a notice for every post. Each admin can change that in the circle's own notification settings.
+- Every hour Agora checks all circles and spaces and adds what is missing, so someone you add to `AGORA_ADMINS` is Administrator everywhere within the hour. It writes a line in the log only when it changed something.
+- Admins are always in. If an admin leaves a circle or space, or a steward removes them or takes away their Administrator role, the next hourly check puts them back, and the log says "brought Agora admin ... back into group ...". To take someone out for good, remove them from `AGORA_ADMINS` first.
+- What admins still do not see: direct messages between other people, and the chat and end screen of a meeting they did not take part in (those are only for the people in that meeting).
+
+To do it at once for the circles and spaces that already exist, in `/srv/agora/apps/backend` on the server (or `apps/backend` on a Mac, without the `sudo` part):
+
+```
+sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-admins-everywhere.js
+```
+
+That only shows what it would change and saves nothing. Add `--apply` at the end to save it. It also brings admins back into circles and spaces they left or were removed from. It only adds what is missing, so it is safe to run again; a second run says "Nothing to change".
+
+To take someone out for good: first remove their number from `AGORA_ADMINS` (and restart), then run the same command with `--remove <number>` (a dry run) and `--remove <number> --apply`. It removes the Administrator role and the membership in every circle and space that this feature put them in. Memberships and roles they had on their own stay.
 
 ### The six tabs
 
@@ -375,7 +461,7 @@ For both: the account must be switched on, and an email address only counts when
   The internal note and the builder task are for the Help desk only.
 - **Invitations**: every circle invitation in one list, with its circle, who sent it, when it was made and last sent, how often it was sent, and what became of it: waiting, accepted (by whom and when) or expired or withdrawn. Filter by status and circle. For a waiting invitation: copy its link, send it again (Hylo's own invitation email) or withdraw it. Below that, each circle's join link (to copy) and the join requests that wait. Hylo does not record who joined through a join link, so the page shows how many members joined without an email invitation (through the join link, a join request, or added by a steward).
 - **Accounts**: everyone with an account, with email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
-- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
+- **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, kDrive, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
 - **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended and Help desk requests. It is put together from what Agora already stores, so it needs nothing new.
 
 ### Let someone in
@@ -444,6 +530,57 @@ Things to know:
   ```
   The update step also runs `yarn install`, which the new building block (`send`) needs.
 - If a bucket and key for Amazon S3 are set (`AWS_S3_BUCKET` and `AWS_ACCESS_KEY_ID`), Agora uses S3 like Hylo, and the folder is not used. Setting a Filestack key brings Hylo's Filestack picker back.
+
+## 7BP Home (main circle)
+
+Agora starts as separate circles with no place that holds them all. The 7BP Home is one main circle, by default named "7BP" with the slug `7bp` (set `AGORA_MAIN_GROUP_SLUG` and `AGORA_MAIN_GROUP_NAME` in `apps/backend/.env`). It is visible to its members only, people join by invitation or join link, and the Commons stays off.
+
+**This changes who sees what.** Every member of any circle becomes a member of the 7BP Home and sees its stream (announcements, meetings, events), its members and its circles. Circles themselves keep their own members, settings and posts.
+
+What it does (`apps/backend/lib/agora/mainGroup.js`), and only adds what is missing, so a second run changes nothing:
+
+1. Makes the main circle if it does not exist, in Hylo's own way (roles, menu and chat room like any circle). The maker is the first active account in `AGORA_ADMINS`, who becomes its Administrator. (The other Agora admins get the role through the admins-everywhere job, once that is merged.)
+2. Makes every other active circle a child of it. A circle that a steward took out of the main circle on purpose stays out and is listed as "kept apart".
+3. Makes every active account with a confirmed email address that is a member of at least one active circle a member of the main circle, with the role Member. Existing memberships stay as they are. Someone who left the main circle (or was removed) is not added again: Hylo records leaving as an inactive membership, and the job respects it. New memberships are quiet: no join form, notifications only for mentions and announcements, a weekly digest, and nobody is told "X joined". A member can change this in the circle's settings.
+4. Sets up the home page once: a welcome page as the home ("The home of 7 Billion Presidents: announcements, meetings and all our circles."), the stream with its announcements, events and meetings, members, chat, and a menu entry for each circle. It is remembered in the circle's settings, so a page a steward removes later stays removed, and only circles made later get a menu entry. A welcome page that already has text keeps it.
+
+On the server, from `/srv/agora/apps/backend` as the `agora` user (first look, then save):
+
+```
+node scripts/agora-main-group.js
+node scripts/agora-main-group.js --apply
+```
+
+The first command shows every change and saves nothing. Only this command, run by a person, makes the main circle. After that the cron job keeps it up to date every 10 minutes, so people who join any circle later also land in the 7BP Home and new circles become its children; until the circle exists, the cron job does nothing. No email goes out when the circle is made or when people are added. A failure is logged and never stops the other cron tasks.
+
+To undo: a steward can remove a circle from the 7BP Home in that circle's settings (it stays out), remove members, or delete the circle in its settings. If the main circle itself is deleted in its settings, the job does not make it again (it reports that the slug is taken by a switched-off circle). To stop the job altogether, take it out of `cron.js`.
+
+**How the 7BP Home looks.** It is meant to be clearly different from the other circles and to read as the circle all circles fall into:
+
+- *Left bar:* the 7BP Home is always first, a bit larger, with a ring in the 7BP blue and the 7BP mark as its picture (if the circle has no picture of its own). Its label says "7BP Home: all circles". A thin line under it separates it from the rest. The circles that are active children of it follow, a little smaller and indented, with a thin vertical line along them, so they read as "inside 7BP". All other circles (for example one a steward took out of the 7BP Home) come after, as before. Pinning and dragging still work, but only order circles inside their own part (the 7BP Home and its children cannot be dragged out of their place). The same bar is used on phones.
+- *The 7BP Home's own pages:* a "7BP Home" pill with the mark on its header, a blue tint and a blue strip along the bottom of the header. Its welcome page has a section "Every circle in 7BP" below the welcome text, with a card per circle (picture or mark, name, number of members) that opens the circle inside the app. A circle hidden from you that you are not in is not listed.
+- *Each child circle:* a small "Part of 7BP" link in its header that goes to the 7BP Home. Circles that are not active children show nothing.
+
+The web reads the main circle and its active children from one query, `agoraMainCircle` (`apps/backend/lib/agora/mainCircle.js`, only for members of the 7BP Home; empty for everyone else), so nothing shows without logging in. The slug still comes from `AGORA_MAIN_GROUP_SLUG`. The web code is in `apps/web/src/agora/mainCircle/`. Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainCircle.test.js` (backend) and `yarn test --watchAll=false --testPathPattern=agora/mainCircle` (web).
+
+Tests: `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/mainGroup.test.js` (they empty that database).
+
+### This week in 7BP (top of the 7BP Home)
+
+At the top of the 7BP Home's welcome page, above the welcome text, every member sees a block "This week in 7BP" with four short lists:
+
+1. **Next meetings and events**: up to 6, the soonest first, so the ones in the next 7 days come before later ones. Each shows the date and time in the member's own time zone, the title, the circle name, a link to the post and, when the event has one, a "Meeting room" link. An event that is going on right now still counts.
+2. **Newest announcements**: the 3 newest posts that were sent as an announcement (Hylo's announcement switch on a post), with a short plain-text start.
+3. **Latest minutes**: the 3 newest meeting minutes. A minutes post is the post the Agora assistant writes when a meeting ends; it is recognised by the meeting that names it (`meeting_sessions.minutes_post_id`), not by its title or by a "minutes" tag anyone could type.
+4. **Recent decisions**: up to 3 proposals that ended in the last 14 days. A proposal with a voting period counts when its end time has passed (whatever its status says, because Hylo only updates the status in a regular job). A casual proposal, which has no voting period, counts when someone marked it completed. The outcome text is shown when someone wrote one. Proposals still open, and older than 14 days, are not shown.
+
+Every list has a calm text when it is empty ("No meetings this week").
+
+**Who sees what.** Only posts that are in a circle where the viewer is an active member, and only the 7BP Home and its active child circles count. A hidden circle the viewer is not in never shows anything. A post that is in several circles shows under a circle the viewer is in, never under another. Public posts of circles the viewer has not joined are left out on purpose.
+
+**How it works.** One small call, `GET /noo/agora/this-week?group=<slug>` (`apps/backend/lib/agora/thisWeek.js`, `api/controllers/AgoraThisWeekController.js`), for anyone logged in. It makes a fixed number of database queries, none per item. For every circle other than the main one, and for anyone who is not a member of the main circle, it answers `{ enabled: false }` and the web page (`apps/web/src/agora/thisWeek/ThisWeek.jsx`) shows nothing. It uses the same main circle setting as above (`AGORA_MAIN_GROUP_SLUG`). Every link opens inside the app (the post inside its circle, same tab); the meeting room is Agora's existing room page, opened in the same tab.
+
+Tests: backend `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/thisWeek.test.js` (empties that database), web `cd apps/web && yarn test --watchAll=false --testPathPattern=agora/thisWeek`. The new words are in all six language files in English, to be translated.
 
 ## What is switched off
 
@@ -605,14 +742,14 @@ The uploads come back as they were on the last night. An older version of a chan
 
 ## When Agora is down
 
-A server that is down cannot warn anyone, so the check runs elsewhere: on GitHub's computers, as a scheduled job in this repository (`.github/workflows/agora-uptime.yml`). Every 30 minutes it opens Agora's login page and asks Agora's server one small question (`/noo/graphql`, "who is logged in", which also answers when nobody is). If that fails three times in a row, two minutes apart, it opens an issue **"Agora is down"** on GitHub, assigned to you, so GitHub emails you. While Agora stays down, nothing more is sent. When Agora answers again, it writes a comment and closes the issue, which sends a second email. It costs nothing (public repositories get these jobs free) and needs no new account.
+A server that is down cannot warn anyone, so the check runs elsewhere: on GitHub's computers, as a scheduled job in this repository (`.github/workflows/agora-uptime.yml`). Every 30 minutes it opens Agora's login page and asks Agora's server one small question (`/noo/graphql`, "who is logged in", which also answers when nobody is). If that fails three times in a row, two minutes apart, the job fails and GitHub emails you "Agora uptime check: All jobs have failed". While Agora stays down you get that email every 30 minutes; when it answers again the emails stop. While Agora is up, nobody is emailed. It costs nothing (public repositories get these jobs free) and needs no new account.
 
 Things to know:
 
-- The repository is public, so the issues and the job's log are public too. They only show the address and what the server answered; no keys are used.
+- The repository is public, so the job's log is public too. They only show the address and what the server answered; no keys are used.
 - GitHub sometimes starts scheduled jobs late, by a few minutes up to an hour when it is busy. Fine for a volunteer site, not to the minute.
 - GitHub pauses scheduled jobs in a public repository after **60 days without any change** to the repository, and emails you before it does. Then open *Actions*, *Agora uptime check*, and click *Enable workflow*.
-- Check your email settings on GitHub once: *Settings*, *Notifications*, "Issues" or "Participating" by email on.
+- Check your email settings on GitHub once: *Settings*, *Notifications*, "Actions" by email on (only failed workflows).
 - Try it by hand: *Actions*, *Agora uptime check*, *Run workflow*.
 - When Agora moves to agora.7billionpresidents.org: *Settings*, *Secrets and variables*, *Actions*, *Variables*, add `AGORA_URL` with `https://agora.7billionpresidents.org`. No code change needed.
 

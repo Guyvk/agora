@@ -24,6 +24,7 @@ function fakeServer ({ gone = false } = {}) {
     if (url === `/noo/agora/claim/api/${SECRET}/claim`) {
       return { ok: true, status: 200, json: async () => ({ contactId: '7', userId: '42', filled: ['bio'], joinedGroup: { slug: '7bp', name: '7 Billion Presidents' } }) }
     }
+    if (url === '/noo/agora/claim/api/remove-sheet-data') return { ok: true, status: 200, json: async () => ({ contactId: '7', cleared: true }) }
     return { ok: false, status: 404, json: async () => ({}) }
   })
 }
@@ -68,5 +69,16 @@ describe('ClaimPage', () => {
     renderPage()
     expect(await screen.findByText('This claim link does not work.')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('link', { name: 'Make my account' })).not.toBeInTheDocument())
+  })
+
+  it('lets the person who claimed delete the sheet data afterwards', async () => {
+    fakeServer()
+    renderPage({ loggedIn: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, this is me: add it to my profile' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove my sheet data' }))
+    expect(await screen.findByText('The sheet data in Contacts is deleted.')).toBeInTheDocument()
+    const post = calls.find(c => c.url.endsWith('/remove-sheet-data'))
+    expect(post.options.method).toBe('POST')
+    expect(post.options.headers['X-Agora']).toBe('1')
   })
 })
