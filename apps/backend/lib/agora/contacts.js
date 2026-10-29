@@ -132,15 +132,17 @@ function baseQuery () {
     .leftJoin('groups as g', 'g.id', 'c.circle_id')
     .leftJoin('users as o', 'o.id', 'c.follow_up_owner_id')
     .leftJoin('users as cu', 'cu.id', 'c.claimed_user_id')
-    .select('c.*', 'g.name as circle_name', 'o.name as follow_up_owner_name', 'cu.name as claimed_user_name')
+    .leftJoin('users as pu', 'pu.id', 'c.proposed_user_id')
+    .select('c.*', 'g.name as circle_name', 'o.name as follow_up_owner_name', 'cu.name as claimed_user_name', 'pu.name as proposed_user_name')
 }
 
 function present (row) {
   if (!row) return null
   const out = {}
-  for (const f of ['id', ...FIELDS, ...SHOWN_ONLY, 'circle_name', 'follow_up_owner_name', 'claimed_user_name', 'created_at', 'updated_at']) out[f] = row[f]
+  for (const f of ['id', ...FIELDS, ...SHOWN_ONLY, 'circle_name', 'follow_up_owner_name', 'claimed_user_name', 'proposed_user_id', 'proposed_at', 'proposed_user_name', 'created_at', 'updated_at']) out[f] = row[f]
   out.id = String(row.id)
   if (out.claimed_user_id) out.claimed_user_id = String(out.claimed_user_id)
+  if (out.proposed_user_id) out.proposed_user_id = String(out.proposed_user_id)
   // Whether a claim link is out; the link itself cannot be shown again
   out.has_claim_link = Boolean(row.claim_token_hash)
   if (out.circle_id) out.circle_id = String(out.circle_id)

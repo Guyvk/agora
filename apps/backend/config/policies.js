@@ -86,6 +86,9 @@ module.exports.policies = {
   AgoraClaimController: {
     show: true,
     claim: 'sessionAuth',
+    myProposal: 'sessionAuth',
+    claimProposal: 'sessionAuth',
+    dismissProposal: 'sessionAuth',
     removeSheetData: 'sessionAuth'
   },
 

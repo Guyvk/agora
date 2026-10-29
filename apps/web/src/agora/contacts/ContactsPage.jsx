@@ -122,6 +122,81 @@ function ContactRow ({ contact, selected, onOpen, labels }) {
 }
 
 /**
+ * Propose this profile to a member (stewards only): pick from the members of
+ * the main circle, the ones with the same first name first. Suggestions only,
+ * a person always chooses. Change or clear a proposal here too.
+ */
+export function ProposeBox ({ contact, onChanged }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [choices, setChoices] = useState({ suggested: [], members: [] })
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { setOpen(false); setQ(''); setError(null) }, [contact.id])
+
+  useEffect(() => {
+    if (!open) return undefined
+    let stopped = false
+    contactsApi(`/${contact.id}/member-choices?q=${encodeURIComponent(q)}`)
+      .then(data => { if (!stopped) setChoices(data) })
+      .catch(e => { if (!stopped) setError(e.message) })
+    return () => { stopped = true }
+  }, [open, q, contact.id])
+
+  const act = async (path, body) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await contactsApi(`/${contact.id}/${path}`, body || {})
+      setOpen(false)
+      onChanged && onChanged()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pick = m => (
+    <li key={m.id}>
+      <Button type='button' variant='outline' size='sm' disabled={busy} onClick={() => act('propose', { userId: m.id })}>{m.name}</Button>
+    </li>
+  )
+
+  return (
+    <div className='flex flex-col gap-2 text-sm' data-testid='propose-box'>
+      {contact.proposed_user_id
+        ? <p className='m-0 text-foreground'>{t('Proposed to {{name}}', { name: contact.proposed_user_name || t('a member') })}</p>
+        : <p className='m-0 text-muted-foreground'>{t('Not proposed to anyone. Agora may still guess from the names when a name is unique.')}</p>}
+      {error && <p role='alert' className='m-0 text-destructive'>{error}</p>}
+      <div className='flex flex-wrap gap-2'>
+        <Button type='button' variant='outline' size='sm' disabled={busy} onClick={() => setOpen(!open)}>
+          {contact.proposed_user_id ? t('Change member') : t('Propose to member')}
+        </Button>
+        {contact.proposed_user_id && (
+          <Button type='button' variant='ghost' size='sm' className='text-destructive' disabled={busy} onClick={() => act('propose/clear')}>{t('Clear proposal')}</Button>
+        )}
+      </div>
+      {open && (
+        <div className='flex flex-col gap-2 rounded-md border border-border p-2'>
+          {choices.suggested.length > 0 && (
+            <div>
+              <p className='m-0 mb-1 font-semibold'>{t('Same first name')}</p>
+              <ul className='m-0 p-0 list-none flex flex-wrap gap-2'>{choices.suggested.map(pick)}</ul>
+            </div>
+          )}
+          <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('Search members')} aria-label={t('Search members')} />
+          <ul className='m-0 p-0 list-none flex flex-wrap gap-2'>{choices.members.map(pick)}</ul>
+          <p className='m-0 text-muted-foreground'>{t('Only that member sees the proposal and decides if it is theirs.')}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
  * The claim link of a team member's profile: make one, copy it (it is shown
  * only once), make a new one or withdraw it. Once claimed, who claimed it.
  */
@@ -270,6 +345,10 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onC
     if (h.action === 'claim_link') return t('{{who}} made a claim link', { who })
     if (h.action === 'claim_link_withdrawn') return t('{{who}} withdrew the claim link', { who })
     if (h.action === 'claimed') return t('{{who}} claimed this profile', { who })
+    if (h.action === 'claimed_by_proposal') return t('{{who}} claimed this profile (it was proposed to them)', { who })
+    if (h.action === 'proposed') return t('{{who}} proposed this profile to a member', { who })
+    if (h.action === 'proposal_cleared') return t('{{who}} took back the proposal', { who })
+    if (h.action === 'proposal_declined') return t('{{who}} said this profile is not theirs', { who })
     return `${who}: ${h.action}`
   }
 
@@ -377,6 +456,12 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onC
         <section className='flex flex-col gap-2 border-t border-border pt-4'>
           <h3 className='font-semibold text-foreground'>{t('Claim link')}</h3>
           <ClaimBox contact={contact} canMakeClaimLinks={!!meta.canMakeClaimLinks} onChanged={onClaimChanged} />
+          {meta.canMakeClaimLinks && !contact.claimed_user_id && (
+            <>
+              <h3 className='font-semibold text-foreground mt-2'>{t('Propose to a member')}</h3>
+              <ProposeBox contact={contact} onChanged={onClaimChanged} />
+            </>
+          )}
         </section>
       )}
 
