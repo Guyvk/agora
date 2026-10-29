@@ -930,6 +930,8 @@
   "Event": "Event",
   "Event collaboration": "Event collaboration",
   "Event ended": "Event ended",
+  "This event has passed": "This event has passed",
+  "Set a new date": "Set a new date",
   "Event time ({{timezone}})": "Event time ({{timezone}})",
   "Events": "Events",
   "Every 3 months (recurring)": "Every 3 months (recurring)",

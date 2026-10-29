@@ -798,6 +798,8 @@
   "Event": "Evento",
   "Event collaboration": "Colaboração em evento",
   "Event ended": "Evento encerrado",
+  "This event has passed": "Este evento já passou",
+  "Set a new date": "Definir uma nova data",
   "Event time ({{timezone}})": "Horário do evento ({{timezone}})",
   "Events": "Eventos",
   "Every 3 months (recurring)": "A cada 3 meses (recorrente)",
