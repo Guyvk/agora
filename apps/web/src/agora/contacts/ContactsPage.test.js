@@ -1,7 +1,7 @@
 // Agora: the shared Contacts page, with a pretend server.
 import React from 'react'
 import { useParams } from 'react-router-dom'
-import { AllTheProviders, render, screen, fireEvent, waitFor } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import ContactsPage from './ContactsPage'
 
 const meta = {
@@ -24,7 +24,9 @@ const mila = {
   follow_up_on: '2000-01-01',
   follow_up_what: 'Send the press kit',
   follow_up_owner_id: '2',
-  follow_up_owner_name: 'Amara'
+  follow_up_owner_name: 'Amara',
+  country: 'Netherlands',
+  last_contact_at: '2026-10-12T08:00:00Z'
 }
 
 // A made-up team member from a sheet, with a profile that can be claimed
@@ -58,8 +60,11 @@ function fakeServer ({ created = '99', canMakeClaimLinks = true } = {}) {
     else if (path === '/22') body = { contact: { ...claimed, notes: [], changes: [{ action: 'claimed', user_name: 'Jet', created_at: '2026-10-20T10:00:00Z' }] } }
     else if (path === '/21/claim-link') body = { link: LINK }
     else if (path === '/21/claim-link/withdraw') body = { ok: true }
+    else if (path.startsWith('/21/member-choices')) body = { suggested: [{ id: '2', name: 'Amara' }], members: [{ id: '1', name: 'Demo Steward' }, { id: '2', name: 'Amara' }] }
+    else if (path === '/21/propose') body = { ok: true }
+    else if (path === '/12/notes' || path === '/12/delete') body = { ok: true }
     else if (path === '/21/update') body = { id: '21' }
-    else if (path.startsWith('/list')) body = { contacts: [mila] }
+    else if (path.startsWith('/list')) body = { contacts: [mila, ilse, claimed] }
     else if (path === '/due') body = { count: 1 }
     else if (path === '/create') body = { id: created }
     else if (path === '/12') body = { contact: { ...mila, notes: [{ id: '1', body: 'Prefers email.', author_name: 'Amara', created_at: '2026-10-12T08:00:00Z' }], changes: [] } }
@@ -80,20 +85,73 @@ describe('ContactsPage', () => {
   const originalFetch = global.fetch
   afterEach(() => { global.fetch = originalFetch })
 
-  it('lists the contacts and how many follow-ups are due', async () => {
+  it('lists the contacts as a table with a follow-up count', async () => {
     fakeServer()
     renderAt(null)
     expect(await screen.findByText('Mila Jansen')).toBeInTheDocument()
     expect(screen.getByText('De Dagkrant')).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /My follow-ups/ })).toHaveTextContent('1')
+    // team contacts show their claim state as status
+    expect(screen.getAllByText('Unclaimed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0)
   })
 
-  it('opens a contact with its notes', async () => {
+  it('sorts when a column header is clicked', async () => {
+    fakeServer()
+    renderAt(null)
+    await screen.findByText('Mila Jansen')
+    const names = () => screen.getAllByRole('row').slice(1).map(r => r.textContent)
+    expect(names()[0]).toMatch(/Ilse/)
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Name' }))
+    expect(names()[0]).toMatch(/Mila/)
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('shows only unclaimed team contacts in the Unclaimed view', async () => {
+    fakeServer()
+    renderAt(null)
+    await screen.findByText('Mila Jansen')
+    fireEvent.click(screen.getByRole('button', { name: 'Unclaimed' }))
+    await waitFor(() => expect(screen.queryByText('Mila Jansen')).not.toBeInTheDocument())
+    expect(screen.getByText('Ilse Voorbeeld')).toBeInTheDocument()
+    expect(screen.queryByText('Jet Claimed')).not.toBeInTheDocument()
+    expect(calls.some(c => c.url.includes('/list?') && c.url.includes('kind=team'))).toBe(true)
+  })
+
+  it('opens a contact in the side panel in read mode, with a merged activity list', async () => {
     fakeServer()
     renderAt('12')
-    expect(await screen.findByDisplayValue('mila@dagkrant.test')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Mila Jansen' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
     expect(screen.getByText('Prefers email.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Delete this contact/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'mila@dagkrant.test' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Write a note…')).toBeInTheDocument()
+    // the table stays next to the panel
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+  })
+
+  it('shows the form on Edit and goes back to read mode on Cancel', async () => {
+    fakeServer()
+    renderAt('12')
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    expect(await screen.findByDisplayValue('mila@dagkrant.test')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeInTheDocument()
+  })
+
+  it('adds a note and deletes with the confirm step', async () => {
+    fakeServer()
+    renderAt('12')
+    fireEvent.change(await screen.findByPlaceholderText('Write a note…'), { target: { value: 'Called her' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(calls.some(c => c.url.endsWith('/12/notes'))).toBe(true))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('button', { name: /Delete this contact/ }))
+    expect(screen.getByText(/removes the contact and all notes/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, delete' }))
+    await waitFor(() => expect(calls.some(c => c.url.endsWith('/12/delete'))).toBe(true))
   })
 
   it('saves a new contact through the page, with the X-Agora header', async () => {
@@ -107,16 +165,16 @@ describe('ContactsPage', () => {
     expect(create.options.method).toBe('POST')
     expect(create.options.headers['X-Agora']).toBe('1')
     expect(JSON.parse(create.options.body)).toMatchObject({ name: 'Tom', kind: 'partner', status: 'new', consent: false })
-    expect(await screen.findByText('Saved.')).toBeInTheDocument()
   })
 
   it('shows a team member\'s profile and photo, and makes a claim link that is shown once with Copy', async () => {
     fakeServer()
     renderAt('21')
-    expect(await screen.findByDisplayValue('Made-up Land')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Drawing, Cooking')).toBeInTheDocument()
+    expect(await screen.findByText('Made-up Land', { selector: 'span' })).toBeInTheDocument()
+    expect(within(screen.getByTestId('skills')).getByText('Drawing')).toBeInTheDocument()
     expect(screen.getByAltText('Photo of Ilse Voorbeeld')).toHaveAttribute('src', ilse.photo_url)
-    fireEvent.click(screen.getByRole('button', { name: 'Make claim link' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Claim link' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Make claim link' }))
     expect(await screen.findByDisplayValue(LINK)).toBeInTheDocument()
     const post = calls.find(c => c.url.endsWith('/21/claim-link'))
     expect(post.options.method).toBe('POST')
@@ -127,9 +185,26 @@ describe('ContactsPage', () => {
     await waitFor(() => expect(calls.some(c => c.url.endsWith('/21/claim-link/withdraw'))).toBe(true))
   })
 
+  it('shows suggested members first in the Propose dropdown and proposes one', async () => {
+    fakeServer()
+    renderAt('21')
+    fireEvent.click(await screen.findByRole('button', { name: 'Propose' }))
+    const suggested = await screen.findByTestId('suggested')
+    expect(within(suggested).getByRole('button', { name: 'Amara' })).toBeInTheDocument()
+    const all = screen.getByTestId('all-members')
+    // the suggested member is not repeated in the long list
+    expect(within(all).queryByRole('button', { name: 'Amara' })).not.toBeInTheDocument()
+    expect(within(all).getByRole('button', { name: 'Demo Steward' })).toBeInTheDocument()
+    expect(suggested.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(within(suggested).getByRole('button', { name: 'Amara' }))
+    await waitFor(() => expect(calls.some(c => c.url.endsWith('/21/propose'))).toBe(true))
+    expect(JSON.parse(calls.find(c => c.url.endsWith('/21/propose')).options.body)).toEqual({ userId: '2' })
+  })
+
   it('sends the profile fields along when saving', async () => {
     fakeServer()
     renderAt('21')
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
     const country = await screen.findByLabelText('Country')
     fireEvent.change(country, { target: { value: 'Another Land' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -147,10 +222,12 @@ describe('ContactsPage', () => {
     expect(screen.getByText(/Jet claimed this profile/)).toBeInTheDocument()
   })
 
-  it('shows members who are not stewards no claim button', async () => {
+  it('shows members who are not stewards no make-claim-link button', async () => {
     fakeServer({ canMakeClaimLinks: false })
     renderAt('21')
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim link' }))
     expect(await screen.findByText('Stewards can make a claim link.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Make claim link' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Propose' })).not.toBeInTheDocument()
   })
 })

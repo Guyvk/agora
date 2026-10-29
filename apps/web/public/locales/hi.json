@@ -3339,5 +3339,22 @@
   "Propose to a member": "सदस्य को प्रस्तावित करें",
   "Clear proposal": "प्रस्ताव हटाएँ",
   "Same first name": "वही पहला नाम",
-  "Only that member sees the proposal and decides if it is theirs.": "केवल वही सदस्य प्रस्ताव देखता है और तय करता है कि यह उसका है या नहीं।"
+  "Only that member sees the proposal and decides if it is theirs.": "केवल वही सदस्य प्रस्ताव देखता है और तय करता है कि यह उसका है या नहीं।",
+  "Activist council": "कार्यकर्ता परिषद",
+  "Unclaimed": "दावा नहीं किया गया",
+  "Proposed": "प्रस्तावित",
+  "Last contact": "आखिरी संपर्क",
+  "Follow-up": "फॉलो-अप",
+  "Propose": "प्रस्ताव दें",
+  "Details": "विवरण",
+  "Write a note…": "एक नोट लिखें…",
+  "Circle": "सर्कल",
+  "Contact": "संपर्क",
+  "Owner of the next step": "अगला कदम कौन उठाएगा",
+  "No members found.": "कोई सदस्य नहीं मिला।",
+  "Sort by {{column}}": "{{column}} के अनुसार क्रमबद्ध करें",
+  "Suggested (same first name)": "सुझाव (समान पहला नाम)",
+  "Kind": "प्रकार",
+  "Next step": "अगला कदम",
+  "Phone": "फ़ोन"
 }

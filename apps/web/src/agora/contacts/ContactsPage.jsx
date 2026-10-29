@@ -6,7 +6,9 @@
  *   /contacts             the list
  *   /contacts/new         a new contact
  *   /contacts/<id>        one contact
- *   /contacts?mine=1      my follow-ups
+ *   /contacts?view=mine   my follow-ups (also view=council and view=unclaimed)
+ *
+ * One contact opens in a side panel next to the table: read mode first, Edit shows the form.
  *
  * A team member's contact can hold a short profile (from their sheet at the
  * activist council) and a claim link, so the person can make it their own
@@ -18,7 +20,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { BookUser, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookUser, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
 import Button from 'components/ui/button'
 import { Input } from 'components/ui/input'
 import { Label } from 'components/ui/label'
@@ -89,68 +91,147 @@ function Field ({ label, htmlFor, className, children }) {
   )
 }
 
-function ContactRow ({ contact, selected, onOpen, labels }) {
+
+function claimState (c) {
+  if (c.kind !== 'team') return null
+  if (c.claimed_user_id) return 'claimed'
+  if (c.proposed_user_id) return 'proposed'
+  return 'unclaimed'
+}
+
+function initials (name) {
+  return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+}
+
+function Avatar ({ contact, size = 'sm' }) {
+  const cls = size === 'lg' ? 'w-14 h-14 text-lg' : 'w-8 h-8 text-xs'
+  if (contact.photo_url) return <img src={contact.photo_url} alt='' loading='lazy' className={cn('shrink-0 rounded-full object-cover border border-border', cls)} />
+  return <span aria-hidden='true' className={cn('shrink-0 rounded-full bg-selected text-foreground/80 flex items-center justify-center font-semibold', cls)}>{initials(contact.name)}</span>
+}
+
+function Pill ({ children, tone }) {
+  return <span className={cn('inline-block rounded-full border px-2 py-0.5 text-xs whitespace-nowrap', tone === 'accent' ? 'border-accent/60 bg-accent/10 text-foreground/80' : 'border-foreground/20 text-foreground/80')}>{children}</span>
+}
+
+// Stewards (who can make claim links) see Proposed; everyone else sees Unclaimed for those
+function statusText (c, labels, t, canSeeProposed) {
+  const s = claimState(c)
+  if (!s) return labels.statuses[c.status] || c.status
+  if (s === 'claimed') return t('Claimed')
+  if (s === 'proposed' && canSeeProposed) return t('Proposed')
+  return t('Unclaimed')
+}
+
+const COLUMNS = [
+  { key: 'name', label: 'Name', cls: '' },
+  { key: 'kind', label: 'Kind', cls: 'max-md:hidden' },
+  { key: 'status', label: 'Status', cls: '' },
+  { key: 'country', label: 'Country', cls: 'max-md:hidden' },
+  { key: 'last', label: 'Last contact', cls: 'max-md:hidden' },
+  { key: 'followup', label: 'Follow-up', cls: 'max-md:hidden' }
+]
+
+function sortValue (c, key, labels, t, canSeeProposed) {
+  if (key === 'name') return (c.name || '').toLowerCase()
+  if (key === 'kind') return (labels.kinds[c.kind] || c.kind || '').toLowerCase()
+  if (key === 'status') return statusText(c, labels, t, canSeeProposed).toLowerCase()
+  if (key === 'country') return (c.country || '').toLowerCase()
+  if (key === 'last') return c.last_contact_at ? new Date(c.last_contact_at).toISOString() : ''
+  return c.follow_up_on || ''
+}
+
+export function sortContacts (list, sort, labels, t, canSeeProposed) {
+  const dir = sort.dir === 'desc' ? -1 : 1
+  return [...list].sort((a, b) => {
+    const x = sortValue(a, sort.key, labels, t, canSeeProposed)
+    const y = sortValue(b, sort.key, labels, t, canSeeProposed)
+    if (x === y) return 0
+    if (x === '') return 1 // empty values always last
+    if (y === '') return -1
+    return x < y ? -dir : dir
+  })
+}
+
+function ContactsTable ({ contacts, labels, sort, onSort, selectedId, onOpen, canSeeProposed }) {
   const { t } = useTranslation()
-  const due = contact.follow_up_on && contact.follow_up_on <= today()
   return (
-    <button
-      type='button'
-      onClick={onOpen}
-      aria-current={selected ? 'true' : undefined}
-      className={cn('w-full text-left px-4 py-3 flex items-start justify-between gap-3 border-b border-border last:border-b-0 transition-colors hover:bg-selected/40', { 'bg-selected/60': selected })}
-    >
-      {contact.photo_url && <img src={contact.photo_url} alt='' loading='lazy' className='shrink-0 w-10 h-10 rounded-md object-cover border border-border' />}
-      <div className='min-w-0 mr-auto'>
-        <div className='font-semibold text-foreground break-words'>{contact.name}</div>
-        {contact.organisation && <div className='text-sm text-muted-foreground break-words'>{contact.organisation}</div>}
-        <div className='mt-1 flex flex-wrap items-center gap-1.5 text-xs'>
-          <span className='rounded-full border border-foreground/20 px-2 py-0.5 text-foreground/80'>{labels.kinds[contact.kind] || contact.kind}</span>
-          <span className='rounded-full border border-foreground/20 px-2 py-0.5 text-foreground/80'>{labels.statuses[contact.status] || contact.status}</span>
-          {contact.circle_name && <span className='text-muted-foreground'>{contact.circle_name}</span>}
-          {contact.country && <span className='text-muted-foreground'>{contact.country}</span>}
-          {contact.claimed_user_id && <span className='rounded-full border border-accent/60 bg-accent/10 px-2 py-0.5 text-foreground/80'>{t('Claimed')}</span>}
-        </div>
-      </div>
-      {contact.follow_up_on && (
-        <div className='shrink-0 text-right text-sm'>
-          <div className={cn(due ? 'font-semibold text-destructive' : 'text-foreground')}>{formatDay(contact.follow_up_on)}</div>
-          {contact.follow_up_owner_name && <div className='text-xs text-muted-foreground'>{contact.follow_up_owner_name}</div>}
-        </div>
-      )}
-    </button>
+    <table className='w-full text-sm border-collapse' aria-label={t('Contacts')}>
+      <thead>
+        <tr className='border-b border-border text-left text-xs text-muted-foreground'>
+          {COLUMNS.map(col => (
+            <th key={col.key} scope='col' className={cn('px-3 py-2 font-medium', col.cls)} aria-sort={sort.key === col.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+              <button type='button' className='inline-flex items-center gap-1 hover:text-foreground' onClick={() => onSort(col.key)} aria-label={t('Sort by {{column}}', { column: t(col.label) })}>
+                {t(col.label)}
+                {sort.key === col.key && (sort.dir === 'asc' ? <ArrowUp className='w-3 h-3' /> : <ArrowDown className='w-3 h-3' />)}
+              </button>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {contacts.map(c => {
+          const due = c.follow_up_on && c.follow_up_on <= today()
+          const selected = String(c.id) === String(selectedId)
+          return (
+            <tr
+              key={c.id}
+              onClick={() => onOpen(c.id)}
+              aria-selected={selected ? 'true' : undefined}
+              className={cn('border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-selected/40', { 'bg-selected/60': selected })}
+            >
+              <td className='px-3 py-2'>
+                <button type='button' className='flex items-center gap-2.5 text-left w-full' onClick={e => { e.stopPropagation(); onOpen(c.id) }}>
+                  <Avatar contact={c} />
+                  <span className='min-w-0'>
+                    <span className='block font-semibold text-foreground break-words'>{c.name}</span>
+                    {c.organisation && <span className='block text-xs text-muted-foreground break-words'>{c.organisation}</span>}
+                  </span>
+                </button>
+              </td>
+              <td className='px-3 py-2 max-md:hidden'><Pill>{labels.kinds[c.kind] || c.kind}</Pill></td>
+              <td className='px-3 py-2'><Pill tone={claimState(c) === 'claimed' ? 'accent' : undefined}>{statusText(c, labels, t, canSeeProposed)}</Pill></td>
+              <td className='px-3 py-2 max-md:hidden text-foreground'>{c.country || '—'}</td>
+              <td className='px-3 py-2 max-md:hidden text-foreground'>{c.last_contact_at ? formatDay(new Date(c.last_contact_at).toLocaleDateString('sv-SE')) : '—'}</td>
+              <td className='px-3 py-2 max-md:hidden'>
+                {c.follow_up_on
+                  ? <span className={cn(due ? 'font-semibold text-destructive' : 'text-foreground')}>{formatDay(c.follow_up_on)}</span>
+                  : '—'}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
 
 /**
- * Propose this profile to a member (stewards only): pick from the members of
- * the main circle, the ones with the same first name first. Suggestions only,
- * a person always chooses. Change or clear a proposal here too.
+ * Propose this profile to a member (stewards only): a searchable dropdown with
+ * the members who share the first name first. Suggestions only, a person always
+ * chooses. Change or clear a proposal here too.
  */
 export function ProposeBox ({ contact, onChanged }) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [choices, setChoices] = useState({ suggested: [], members: [] })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { setOpen(false); setQ(''); setError(null) }, [contact.id])
+  useEffect(() => { setQ(''); setError(null) }, [contact.id])
 
   useEffect(() => {
-    if (!open) return undefined
     let stopped = false
     contactsApi(`/${contact.id}/member-choices?q=${encodeURIComponent(q)}`)
       .then(data => { if (!stopped) setChoices(data) })
       .catch(e => { if (!stopped) setError(e.message) })
     return () => { stopped = true }
-  }, [open, q, contact.id])
+  }, [q, contact.id])
 
   const act = async (path, body) => {
     setBusy(true)
     setError(null)
     try {
       await contactsApi(`/${contact.id}/${path}`, body || {})
-      setOpen(false)
       onChanged && onChanged()
     } catch (e) {
       setError(e.message)
@@ -159,9 +240,11 @@ export function ProposeBox ({ contact, onChanged }) {
     }
   }
 
+  const suggestedIds = new Set(choices.suggested.map(m => m.id))
+  const others = choices.members.filter(m => !suggestedIds.has(m.id))
   const pick = m => (
     <li key={m.id}>
-      <Button type='button' variant='outline' size='sm' disabled={busy} onClick={() => act('propose', { userId: m.id })}>{m.name}</Button>
+      <button type='button' disabled={busy} className='w-full text-left rounded px-2 py-1.5 hover:bg-selected/60 text-foreground' onClick={() => act('propose', { userId: m.id })}>{m.name}</button>
     </li>
   )
 
@@ -171,27 +254,26 @@ export function ProposeBox ({ contact, onChanged }) {
         ? <p className='m-0 text-foreground'>{t('Proposed to {{name}}', { name: contact.proposed_user_name || t('a member') })}</p>
         : <p className='m-0 text-muted-foreground'>{t('Not proposed to anyone. Agora may still guess from the names when a name is unique.')}</p>}
       {error && <p role='alert' className='m-0 text-destructive'>{error}</p>}
-      <div className='flex flex-wrap gap-2'>
-        <Button type='button' variant='outline' size='sm' disabled={busy} onClick={() => setOpen(!open)}>
-          {contact.proposed_user_id ? t('Change member') : t('Propose to member')}
-        </Button>
-        {contact.proposed_user_id && (
-          <Button type='button' variant='ghost' size='sm' className='text-destructive' disabled={busy} onClick={() => act('propose/clear')}>{t('Clear proposal')}</Button>
+      <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('Search members')} aria-label={t('Search members')} />
+      <div className='max-h-60 overflow-y-auto flex flex-col gap-1'>
+        {choices.suggested.length > 0 && (
+          <>
+            <p className='m-0 px-2 text-xs font-semibold text-muted-foreground'>{t('Suggested (same first name)')}</p>
+            <ul className='m-0 p-0 list-none' data-testid='suggested'>{choices.suggested.map(pick)}</ul>
+          </>
         )}
+        {others.length > 0 && (
+          <>
+            <p className='m-0 px-2 text-xs font-semibold text-muted-foreground'>{t('All members')}</p>
+            <ul className='m-0 p-0 list-none' data-testid='all-members'>{others.map(pick)}</ul>
+          </>
+        )}
+        {choices.suggested.length === 0 && others.length === 0 && <p className='m-0 px-2 text-muted-foreground'>{t('No members found.')}</p>}
       </div>
-      {open && (
-        <div className='flex flex-col gap-2 rounded-md border border-border p-2'>
-          {choices.suggested.length > 0 && (
-            <div>
-              <p className='m-0 mb-1 font-semibold'>{t('Same first name')}</p>
-              <ul className='m-0 p-0 list-none flex flex-wrap gap-2'>{choices.suggested.map(pick)}</ul>
-            </div>
-          )}
-          <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('Search members')} aria-label={t('Search members')} />
-          <ul className='m-0 p-0 list-none flex flex-wrap gap-2'>{choices.members.map(pick)}</ul>
-          <p className='m-0 text-muted-foreground'>{t('Only that member sees the proposal and decides if it is theirs.')}</p>
-        </div>
+      {contact.proposed_user_id && (
+        <Button type='button' variant='ghost' size='sm' className='text-destructive self-start' disabled={busy} onClick={() => act('propose/clear')}>{t('Clear proposal')}</Button>
       )}
+      <p className='m-0 text-muted-foreground'>{t('Only that member sees the proposal and decides if it is theirs.')}</p>
     </div>
   )
 }
@@ -277,15 +359,12 @@ function emptyContact () {
   return { kind: 'partner', status: 'new', consent: false }
 }
 
-function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onClaimChanged }) {
+export function ContactForm ({ contact, meta, labels, onSaved, onCancel }) {
   const { t } = useTranslation()
   const [values, setValues] = useState(() => ({ ...emptyContact(), ...(contact || {}) }))
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [note, setNote] = useState('')
-  const [noteError, setNoteError] = useState(null)
   const isNew = !contact || !contact.id
   const showProfile = values.kind === 'team' || PROFILE_FIELDS.some(f => values[f])
 
@@ -293,7 +372,6 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onC
     setValues({ ...emptyContact(), ...(contact || {}) })
     setError(null)
     setSaved(false)
-    setConfirmDelete(false)
   }, [contact])
 
   const set = (name) => (value) => { setSaved(false); setValues(v => ({ ...v, [name]: value })) }
@@ -314,42 +392,6 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onC
     } finally {
       setBusy(false)
     }
-  }
-
-  const addNote = async () => {
-    setNoteError(null)
-    try {
-      await contactsApi(`/${contact.id}/notes`, { body: note })
-      setNote('')
-      onSaved(contact.id)
-    } catch (e) {
-      setNoteError(e.message)
-    }
-  }
-
-  const remove = async () => {
-    try {
-      await contactsApi(`/${contact.id}/delete`, {})
-      onDeleted()
-    } catch (e) {
-      setError(e.message)
-    }
-  }
-
-  const changeText = (h) => {
-    const fields = Array.isArray(h.fields) ? h.fields.map(f => labels.fields[f] || f).join(', ') : ''
-    const who = h.user_name || t('Someone')
-    if (h.action === 'created') return t('{{who}} added this contact', { who })
-    if (h.action === 'updated') return t('{{who}} changed {{fields}}', { who, fields })
-    if (h.action === 'note') return t('{{who}} added a note', { who })
-    if (h.action === 'claim_link') return t('{{who}} made a claim link', { who })
-    if (h.action === 'claim_link_withdrawn') return t('{{who}} withdrew the claim link', { who })
-    if (h.action === 'claimed') return t('{{who}} claimed this profile', { who })
-    if (h.action === 'claimed_by_proposal') return t('{{who}} claimed this profile (it was proposed to them)', { who })
-    if (h.action === 'proposed') return t('{{who}} proposed this profile to a member', { who })
-    if (h.action === 'proposal_cleared') return t('{{who}} took back the proposal', { who })
-    if (h.action === 'proposal_declined') return t('{{who}} said this profile is not theirs', { who })
-    return `${who}: ${h.action}`
   }
 
   return (
@@ -438,70 +480,205 @@ function ContactForm ({ contact, meta, labels, onSaved, onDeleted, onCancel, onC
         <Button type='button' variant='outline' onClick={onCancel}>{t('Cancel')}</Button>
         {error && <span role='alert' className='text-sm text-destructive'>{error}</span>}
         {saved && !error && <span className='text-sm text-muted-foreground'>{t('Saved.')}</span>}
-        {!isNew && !confirmDelete && (
-          <Button type='button' variant='ghost' className='ml-auto text-destructive' onClick={() => setConfirmDelete(true)}>
-            <Trash2 /> {t('Delete this contact')}
-          </Button>
+      </div>
+    </form>
+  )
+}
+
+function changeText (h, t, labels) {
+  const fields = Array.isArray(h.fields) ? h.fields.map(f => labels.fields[f] || f).join(', ') : ''
+  const who = h.user_name || t('Someone')
+  if (h.action === 'created') return t('{{who}} added this contact', { who })
+  if (h.action === 'updated') return t('{{who}} changed {{fields}}', { who, fields })
+  if (h.action === 'note') return t('{{who}} added a note', { who })
+  if (h.action === 'claim_link') return t('{{who}} made a claim link', { who })
+  if (h.action === 'claim_link_withdrawn') return t('{{who}} withdrew the claim link', { who })
+  if (h.action === 'claimed') return t('{{who}} claimed this profile', { who })
+  if (h.action === 'claimed_by_proposal') return t('{{who}} claimed this profile (it was proposed to them)', { who })
+  if (h.action === 'proposed') return t('{{who}} proposed this profile to a member', { who })
+  if (h.action === 'proposal_cleared') return t('{{who}} took back the proposal', { who })
+  if (h.action === 'proposal_declined') return t('{{who}} said this profile is not theirs', { who })
+  return `${who}: ${h.action}`
+}
+
+/** Notes and change-log entries (claim events included) as one list, newest first. */
+export function buildTimeline (contact, t, labels) {
+  const items = []
+  for (const n of contact.notes || []) items.push({ type: 'note', key: 'n' + n.id, at: n.created_at, who: n.author_name || t('Someone'), body: n.body })
+  // a 'note' change only repeats the note itself
+  ;(contact.changes || []).forEach((h, i) => {
+    if (h.action === 'note') return
+    items.push({ type: 'event', key: 'c' + i, at: h.created_at, text: changeText(h, t, labels) })
+  })
+  return items.sort((a, b) => String(b.at).localeCompare(String(a.at)))
+}
+
+function Detail ({ label, children }) {
+  if (!children) return null
+  return (
+    <div className='flex flex-col gap-0.5'>
+      <dt className='text-xs text-muted-foreground'>{label}</dt>
+      <dd className='m-0 text-foreground break-words whitespace-pre-wrap'>{children}</dd>
+    </div>
+  )
+}
+
+function ContactPanel ({ contact, meta, labels, flash, onEdit, onClose, onChanged, onDeleted }) {
+  const { t } = useTranslation()
+  const [popover, setPopover] = useState(null) // 'claim' | 'propose' | 'menu'
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [note, setNote] = useState('')
+  const [noteError, setNoteError] = useState(null)
+  const isTeam = contact.kind === 'team'
+  const skills = (contact.skills || '').split(',').map(s => s.trim()).filter(Boolean)
+  const timeline = useMemo(() => buildTimeline(contact, t, labels), [contact, t, labels])
+  const state = claimState(contact)
+  const toggle = name => setPopover(p => p === name ? null : name)
+
+  useEffect(() => { setPopover(null); setConfirmDelete(false); setNote(''); setNoteError(null) }, [contact.id])
+
+  const addNote = async () => {
+    setNoteError(null)
+    try {
+      await contactsApi(`/${contact.id}/notes`, { body: note })
+      setNote('')
+      onChanged()
+    } catch (e) {
+      setNoteError(e.message)
+    }
+  }
+
+  const remove = async () => {
+    try {
+      await contactsApi(`/${contact.id}/delete`, {})
+      onDeleted()
+    } catch (e) {
+      setDeleteError(e.message)
+    }
+  }
+
+  return (
+    <div className='flex flex-col gap-4'>
+      <div className='flex items-start gap-3'>
+        {contact.photo_url
+          ? (
+            <a href={contact.photo_url} target='_blank' rel='noreferrer' className='shrink-0' title={t('Open the photo')}>
+              <img src={contact.photo_url} alt={t('Photo of {{name}}', { name: contact.name })} className='w-14 h-14 rounded-full object-cover border border-border' />
+            </a>)
+          : <Avatar contact={contact} size='lg' />}
+        <div className='min-w-0 mr-auto'>
+          <h2 className='text-xl font-bold text-foreground break-words m-0'>{contact.name}</h2>
+          {contact.organisation && <p className='m-0 text-sm text-muted-foreground break-words'>{contact.organisation}</p>}
+          <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
+            <Pill>{labels.kinds[contact.kind] || contact.kind}</Pill>
+            <Pill>{labels.statuses[contact.status] || contact.status}</Pill>
+            {state && <Pill tone={state === 'claimed' ? 'accent' : undefined}>{state === 'claimed' ? t('Claimed') : state === 'proposed' ? t('Proposed') : t('Unclaimed')}</Pill>}
+            {contact.country && <span className='text-xs text-muted-foreground'>{contact.country}</span>}
+          </div>
+        </div>
+        <Button type='button' variant='ghost' size='icon' onClick={onClose} aria-label={t('Close')}><X /></Button>
+      </div>
+
+      <div className='relative flex flex-wrap items-center gap-2'>
+        <Button type='button' variant='outline' size='sm' onClick={onEdit}><Pencil /> {t('Edit')}</Button>
+        {isTeam && (
+          <Button type='button' variant='outline' size='sm' aria-expanded={popover === 'claim'} onClick={() => toggle('claim')}>{t('Claim link')}</Button>
+        )}
+        {isTeam && meta.canMakeClaimLinks && !contact.claimed_user_id && (
+          <Button type='button' variant='outline' size='sm' aria-expanded={popover === 'propose'} onClick={() => toggle('propose')}>{t('Propose')}</Button>
+        )}
+        <Button type='button' variant='ghost' size='icon' aria-label={t('More actions')} aria-expanded={popover === 'menu'} onClick={() => toggle('menu')}><MoreHorizontal /></Button>
+        {popover === 'claim' && (
+          <div className='absolute left-0 top-full mt-1 z-20 w-full max-w-[420px] rounded-md border border-border bg-card p-3 shadow-lg'>
+            <ClaimBox contact={contact} canMakeClaimLinks={!!meta.canMakeClaimLinks} onChanged={onChanged} />
+          </div>
+        )}
+        {popover === 'propose' && (
+          <div className='absolute left-0 top-full mt-1 z-20 w-full max-w-[420px] rounded-md border border-border bg-card p-3 shadow-lg'>
+            <ProposeBox contact={contact} onChanged={() => { setPopover(null); onChanged() }} />
+          </div>
+        )}
+        {popover === 'menu' && (
+          <div className='absolute right-0 top-full mt-1 z-20 rounded-md border border-border bg-card p-1 shadow-lg'>
+            <Button type='button' variant='ghost' size='sm' className='text-destructive' onClick={() => { setPopover(null); setConfirmDelete(true) }}>
+              <Trash2 /> {t('Delete this contact')}
+            </Button>
+          </div>
         )}
       </div>
+      {flash && <p className='m-0 text-sm text-muted-foreground' role='status'>{flash}</p>}
       {confirmDelete && (
         <div className='flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-foreground'>
           <span>{t('This removes the contact and all notes for good. Sure?')}</span>
           <Button type='button' variant='destructive' size='sm' onClick={remove}>{t('Yes, delete')}</Button>
           <Button type='button' variant='outline' size='sm' onClick={() => setConfirmDelete(false)}>{t('Keep')}</Button>
+          {deleteError && <span role='alert' className='text-destructive'>{deleteError}</span>}
         </div>
       )}
 
-      {!isNew && contact.kind === 'team' && (
-        <section className='flex flex-col gap-2 border-t border-border pt-4'>
-          <h3 className='font-semibold text-foreground'>{t('Claim link')}</h3>
-          <ClaimBox contact={contact} canMakeClaimLinks={!!meta.canMakeClaimLinks} onChanged={onClaimChanged} />
-          {meta.canMakeClaimLinks && !contact.claimed_user_id && (
-            <>
-              <h3 className='font-semibold text-foreground mt-2'>{t('Propose to a member')}</h3>
-              <ProposeBox contact={contact} onChanged={onClaimChanged} />
-            </>
+      <section className='flex flex-col gap-3 border-t border-border pt-4'>
+        <h3 className='font-semibold text-foreground m-0'>{t('Details')}</h3>
+        <dl className='m-0 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm'>
+          <Detail label={t('What they do and can do')}>{contact.offers}</Detail>
+          <Detail label={t('Why they are here')}>{contact.why_here}</Detail>
+          {skills.length > 0 && (
+            <div className='sm:col-span-2 flex flex-col gap-1'>
+              <dt className='text-xs text-muted-foreground'>{t('Skills')}</dt>
+              <dd className='m-0 flex flex-wrap gap-1.5' data-testid='skills'>{skills.map(s => <Pill key={s}>{s}</Pill>)}</dd>
+            </div>
           )}
-        </section>
-      )}
+          <Detail label={t('Circle')}>{contact.circle_name}</Detail>
+          <Detail label={t('Owner of the next step')}>{contact.follow_up_owner_name}</Detail>
+          <Detail label={t('Next step')}>{[contact.follow_up_what, contact.follow_up_on && formatDay(contact.follow_up_on)].filter(Boolean).join(' · ')}</Detail>
+          <Detail label={t('Email')}>{contact.email && <a href={`mailto:${contact.email}`} className='underline'>{contact.email}</a>}</Detail>
+          <Detail label={t('Phone')}>{contact.phone}</Detail>
+          <Detail label={t('Website')}>{contact.website}</Detail>
+          <Detail label={t('Where the details came from')}>{contact.source}</Detail>
+        </dl>
+        {state === 'claimed' && <ClaimBox contact={contact} canMakeClaimLinks={false} onChanged={onChanged} />}
+      </section>
 
-      {!isNew && (
-        <section className='flex flex-col gap-2 border-t border-border pt-4'>
-          <h3 className='font-semibold text-foreground'>{t('Notes')}</h3>
-          <textarea
-            className={cn(fieldClasses, 'min-h-[80px] h-auto')}
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            maxLength={5000}
-            placeholder={t('What was said or done')}
-            aria-label={t('New note')}
-          />
-          <div className='flex items-center gap-2'>
-            <Button type='button' variant='outline' size='sm' onClick={addNote} disabled={!note.trim()}>{t('Add note')}</Button>
-            {noteError && <span role='alert' className='text-sm text-destructive'>{noteError}</span>}
-          </div>
-          {contact.notes && contact.notes.length
-            ? contact.notes.map(n => (
-              <div key={n.id} className='border-t border-border pt-2 first:border-t-0'>
-                <p className='whitespace-pre-wrap break-words text-foreground'>{n.body}</p>
-                <p className='text-xs text-muted-foreground'>{(n.author_name || t('Someone')) + ', ' + formatMoment(n.created_at)}</p>
-              </div>
-            ))
-            : <p className='text-sm text-muted-foreground'>{t('No notes yet.')}</p>}
-        </section>
-      )}
-
-      {!isNew && contact.changes && contact.changes.length > 0 && (
-        <section className='flex flex-col gap-1 border-t border-border pt-4'>
-          <h3 className='font-semibold text-foreground'>{t('Changes')}</h3>
-          {contact.changes.map((h, i) => (
-            <p key={i} className='text-xs text-muted-foreground'>{changeText(h) + ', ' + formatMoment(h.created_at)}</p>
+      <section className='flex flex-col gap-3 border-t border-border pt-4'>
+        <h3 className='font-semibold text-foreground m-0'>{t('Activity')}</h3>
+        <textarea
+          className={cn(fieldClasses, 'min-h-[72px] h-auto')}
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          maxLength={5000}
+          placeholder={t('Write a note…')}
+          aria-label={t('New note')}
+        />
+        <div className='flex items-center gap-2'>
+          <Button type='button' size='sm' onClick={addNote} disabled={!note.trim()}>{t('Add')}</Button>
+          {noteError && <span role='alert' className='text-sm text-destructive'>{noteError}</span>}
+        </div>
+        {timeline.length === 0 && <p className='m-0 text-sm text-muted-foreground'>{t('No notes yet.')}</p>}
+        <ol className='m-0 p-0 list-none flex flex-col gap-3'>
+          {timeline.map(item => (
+            <li key={item.key} className='border-l-2 border-border pl-3'>
+              {item.type === 'note'
+                ? (
+                  <>
+                    <p className='m-0 whitespace-pre-wrap break-words text-foreground'>{item.body}</p>
+                    <p className='m-0 text-xs text-muted-foreground'>{item.who + ', ' + formatMoment(item.at)}</p>
+                  </>)
+                : <p className='m-0 text-xs text-muted-foreground'>{item.text + ', ' + formatMoment(item.at)}</p>}
+            </li>
           ))}
-        </section>
-      )}
-    </form>
+        </ol>
+      </section>
+    </div>
   )
 }
+
+
+const VIEWS = [
+  { key: 'all', label: 'All' },
+  { key: 'mine', label: 'My follow-ups' },
+  { key: 'council', label: 'Activist council' },
+  { key: 'unclaimed', label: 'Unclaimed' }
+]
 
 export default function ContactsPage () {
   const { t } = useTranslation()
@@ -509,12 +686,16 @@ export default function ContactsPage () {
   const navigate = useNavigate()
   const { contactId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const mine = searchParams.get('mine') === '1'
+  const view = searchParams.get('mine') === '1' ? 'mine' : (VIEWS.find(v => v.key === searchParams.get('view')) || VIEWS[0]).key
+  const mine = view === 'mine'
   const [meta, setMeta] = useState(null)
   const [contacts, setContacts] = useState(null)
   const [listError, setListError] = useState(null)
   const [pageError, setPageError] = useState(null)
   const [contact, setContact] = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [flash, setFlash] = useState(null)
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
   const [filters, setFilters] = useState({ q: '', kind: '', status: '', circle: '' })
   const [dueCount, setDueCount] = useState(0)
   const searchTimer = useRef(null)
@@ -539,6 +720,7 @@ export default function ContactsPage () {
       if (filters.kind) params.set('kind', filters.kind)
       if (filters.status) params.set('status', filters.status)
       if (filters.circle) params.set('circle', filters.circle)
+      if (view === 'council' || view === 'unclaimed') params.set('kind', 'team')
     }
     try {
       setListError(null)
@@ -546,7 +728,7 @@ export default function ContactsPage () {
     } catch (e) {
       setListError(e.message)
     }
-  }, [mine, filters])
+  }, [mine, view, filters])
 
   useEffect(() => { if (meta) loadList() }, [meta, loadList])
 
@@ -559,17 +741,25 @@ export default function ContactsPage () {
     }
   }, [])
 
-  useEffect(() => { loadContact(contactId) }, [contactId, loadContact])
+  // Opening another contact always starts in read mode
+  useEffect(() => { setEditing(false); setFlash(null); loadContact(contactId) }, [contactId, loadContact])
 
   const refreshDue = () => contactsApi('/due').then(d => setDueCount(d.count)).catch(() => {})
 
   const keepSearch = (path) => navigate({ pathname: path, search: searchParams.toString() ? '?' + searchParams.toString() : '' })
 
   const onSaved = async (id) => {
+    setEditing(false)
+    setFlash(t('Saved.'))
     if (String(id) !== String(contactId)) keepSearch(`/contacts/${id}`)
     else await loadContact(id)
     loadList()
     refreshDue()
+  }
+
+  const onChanged = async () => {
+    await loadContact(contactId)
+    loadList()
   }
 
   const onDeleted = () => {
@@ -578,18 +768,28 @@ export default function ContactsPage () {
     refreshDue()
   }
 
-  const setTab = (showMine) => {
+  const setView = (key) => {
     const next = new URLSearchParams(searchParams)
-    if (showMine) next.set('mine', '1')
-    else next.delete('mine')
+    next.delete('mine')
+    if (key === 'all') next.delete('view')
+    else next.set('view', key)
     setSearchParams(next)
   }
+
+  const onSort = (key) => setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
 
   const onSearch = (value) => {
     setQuery(value)
     clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(() => setFilters(f => ({ ...f, q: value })), 250)
   }
+
+  const canSeeProposed = !!(meta && meta.canMakeClaimLinks)
+  const shown = useMemo(() => {
+    if (!contacts) return null
+    const rows = view === 'unclaimed' ? contacts.filter(c => c.kind === 'team' && !c.claimed_user_id) : contacts
+    return sortContacts(rows, sort, labels, t, canSeeProposed)
+  }, [contacts, view, sort, labels, t, canSeeProposed])
 
   if (pageError) {
     return (
@@ -603,23 +803,26 @@ export default function ContactsPage () {
   }
   if (!meta) return <Loading />
 
-  const editing = contactId === 'new' || (contact && !contact.missing && String(contact.id) === String(contactId))
+  const isNew = contactId === 'new'
+  const loaded = contact && !contact.missing && String(contact.id) === String(contactId)
+  const panelOpen = !!contactId
 
   return (
-    <div className='p-4 w-full max-w-[1200px] mx-auto flex flex-col gap-4'>
+    <div className='p-4 w-full max-w-[1400px] mx-auto flex flex-col gap-4'>
       <Helmet>
-        <title>{(editing && contact && contact.name ? contact.name + ' | ' : '') + t('Contacts')} | Agora</title>
+        <title>{(loaded && contact.name ? contact.name + ' | ' : '') + t('Contacts')} | Agora</title>
       </Helmet>
       <div className='rounded-md border border-accent/40 bg-accent/10 px-3 py-2.5 text-sm text-foreground'>
         {t('Everyone in Agora can see this list. It holds the people 7BP works with: team members as well as people outside Agora. Note only what 7BP needs to work together, say where the details came from, and delete anyone who asks to be removed. Every change is logged with who made it.')}
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
-        <Button variant={mine ? 'outline' : 'selectedOutline'} size='sm' onClick={() => setTab(false)} aria-pressed={!mine}>{t('All contacts')}</Button>
-        <Button variant={mine ? 'selectedOutline' : 'outline'} size='sm' onClick={() => setTab(true)} aria-pressed={mine}>
-          {t('My follow-ups')}
-          {dueCount > 0 && <span className='ml-1 rounded-full bg-destructive px-1.5 text-xs text-destructive-foreground'>{dueCount}</span>}
-        </Button>
+        {VIEWS.map(v => (
+          <Button key={v.key} variant={view === v.key ? 'selectedOutline' : 'outline'} size='sm' onClick={() => setView(v.key)} aria-pressed={view === v.key}>
+            {t(v.label === 'All' ? 'All contacts' : v.label)}
+            {v.key === 'mine' && dueCount > 0 && <span className='ml-1 rounded-full bg-destructive px-1.5 text-xs text-destructive-foreground'>{dueCount}</span>}
+          </Button>
+        ))}
         <Button size='sm' className='ml-auto' onClick={() => keepSearch('/contacts/new')}><Plus /> {t('New contact')}</Button>
       </div>
 
@@ -642,34 +845,42 @@ export default function ContactsPage () {
         </div>
       )}
 
-      <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4 items-start'>
-        <div className={cn('bg-card border border-border rounded-lg overflow-hidden', { 'max-lg:hidden': contactId })}>
+      <div className={cn('grid grid-cols-1 gap-4 items-start', { 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]': panelOpen })}>
+        <div className={cn('bg-card border border-border rounded-lg overflow-x-auto', { 'max-lg:hidden': panelOpen })}>
           {listError && <p role='alert' className='p-4 text-sm text-destructive'>{listError}</p>}
-          {!listError && !contacts && <Loading />}
-          {contacts && contacts.length === 0 && (
+          {!listError && !shown && <Loading />}
+          {shown && shown.length === 0 && (
             <p className='p-4 text-muted-foreground'>{mine ? t('You have no follow-ups.') : t('No contacts found.')}</p>
           )}
-          {contacts && contacts.map(c => (
-            <ContactRow key={c.id} contact={c} labels={labels} selected={String(c.id) === String(contactId)} onOpen={() => keepSearch(`/contacts/${c.id}`)} />
-          ))}
-        </div>
-
-        <div className={cn('bg-card border border-border rounded-lg p-4', { 'max-lg:hidden': !contactId })}>
-          {!contactId && <p className='text-muted-foreground'>{t('Choose a contact, or add a new one.')}</p>}
-          {contactId && contact && contact.missing && <p role='alert' className='text-destructive'>{contact.message}</p>}
-          {contactId && !editing && !(contact && contact.missing) && <Loading />}
-          {editing && (
-            <ContactForm
-              contact={contactId === 'new' ? null : contact}
-              meta={meta}
-              labels={labels}
-              onSaved={onSaved}
-              onDeleted={onDeleted}
-              onCancel={() => keepSearch('/contacts')}
-              onClaimChanged={() => loadContact(contactId)}
-            />
+          {shown && shown.length > 0 && (
+            <ContactsTable contacts={shown} labels={labels} sort={sort} onSort={onSort} selectedId={contactId} canSeeProposed={canSeeProposed} onOpen={id => keepSearch(`/contacts/${id}`)} />
           )}
         </div>
+
+        {panelOpen && (
+          <aside className='bg-card border border-border rounded-lg p-4' aria-label={t('Contact')}>
+            {contact && contact.missing && <p role='alert' className='text-destructive'>{contact.message}</p>}
+            {!isNew && !loaded && !(contact && contact.missing) && <Loading />}
+            {isNew && (
+              <ContactForm contact={null} meta={meta} labels={labels} onSaved={onSaved} onCancel={() => keepSearch('/contacts')} />
+            )}
+            {!isNew && loaded && editing && (
+              <ContactForm contact={contact} meta={meta} labels={labels} onSaved={onSaved} onCancel={() => setEditing(false)} />
+            )}
+            {!isNew && loaded && !editing && (
+              <ContactPanel
+                contact={contact}
+                meta={meta}
+                labels={labels}
+                flash={flash}
+                onEdit={() => { setFlash(null); setEditing(true) }}
+                onClose={() => keepSearch('/contacts')}
+                onChanged={onChanged}
+                onDeleted={onDeleted}
+              />
+            )}
+          </aside>
+        )}
       </div>
     </div>
   )

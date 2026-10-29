@@ -3338,5 +3338,22 @@
   "Propose to a member": "Proposer à un membre",
   "Clear proposal": "Retirer la proposition",
   "Same first name": "Même prénom",
-  "Only that member sees the proposal and decides if it is theirs.": "Seul ce membre voit la proposition et décide si c'est le sien."
+  "Only that member sees the proposal and decides if it is theirs.": "Seul ce membre voit la proposition et décide si c'est le sien.",
+  "Activist council": "Conseil des activistes",
+  "Unclaimed": "Non réclamé",
+  "Proposed": "Proposé",
+  "Last contact": "Dernier contact",
+  "Follow-up": "Suivi",
+  "Propose": "Proposer",
+  "Details": "Détails",
+  "Write a note…": "Écris une note…",
+  "Circle": "Cercle",
+  "Contact": "Contact",
+  "Owner of the next step": "Qui fait la prochaine étape",
+  "No members found.": "Aucun membre trouvé.",
+  "Sort by {{column}}": "Trier par {{column}}",
+  "Suggested (same first name)": "Suggestions (même prénom)",
+  "Kind": "Type",
+  "Next step": "Prochaine étape",
+  "Phone": "Téléphone"
 }

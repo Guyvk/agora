@@ -133,14 +133,15 @@ function baseQuery () {
     .leftJoin('users as o', 'o.id', 'c.follow_up_owner_id')
     .leftJoin('users as cu', 'cu.id', 'c.claimed_user_id')
     .leftJoin('users as pu', 'pu.id', 'c.proposed_user_id')
-    .select('c.*', 'g.name as circle_name', 'o.name as follow_up_owner_name', 'cu.name as claimed_user_name', 'pu.name as proposed_user_name')
+    .select('c.*', knex().raw('(select max(n.created_at) from agora_contact_notes n where n.contact_id = c.id) as last_contact_at'), 'g.name as circle_name', 'o.name as follow_up_owner_name', 'cu.name as claimed_user_name', 'pu.name as proposed_user_name')
 }
 
 function present (row) {
   if (!row) return null
   const out = {}
-  for (const f of ['id', ...FIELDS, ...SHOWN_ONLY, 'circle_name', 'follow_up_owner_name', 'claimed_user_name', 'proposed_user_id', 'proposed_at', 'proposed_user_name', 'created_at', 'updated_at']) out[f] = row[f]
+  for (const f of ['id', ...FIELDS, ...SHOWN_ONLY, 'circle_name', 'follow_up_owner_name', 'claimed_user_name', 'proposed_user_id', 'proposed_at', 'proposed_user_name', 'created_at', 'updated_at', 'last_contact_at']) out[f] = row[f]
   out.id = String(row.id)
+  if (out.last_contact_at === undefined) out.last_contact_at = null
   if (out.claimed_user_id) out.claimed_user_id = String(out.claimed_user_id)
   if (out.proposed_user_id) out.proposed_user_id = String(out.proposed_user_id)
   // Whether a claim link is out; the link itself cannot be shown again
