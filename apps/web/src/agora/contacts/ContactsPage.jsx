@@ -8,7 +8,7 @@
  *   /contacts/<id>        one contact
  *   /contacts?view=mine   my follow-ups (also view=council and view=unclaimed)
  *
- * One contact opens in a side panel next to the table: read mode first, Edit shows the form.
+ * One contact opens in a side panel on the right of the table (rows carry no photos): read mode first, Edit shows the form.
  *
  * A team member's contact can hold a short profile (from their sheet at the
  * activist council) and a claim link, so the person can make it their own
@@ -180,8 +180,7 @@ function ContactsTable ({ contacts, labels, sort, onSort, selectedId, onOpen, ca
               className={cn('border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-selected/40', { 'bg-selected/60': selected })}
             >
               <td className='px-3 py-2'>
-                <button type='button' className='flex items-center gap-2.5 text-left w-full' onClick={e => { e.stopPropagation(); onOpen(c.id) }}>
-                  <Avatar contact={c} />
+                <button type='button' className='flex items-center text-left w-full' onClick={e => { e.stopPropagation(); onOpen(c.id) }}>
                   <span className='min-w-0'>
                     <span className='block font-semibold text-foreground break-words'>{c.name}</span>
                     {c.organisation && <span className='block text-xs text-muted-foreground break-words'>{c.organisation}</span>}
@@ -845,7 +844,7 @@ export default function ContactsPage () {
         </div>
       )}
 
-      <div className={cn('grid grid-cols-1 gap-4 items-start', { 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]': panelOpen })}>
+      <div className={cn('grid grid-cols-1 gap-4 items-start', { 'lg:grid-cols-[minmax(0,1fr)_440px]': panelOpen })}>
         <div className={cn('bg-card border border-border rounded-lg overflow-x-auto', { 'max-lg:hidden': panelOpen })}>
           {listError && <p role='alert' className='p-4 text-sm text-destructive'>{listError}</p>}
           {!listError && !shown && <Loading />}
@@ -858,7 +857,7 @@ export default function ContactsPage () {
         </div>
 
         {panelOpen && (
-          <aside className='bg-card border border-border rounded-lg p-4' aria-label={t('Contact')}>
+          <aside className='bg-card border border-border rounded-lg p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto' aria-label={t('Contact')}>
             {contact && contact.missing && <p role='alert' className='text-destructive'>{contact.message}</p>}
             {!isNew && !loaded && !(contact && contact.missing) && <Loading />}
             {isNew && (
