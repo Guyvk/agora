@@ -31,11 +31,13 @@ module.exports.session = {
   },
 
   // Agora: Sails skips the session for any path that looks like a file (".jpg"),
-  // but uploads at /noo/uploads are only for people who are logged in, so they
-  // need the session. Everything else keeps the Sails default.
+  // but uploads at /noo/uploads and the library's files are only for people who
+  // are logged in, so they need the session. Everything else keeps the Sails default.
   isSessionDisabled: function (req) {
     const path = req.path || ''
     if (path.startsWith('/noo/uploads/')) return false
+    // The circle library's files end in the file's own name ("/noo/agora/library/file/12/plan.pdf"), for members only.
+    if (path.startsWith('/noo/agora/library/file/')) return false
     return !!path.match(req._sails.LOOKS_LIKE_ASSET_RX)
   },
 

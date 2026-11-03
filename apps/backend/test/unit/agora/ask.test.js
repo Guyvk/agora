@@ -220,23 +220,30 @@ describe('Agora Ask', () => {
     })
 
     it('skips file texts while their table does not exist, and reads them once it does', async () => {
+      // The library (lib/agora/fileTexts.js) makes agora_file_texts; put it aside to see the Ask tab without it.
+      const hadTable = await knex().schema.hasTable('agora_file_texts')
+      if (hadTable) await knex().raw('ALTER TABLE agora_file_texts RENAME TO agora_file_texts_aside')
       AskIndex.forgetVectorCheck()
       expect(await AskIndex.fileTextsAvailable()).to.equal(false)
-      await knex().schema.createTable('agora_file_texts', t => {
-        t.bigIncrements('id'); t.bigInteger('group_id'); t.bigInteger('post_id'); t.bigInteger('media_id')
-        t.string('kind'); t.text('title'); t.text('text'); t.string('language'); t.string('status'); t.text('error')
-        t.timestamps()
-      })
-      await knex()('agora_file_texts').insert([
+      if (hadTable) await knex().raw('ALTER TABLE agora_file_texts_aside RENAME TO agora_file_texts')
+      else {
+        await knex().schema.createTable('agora_file_texts', t => {
+          t.bigIncrements('id'); t.bigInteger('group_id'); t.bigInteger('post_id'); t.bigInteger('media_id')
+          t.string('kind'); t.text('title'); t.text('text'); t.string('language'); t.string('status'); t.text('error')
+          t.timestamps()
+        })
+      }
+      const ids = (await knex()('agora_file_texts').insert([
         { group_id: circleA.id, post_id: decisionPost, kind: 'document', title: 'River map.pdf', text: 'The map shows the quokka meadow.', status: 'done', created_at: new Date(), updated_at: new Date() },
         { group_id: circleA.id, post_id: decisionPost, kind: 'document', title: 'Draft.pdf', text: 'not ready', status: 'pending', created_at: new Date(), updated_at: new Date() }
-      ])
+      ]).returning('id')).map(r => r.id || r)
       AskIndex.forgetVectorCheck()
       await AskIndex.reindexAll({ groupId: circleA.id, embed: false })
       const files = await knex()('agora_knowledge_chunks').where('source_type', 'file')
       expect(files.map(f => f.title)).to.deep.equal(['River map.pdf'])
       expect(files[0].url).to.equal(`/groups/circle-a/post/${decisionPost}`)
-      await knex().schema.dropTable('agora_file_texts')
+      if (hadTable) await knex()('agora_file_texts').whereIn('id', ids).del()
+      else await knex().schema.dropTable('agora_file_texts')
       AskIndex.forgetVectorCheck()
       await knex()('agora_knowledge_chunks').where('source_type', 'file').del()
     })

@@ -45,6 +45,11 @@ export default async function createPost (userId, params) {
       if (post.get('type') === Post.Type.CHAT && !params.silent) {
         Queue.classMethod('Post', 'upsertChatActivityNotice', { postId: post.id }, 0)
       }
+      // Agora: the text of a resource's attachments is read for the circle library (lib/agora/library.js).
+      // Items made by the library itself queue this on their own (agoraLibrary).
+      if (post.get('type') === Post.Type.RESOURCE && !params.agoraLibrary) {
+        Queue.classMethod('AgoraLibrary', 'extractPost', { postId: post.id })
+      }
       // Agora: calendar invitations for all of 7BP, when asked. A queue problem never fails the post
       return Promise.resolve().then(() => agoraAfterCreate(post, params, userId))
         .catch(err => console.error(`Agora: could not queue the calendar invitations for post ${post.id}:`, err && err.message))

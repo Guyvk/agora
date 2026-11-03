@@ -20,6 +20,10 @@ describe('Agora: session for uploads', () => {
     expect(session.isSessionDisabled(req('/assets/app.js'))).to.equal(true)
   })
 
+  it('keeps the session for a library file, whose address ends in the file name', () => {
+    expect(session.isSessionDisabled(req('/noo/agora/library/file/12/plan.pdf'))).to.equal(false)
+  })
+
   it('keeps the session for the API', () => {
     expect(session.isSessionDisabled(req('/noo/graphql'))).to.equal(false)
   })

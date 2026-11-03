@@ -69,6 +69,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora library: for anyone logged in, and every action checks that the person is a member of the circle.
+  AgoraLibraryController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora: circle files in kDrive. Every action also checks that the person is
   // an active member of the circle.
   AgoraKdriveController: {

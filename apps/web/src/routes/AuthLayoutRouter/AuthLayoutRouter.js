@@ -85,6 +85,7 @@ import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
+import LibraryPage from '@/agora/library/LibraryPage' // Agora: the Resources tab is the circle library
 import AskPage from '@/agora/ask/AskPage' // Agora: the Ask tab of a circle
 import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
@@ -1140,7 +1141,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='stream/*' element={<RedirectStreamToAll basePath={`/groups/${currentGroupSlug}`} />} />
                             <Route path='discussions/*' element={<ViewContent context='groups' view='discussions' />} />
                             <Route path='events/*' element={<ViewContent context='groups' view='events' />} />
-                            <Route path='resources/*' element={<ViewContent context='groups' view='resources' />} />
+                            <Route path='resources/*' element={<LibraryPage />} /> {/* Agora: the circle library instead of Hylo's list of resources */}
                             <Route path='projects/*' element={<ViewContent context='groups' view='projects' />} />
                             <Route path='proposals/*' element={<ViewContent context='groups' view='proposals' />} />
                             <Route path='requests-and-offers/*' element={<ViewContent context='groups' view='requests-and-offers' />} />
