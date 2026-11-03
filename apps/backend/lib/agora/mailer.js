@@ -230,6 +230,20 @@ const TEMPLATES = {
     footer: `If you did not try to sign up for ${APP_NAME}, you can ignore this email.`
   }),
 
+  // Sent to the current address when someone asks to change the account email (Hylo's "verify a new email" change).
+  // It never holds the code or link: they go to the new address only.
+  tem_gfCWyJRpp6Q996d6ykVgJKCW: data => compose({
+    subject: `Your ${APP_NAME} email address is being changed`,
+    lines: [
+      data.masked_new_email
+        ? `Someone asked to change the email address of your ${APP_NAME} account to ${data.masked_new_email}.`
+        : `Someone asked to change the email address of your ${APP_NAME} account.`,
+      'Until the new address is confirmed with the code we sent to it, this address stays the one you log in with.'
+    ],
+    button: data.account_settings_url ? { label: 'Open my account settings', url: data.account_settings_url } : null,
+    footer: 'If this was not you, change your password now and ignore the code.'
+  }),
+
   // For accounts that were created on someone's behalf and still need to be finished
   tem_fqGSrDrSK6WpjTBFXSfY79k4: data => compose({
     subject: `Finish setting up your ${APP_NAME} account`,

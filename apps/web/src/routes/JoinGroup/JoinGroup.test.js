@@ -551,3 +551,48 @@ it('sets returnToPath and forwards to signup page when invitation is valid and u
     expect(screen.getByText('/groups/test-group/about?accessCode=anything')).toBeInTheDocument()
   })
 })
+
+// Agora: the group is one the user is not in (a member is sent straight into the circle), so the join is refused and they land on the about page
+it('sends a member invitation that needs approval to the group about page with its token', async () => {
+  mockGraphqlServer.use(
+    graphql.query('CheckInvitation', ({ variables }) => {
+      return HttpResponse.json({
+        data: {
+          checkInvitation: {
+            valid: variables.invitationToken === 'member-token',
+            groupId: '8',
+            groupSlug: 'other-group',
+            isSpace: false,
+            requiresApproval: true,
+            invitedBy: { id: '7', name: 'Ada Member', avatarUrl: null }
+          }
+        }
+      })
+    }),
+    // Agora: someone logged in is joined at once, so the server refusing (the invitation still needs approval) is what sends them to the about page
+    graphql.operation(({ query }) => {
+      if (!query.includes('joinGroup')) return undefined
+      return HttpResponse.json({ errors: [{ message: 'You do not have permission to do that' }], data: { joinGroup: null } })
+    })
+  )
+
+  jest.spyOn(require('react-router-dom'), 'useParams').mockReturnValue({})
+  jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue({ pathname: '/h/invitation', search: '?token=member-token' })
+
+  render(
+    <>
+      <Routes>
+        <Route path='/join-group' element={<JoinGroup />} />
+        <Route
+          path='/groups/other-group/about'
+          element={<div>/groups/other-group/about?token=member-token</div>}
+        />
+      </Routes>
+    </>,
+    { wrapper: currentUserProvider(true) }
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('/groups/other-group/about?token=member-token')).toBeInTheDocument()
+  })
+})

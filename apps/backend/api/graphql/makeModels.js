@@ -5,6 +5,7 @@ import pluralize from 'pluralize'
 import { TextHelpers } from '@hylo/shared'
 import { messageThreadSearchFilter } from './messageThreadSearch'
 import searchQuerySet from './searchQuerySet'
+import { getPendingEmail } from './mutations/emailChange'
 import {
   commentFilter,
   groupFilter,
@@ -26,7 +27,7 @@ import {
   filterAndSortPosts,
   filterAndSortUsers
 } from '../services/Search/util'
-const { createGroupRoleScope } = require('../../lib/scopes')
+const { createGroupRoleScope, createGroupScope } = require('../../lib/scopes')
 const {
   mergeAccessGrantsForPresentation,
   getBuyButtonTextFromOffering
@@ -34,6 +35,18 @@ const {
 
 /** Deprecated GraphQL compat: older mobile clients still query removed common-role fields */
 const emptyQuerySet = () => ({ total: 0, hasMore: false, items: [] })
+
+/**
+ * groups_posts repeats a post once per group. Collapse to one row so offset
+ * pages return new posts. Collection order and saved time live on joined
+ * tables, so they have to be grouped too or Postgres rejects the ORDER BY.
+ */
+function collapseGroupedPostRows (q, { order, sortBy } = {}) {
+  q.groupBy('posts.id')
+  if (sortBy === 'order') q.groupBy('collections_posts.order')
+  if (sortBy === 'saved') q.groupBy('posts_users.saved_at')
+  q.orderBy('posts.id', order === 'asc' ? 'asc' : 'desc')
+}
 
 /** Deprecated GraphQL compat: old clients queried hasModeratorRole on Membership */
 async function membershipHasModeratorRole (membership) {
@@ -166,7 +179,7 @@ export default function makeModels (userId, isAdmin, apiClient) {
   /**
    * Anonymous visitors only reach people through public content (post and comment creators, etc.).
    * They can see who wrote it (id, name, avatar, banner, tagline) but nothing else from the profile.
-   * Opted-in public profiles are the exception: bio, links, skills, and public group memberships stay visible.
+   * Opted-in public profiles are the exception: bio, links, skills, public group memberships, and public posts stay visible.
    * Contact info stays hidden either way.
    */
   const fieldsReturning = (value, fields) => Object.fromEntries(fields.map(f => [f, () => value]))
@@ -193,7 +206,7 @@ export default function makeModels (userId, isAdmin, apiClient) {
       const fetched = await p.moderatedGroupMemberships().fetch()
       const items = fetched.models || []
       return items.length
-    },
+    }
 
     // Relations: NOT overridden here — for public profiles the standard relation resolvers
     // handle them (the post filter already limits to public posts for anonymous viewers).
@@ -395,6 +408,7 @@ export default function makeModels (userId, isAdmin, apiClient) {
         membershipCommonRoles: emptyQuerySet,
         // Never expose null names to clients — they call .split() etc.
         name: p => p.get('name') || '',
+        pendingEmail: u => getPendingEmail(u),
         rsvpCalendarUrl: u => u.rsvpCalendarUrl(),
         settings: u => mapKeys(camelCase, u.get('settings'))
       }
@@ -435,6 +449,34 @@ export default function makeModels (userId, isAdmin, apiClient) {
       ],
       getters: {
         accepted: a => a.pivot && a.pivot.get('accepted')
+      }
+    },
+
+    GroupInviteLink: {
+      model: GroupInviteLink,
+      attributes: [
+        'access_code',
+        'created_at',
+        'grant_access',
+        'name',
+        'num_joined_users'
+      ],
+      relations: [
+        'creator'
+      ],
+      getters: {
+        url: link => link.get('grant_access')
+          ? Frontend.Route.inviteLinkPath(link.get('access_code'))
+          : Frontend.Route.viewLinkPath(link.get('access_code')),
+        grantedRoles: async link => {
+          const ids = link.grantedRoleIds()
+          if (ids.length === 0) return []
+          return GroupRole.query(q => {
+            q.whereIn('id', ids)
+            q.where({ active: true })
+            q.whereIn('type', [GroupRole.TYPE_SYSTEM, GroupRole.TYPE_CUSTOM])
+          }).fetchAll().then(roles => roles.models)
+        }
       }
     },
 
@@ -542,6 +584,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
           await p.load('locationObject')
           return p.relations.locationObject
         },
+        // Whether the viewer may start a DM with this person (same rule as the recipient search)
+        canMessage: p => userId ? User.canMessage(userId, p.id) : false,
         membershipCommonRoles: emptyQuerySet,
         messageThreadId: p => userId ? p.getMessageThreadWith(userId).then(post => post ? post.id : null) : null,
         // Never expose null names to clients — they call .split() etc.
@@ -607,8 +651,11 @@ export default function makeModels (userId, isAdmin, apiClient) {
               topic,
               topics,
               types
-            }) =>
-              relation.query(q => {
+            }) => {
+              // Anonymous viewers only get this list for an opted-in public profile.
+              // postFilter still limits those posts to ones marked public.
+              allowPublicProfileRelation(relation)
+              return relation.query(q => {
                 filterAndSortPosts({
                   activePostsOnly,
                   afterTime,
@@ -634,11 +681,9 @@ export default function makeModels (userId, isAdmin, apiClient) {
                   type: filter,
                   types
                 })(q)
-                // groups_posts is joined for visibility, which repeats a post once per group.
-                // Collapse to one row per post so offset pages return new posts.
-                q.groupBy('posts.id')
-                q.orderBy('posts.id', order === 'asc' ? 'asc' : 'desc')
+                collapseGroupedPostRows(q, { order, sortBy })
               })
+            }
           }
         },
         { projects: { querySet: true } },
@@ -664,7 +709,7 @@ export default function makeModels (userId, isAdmin, apiClient) {
       ],
       filter: nonAdminFilter(apiFilter(personFilter(userId))),
       isDefaultTypeForTable: true,
-      fetchMany: ({ boundingBox, first, order, sortBy, offset, search, autocomplete, groupIds, filter }) =>
+      fetchMany: ({ boundingBox, first, order, sortBy, offset, search, autocomplete, groupIds, filter, excludeGroupId, requireName }) =>
         searchQuerySet('users', {
           boundingBox,
           term: search,
@@ -674,7 +719,9 @@ export default function makeModels (userId, isAdmin, apiClient) {
           type: filter,
           autocomplete,
           groups: groupIds,
-          sort: sortBy
+          sort: sortBy,
+          excludeGroupId,
+          requireName
         })
     },
 
@@ -944,7 +991,12 @@ export default function makeModels (userId, isAdmin, apiClient) {
         { childGroups: { querySet: true } },
         { groupRelationshipInvitesFrom: { querySet: true } },
         { groupRelationshipInvitesTo: { querySet: true } },
-        { groupRoles: { querySet: true } },
+        {
+          groupRoles: {
+            querySet: true,
+            filter: relation => relation.query(q => q.whereNot('groups_roles.type', GroupRole.TYPE_ALL_MEMBERS))
+          }
+        },
         {
           groupTags: {
             querySet: true,
@@ -1163,24 +1215,27 @@ export default function makeModels (userId, isAdmin, apiClient) {
             querySet: true,
             arguments: () => [userId],
             filter: (relation, { activePostsOnly = false, afterTime, beforeTime, boundingBox, collectionToFilterOut, filter, forCollection, isFulfilled, order, rsvpResponse, search, sortBy, topic, topics, types }) =>
-              relation.query(filterAndSortPosts({
-                activePostsOnly,
-                afterTime,
-                beforeTime,
-                boundingBox,
-                collectionToFilterOut,
-                forCollection,
-                isFulfilled,
-                order,
-                rsvpResponse,
-                currentUserId: userId,
-                search,
-                sortBy,
-                topic,
-                topics,
-                type: filter,
-                types
-              }))
+              relation.query(q => {
+                filterAndSortPosts({
+                  activePostsOnly,
+                  afterTime,
+                  beforeTime,
+                  boundingBox,
+                  collectionToFilterOut,
+                  forCollection,
+                  isFulfilled,
+                  order,
+                  rsvpResponse,
+                  currentUserId: userId,
+                  search,
+                  sortBy,
+                  topic,
+                  topics,
+                  type: filter,
+                  types
+                })(q)
+                collapseGroupedPostRows(q, { order, sortBy })
+              })
           }
         },
         { groupExtensions: { querySet: true } },
@@ -1208,10 +1263,49 @@ export default function makeModels (userId, isAdmin, apiClient) {
         eventCalendarUrl: g => g.eventCalendarUrl(),
         // commonRoles: async g => g.commonRoles(),
         canAccess: g => g ? g.canAccess(userId) : false,
+        hasValidScope: g => userId && g ? UserScope.canAccess(userId, createGroupScope(g.id)) : false,
+        currentUserMembershipActive: async g => {
+          if (!userId || !g) return null
+          const membership = await GroupMembership.forPair(userId, g, { includeInactive: true }).fetch()
+          return membership ? !!membership.get('active') : null
+        },
         stripeDashboardUrl: g => g.stripeDashboardUrl(),
-        invitePath: g =>
-          userId && GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)
-            .then(canInvite => canInvite ? Frontend.Route.invitePath(g) : null),
+        invitePath: async g => {
+          if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)) {
+            return null
+          }
+          const links = await GroupInviteLink.forGroup(g.id)
+          const link = links.models.find(item => GroupInviteLink.grantsAccess(item, g)) || links.models[0]
+          if (link) {
+            return GroupInviteLink.grantsAccess(link, g)
+              ? Frontend.Route.inviteLinkPath(link.get('access_code'))
+              : Frontend.Route.viewLinkPath(link.get('access_code'))
+          }
+          return g.get('access_code') ? Frontend.Route.invitePath(g) : null
+        },
+        inviteLinks: async g => {
+          if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)) {
+            return []
+          }
+          const links = await GroupInviteLink.forGroup(g.id)
+          return links.models
+        },
+        invitePolicy: async g => {
+          if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADMINISTRATION)) {
+            return null
+          }
+          return GroupRole.getInvitePolicy(g.id)
+        },
+        myInviteAllowance: async g => {
+          if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)) {
+            return null
+          }
+          if (g.get('lift_admin_invite_limits') &&
+            await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADMINISTRATION)) {
+            return null
+          }
+          return InvitationSend.remainingAllowance({ userId, groupId: g.id })
+        },
         location: async (g) => {
           // If location obfuscation is on then non group stewards see a display string that only includes city, region & country
           const precision = g.getSetting('location_display_precision') || LOCATION_DISPLAY_PRECISION.Precise
@@ -1275,11 +1369,33 @@ export default function makeModels (userId, isAdmin, apiClient) {
           if (!userId) return 0
           return ModerationAction.where({ group_id: g.id, status: 'active' }).count().then(Number)
         },
-        pendingInvitations: async (g, { first }) => {
+        pendingInvitations: async (g, { first, offset, onlyMine }) => {
           if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)) {
-            return { total: 0, items: [] }
+            return { total: 0, hasMore: false, items: [] }
           }
-          return InvitationService.find({ groupId: g.id, pendingOnly: true })
+          return InvitationService.find({
+            groupId: g.id,
+            pendingOnly: true,
+            limit: first,
+            offset,
+            invitedById: onlyMine ? userId : null
+          })
+        },
+        publicListingRequest: async g => {
+          const request = g.getSetting('public_listing_request')
+          if (!userId || !request) return null
+          const canSee = await Admin.isSuperAdmin(userId) ||
+            await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADMINISTRATION)
+          if (!canSee) return null
+          return {
+            status: request.status,
+            message: request.message,
+            requestedAt: request.requested_at,
+            requestedBy: request.requested_by_id ? User.find(request.requested_by_id) : null,
+            reviewedAt: request.reviewed_at,
+            reviewedBy: request.reviewed_by_id ? User.find(request.reviewed_by_id) : null,
+            reviewMessage: request.review_message
+          }
         },
         responsibilities: async g => g.availableResponsibilities().fetch(),
         settings: g => mapKeys(camelCase, g.get('settings')),
@@ -1924,7 +2040,7 @@ export default function makeModels (userId, isAdmin, apiClient) {
         'updated_at'
       ],
       relations: [{ otherUser: { alias: 'person' } }],
-      fetchMany: ({ autocomplete, excludeGroupId } = {}) => UserConnection.query(q => {
+      fetchMany: ({ autocomplete, excludeGroupId, requireName } = {}) => UserConnection.query(q => {
         if (autocomplete) {
           const term = String(autocomplete).trim().replace(/[%_]/g, '')
           if (term) {
@@ -1942,6 +2058,14 @@ export default function makeModels (userId, isAdmin, apiClient) {
               .select('user_id')
               .where({ group_id: excludeGroupId, active: true })
           )
+        }
+        if (requireName) {
+          q.whereExists(function () {
+            this.select(bookshelf.knex.raw('1'))
+              .from('users')
+              .whereRaw('users.id = user_connections.other_user_id')
+              .whereRaw("users.name is not null and btrim(users.name) <> ''")
+          })
         }
       }),
       filter: relation => {
@@ -1976,9 +2100,11 @@ export default function makeModels (userId, isAdmin, apiClient) {
     PostUser: {
       model: PostUser,
       attributes: [
-        'completed_at',
-        'completion_response'
+        'completed_at'
       ],
+      getters: {
+        completionResponse: pu => pu.completionResponseForDisplay()
+      },
       relations: [
         'post',
         'user'

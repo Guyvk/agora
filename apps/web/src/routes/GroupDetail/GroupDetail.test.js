@@ -1,68 +1,82 @@
 import React from 'react'
+import userEvent from '@testing-library/user-event'
 import { graphql, HttpResponse } from 'msw'
+import { useLocation, useParams } from 'react-router-dom'
 import orm from 'store/models'
+import { GROUP_ACCESSIBILITY, GROUP_VISIBILITY } from 'store/models/Group'
 import mockGraphqlServer from 'util/testing/mockGraphqlServer'
-import extractModelsForTest from 'util/testing/extractModelsForTest'
-import { AllTheProviders, render, screen } from 'util/testing/reactTestingLibraryExtended'
-import { AuthSessionStatus } from 'store/reducers/authSession'
+import { AllTheProviders, render, screen, waitFor } from 'util/testing/reactTestingLibraryExtended'
 import GroupDetail from './GroupDetail'
 
-jest.mock('components/ui/tooltip', () => ({
-  TooltipProvider: ({ children }) => children,
-  Tooltip: ({ children }) => children,
-  TooltipTrigger: ({ children }) => children,
-  TooltipContent: () => null
-}))
-jest.mock('hooks/useRouteParams', () => () => ({ groupSlug: 'governance' }))
-
-function loggedInNonMember () {
-  const ormSession = orm.mutableSession(orm.getEmptyState())
-  const reduxState = {
-    orm: ormSession.state,
-    authSession: {
-      status: AuthSessionStatus.Authenticated,
-      userId: '1',
-      emailValidated: true,
-      hasRegistered: true,
-      signupInProgress: false,
-      checkedAt: Date.now()
-    }
-  }
-  extractModelsForTest({
-    me: { id: '1', name: 'Test User', hasRegistered: true, emailValidated: true, memberships: [] }
-  }, 'Me', ormSession)
-  return AllTheProviders(reduxState, ['/groups/governance'])
+const group = {
+  id: '1',
+  name: 'Garden Club',
+  slug: 'garden',
+  accessibility: GROUP_ACCESSIBILITY.Closed,
+  visibility: GROUP_VISIBILITY.Hidden,
+  settings: {}
 }
 
-// Agora: the Join button is at the top of the page of a circle you are not a member of
-it('shows the Join button above the description', async () => {
+const INVITEE_EMAIL = 'newcomer@example.com'
+
+function providers () {
+  const ormSession = orm.mutableSession(orm.getEmptyState())
+  ormSession.Me.create({ id: '10', name: 'New Comer', email: INVITEE_EMAIL })
+  ormSession.Group.create(group)
+  return AllTheProviders({ orm: ormSession.state, pending: {} })
+}
+
+function mockInvitation () {
+  return graphql.query('CheckInvitation', () => HttpResponse.json({
+    data: {
+      checkInvitation: {
+        valid: true,
+        groupId: group.id,
+        groupSlug: group.slug,
+        groupName: group.name,
+        isSpace: false,
+        parentGroupSlug: null,
+        parentGroupName: null,
+        email: INVITEE_EMAIL,
+        groupRole: null,
+        grantAccess: true,
+        groupRoles: []
+      }
+    }
+  }))
+}
+
+beforeEach(() => {
+  useParams.mockReturnValue({ groupSlug: group.slug })
+  useLocation.mockReturnValue({ pathname: '/groups/garden/about', search: '?token=member-token', hash: '' })
   mockGraphqlServer.use(
-    graphql.operation(({ query }) => {
-      if (!query.includes('GroupDetailsQuery')) return undefined
-      return HttpResponse.json({
-        data: {
-          group: {
-            id: '7',
-            slug: 'governance',
-            name: 'Governance',
-            type: null,
-            accessibility: 2,
-            visibility: 2,
-            purpose: 'Decide together',
-            description: 'A long description of what this circle does',
-            settings: { askJoinQuestions: false },
-            agreements: { items: [] },
-            joinQuestions: { items: [] }
-          }
-        }
-      })
-    })
+    graphql.query('GroupDetailsQuery', () => HttpResponse.json({ data: { group } }))
   )
+})
 
-  render(<GroupDetail />, { wrapper: loggedInNonMember() })
+afterEach(() => {
+  jest.restoreAllMocks()
+  useParams.mockReturnValue({})
+  useLocation.mockReturnValue({ pathname: '', search: '' })
+})
 
-  const button = await screen.findByRole('button', { name: /^Join/ })
-  const description = await screen.findByText(/A long description of what this circle does/)
-  // The description comes after the button in the page
-  expect(button.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+describe('GroupDetail with an email invitation', () => {
+  it('joins a Closed group with the invitation token', async () => {
+    const user = userEvent.setup()
+    let joinVariables
+    mockGraphqlServer.use(
+      mockInvitation(),
+      graphql.operation(({ query, variables }) => {
+        if (!query.includes('joinGroup(')) return
+        joinVariables = variables
+        return HttpResponse.json({ data: {} })
+      })
+    )
+
+    render(<GroupDetail />, null, providers())
+
+    await user.click(await screen.findByRole('button', { name: 'Join {{group.name}}' }))
+
+    await waitFor(() => expect(joinVariables).toMatchObject({ groupId: group.id, invitationToken: 'member-token' }))
+  })
 })

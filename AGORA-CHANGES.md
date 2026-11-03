@@ -9,7 +9,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | File | What changed |
 | --- | --- |
 | `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
-| `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set |
+| `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set (kept next to Hylo's rule that tests never send email) |
 | `apps/backend/api/models/post/createPost.js` | A new event always gets its meeting room as its video call link, whatever was sent, and a link to another video call platform is refused as its location. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice. `addFollowers` compares user ids as strings, so someone who already follows a post (passed as a number, e.g. from a script or an email reply) is no longer added twice, which made their comment fail halfway |
 | `apps/backend/test/unit/models/Post.test.js`, `apps/backend/test/unit/models/Group.test.js` | Tests for the two changes above; the calendar tests set a made-up bucket name |
@@ -38,7 +38,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostCard/PostTitle/PostTitle.test.js` | Checks that a link to another platform is not shown |
 | `apps/web/src/components/PostEditor/PostEditor.js` | No field for a video call link on an event, and a pasted Zoom or Meet link no longer fills one in. A video call link as the location is refused with a message. A one-line hint says every meeting gets its own video room |
 | `apps/web/src/routes/PostDetail/PostDetail.js` | "Join online" on an event only opens its own meeting room, never an older link to another platform; it opens in the same tab |
-| `apps/web/src/components/TextInput/TextInput.js`, `TextInput.test.js` | The X in a field cleared nothing in forms that pick the field by its name (sign-up password fields): it now sends the field's own name. This one is worth offering back to Hylo |
+| `apps/web/src/components/TextInput/TextInput.js`, `TextInput.test.js` | The X in a field cleared nothing in forms that pick the field by its name (sign-up password fields): it now sends the field's own name. Hylo made the same fix itself (3 Nov 2026 sync), so the file is Hylo's again except for the test |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/FinishRegistration/FinishRegistration.test.js` | Test that the X in a password field clears only that field |
 | `apps/web/src/components/PostEditor/PostEditor.test.js`, `apps/web/src/routes/PostDetail/PostDetail.test.js` | Tests for the video meeting hint and for the meeting room opening in the same tab |
 | `apps/web/src/agora/guide/guideParts.json`, `apps/web/src/agora/help/HelpWindow.test.js` | The guide names the meeting room link by its new name |
@@ -73,7 +73,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/api/controllers/UploadController.js` | A file over the 10 MB limit is refused, instead of being stored cut off |
 | `apps/backend/lib/uploader/validation.js` | An upload's id may only be letters, digits, `_` and `-`, because it becomes part of the file's path |
 | `apps/backend/lib/uploader/index.js` | Profile pictures and banners must really be pictures |
-| `apps/backend/test/unit/controllers/UploadController.test.js` | Its text file sent as a profile picture is now refused, and the test checks that |
+| `apps/backend/test/unit/controllers/UploadController.test.js` | Its text file sent as a profile picture is now refused, and the test checks that (Hylo's version of the test mocks S3; that part is kept) |
 | `apps/backend/lib/uploader/index.test.js` | The broken-upload test sends an attachment instead of a banner, since a banner must be a picture |
 | `apps/backend/package.json`, `yarn.lock` | `send` (the file sender Sails already uses, same version) is named as a building block of the server |
 | `apps/backend/lib/uploader/storage.test.js`, `apps/backend/test/unit/services/AssetManagement.test.js` | Set up a pretend S3 where they test S3, because without one files now go to disk. `storage.test.js` also puts the real storage module back afterwards, so later tests are not thrown off |
@@ -101,7 +101,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (help) | The Help button at the bottom right of every page, and the Help desk at `/help-desk` |
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (admin) | The admin area at `/admin`, with the Help desk as its tab at `/admin/help-desk`; the old `/help-desk` addresses lead there |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (admin) | An "Admin" line in the gear menu, for Agora admins and Help desk admins only |
-| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (7BP Home look) | The 7BP Home is first in the left bar with the 7BP mark, its active child circles right under it, the two together on one tinted panel, all tiles the normal size; other circles after. Pins and dragging order only the other circles. My Home shows a house on a dark tile when there is no profile picture |
+| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (7BP Home look) | The 7BP Home is first in the left bar with the 7BP mark, its active child circles right under it, the two together on one tinted panel, all tiles the normal size; other circles after. Pins and dragging order only the other circles (and pinned spaces, which Hylo added to the bar on 3 Nov 2026, are treated like other circles). My Home shows a house on a dark tile when there is no profile picture |
 | `apps/web/src/components/GroupMenuHeader/GroupMenuHeader.jsx` (7BP Home look) | A "7BP Home" pill, tint and strip on the main circle's header; a "Part of 7BP" link on its active child circles |
 | `apps/web/src/routes/GroupWelcomePage/GroupWelcomePage.jsx` (7BP Home look) | One line: the "Every circle in 7BP" cards (only in the main circle) |
 | `apps/backend/api/graphql/makeSchema.js` (7BP Home look) | Adds the `agoraMainCircle` query for logged-in people |
@@ -117,7 +117,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/backend/config/session.js` (uploads need the session) | Sails skips the session for paths that look like a file, so uploads at /noo/uploads keep it; without this every picture answered 401 also to logged-in people (`test/unit/agora/uploadsSession.test.js`) |
 | `apps/backend/api/services/GetImageSize.js`, `apps/backend/api/services/AssetManagement.js` (own uploads from disk) | The server reads pictures uploaded to Agora's own disk from that disk when it measures them or makes a small copy. Fetching them over the web was refused, because uploads are only for people who are logged in, so every post with a picture failed |
 | `apps/backend/config/policies.js`, `apps/backend/api/controllers/MurmurationsController.js`, `apps/backend/config/http.js` (logged-out reading) | A circle's Murmurations profile needs a login, and an unknown circle gives not found instead of an error. The uploads (pictures and files) are served after the session is read, and only to someone logged in (`lib/agora/diskUploads.js`). A first Apple or Google login of an unfinished account also joins the circle of its kept invitation (`SessionController.js`) |
-| `apps/web/src/routes/GroupDetail/GroupDetail.js` (Join button on top) | On the page of a circle you are not a member of, the Join section is above the description instead of at the bottom |
+| `apps/web/src/routes/GroupDetail/GroupDetail.js` (Join button on top) | On the page of a circle you are not a member of, the Join section is above the description instead of at the bottom. Since the 3 Nov 2026 sync it also holds Hylo's panel for someone who left a paid circle and may rejoin, and passes Hylo's `grantAccess` to the Join section. The test for this lives in `GroupDetailJoinAtTop.test.js`, because Hylo's own `GroupDetail.test.js` is a different file |
 | `apps/web/src/routes/NonAuthLayoutRouter/Signup/Signup.js` (invitation address) | Coming from an invitation email, the address it was sent to is filled in and cannot be changed |
 | `apps/web/public/locales/*.json (invitations)` | Hylo's old default invitation text says Agora, and six new texts for the page above and the sign-up note, in every language |
 | `apps/web/public/locales/en.json` (admin) | The texts of the admin area, in English only for now; other languages show the English |
@@ -211,7 +211,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `agora/vps/offsite-backup.sh`, `agora/vps/offsite-backup.conf.example` (an encrypted copy of the backups in object storage), `.github/workflows/agora-uptime.yml` (a warning when Agora is down)
 - `agora/google-drive-login.mjs`
 - `apps/backend/scripts/agora-init-db.js`, `apps/backend/scripts/agora-drive-link.js`
-- `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`, `apps/backend/test/unit/agora/joinOnSignup.test.js`, `apps/backend/test/unit/agora/loggedOutJoinPage.test.js`, `apps/backend/test/unit/agora/diskUploads.test.js` (logged out gets 401), `apps/web/src/routes/GroupDetail/GroupDetail.test.js`
+- `apps/backend/lib/agora/signup.js`, `apps/backend/api/controllers/AgoraSignupController.js`, `apps/backend/scripts/agora-allow-signup.js`, `apps/backend/test/unit/agora/signup.test.js`, `apps/backend/test/unit/agora/joinOnSignup.test.js`, `apps/backend/test/unit/agora/loggedOutJoinPage.test.js`, `apps/backend/test/unit/agora/diskUploads.test.js` (logged out gets 401), `apps/web/src/routes/GroupDetail/GroupDetailJoinAtTop.test.js`
 - `apps/backend/lib/agora/mainGroup.js`, `apps/backend/scripts/agora-main-group.js`, `apps/backend/test/unit/agora/mainGroup.test.js` (the 7BP Home, the main circle)
 - `apps/backend/lib/agora/thisWeek.js`, `apps/backend/api/controllers/AgoraThisWeekController.js`, `apps/backend/test/unit/agora/thisWeek.test.js`, `apps/web/src/agora/thisWeek/ThisWeek.jsx`, `apps/web/src/agora/thisWeek/ThisWeek.test.js` (This week in 7BP)
 - `apps/backend/lib/agora/stewardRoles.js`, `apps/backend/scripts/agora-steward-roles.js`, `apps/backend/test/unit/agora/stewardRoles.test.js`
@@ -261,3 +261,19 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/files/FilesPage.jsx`, `FolderPicker.jsx`, `FileViewer.jsx`, `api.js`, `helpers.js`, `FilesPage.test.js` (the Files page inside the app: folders with a clickable path, a pop-up viewer for PDF, pictures, text, sound and video (`AgoraKdriveController.js` shows only those, with `?view=1`), download, add files, new folder, Google document links, rename, delete, move by dragging or with a folder picker, select several, sort by column; `apps/web/src/routes/SpaceContent/SpaceContent.js` has the one new route `files` for a space; the old `kdrive-files.html` is gone, `AgoraFilesController.js` sends the old address to the new page; `config/routes.js` has the new address `/kd/move`; `kdrive.js` has the move call; `kdriveCircles.js` has `moveItem`, the path of a folder and who added what when)
 - `apps/backend/lib/agora/mainCircle.js`, `apps/backend/api/graphql/agora/mainCircle.js` and `.graphql`, `apps/backend/test/unit/agora/mainCircle.test.js`, `apps/web/src/agora/mainCircle/` (the 7BP Home look: which circle is the main one and its active children, the left bar order, the header pill and "Part of 7BP" link, the "Every circle in 7BP" cards, with tests)
 - `apps/backend/migrations/20261029120000_add_agora_claim_proposals.js`, `apps/web/src/agora/claim/ProposedProfileBanner.jsx`, `apps/web/src/agora/claim/ProposedProfileBanner.test.js` (propose a profile to a member)
+
+## Hylo sync of 3 November 2026
+
+Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Where Agora's change and Hylo's met:
+
+- `apps/backend/lib/agora/mailer.js`: a text for Hylo's new "your email address is being changed" notice (`tem_gfCWyJRpp6Q996d6ykVgJKCW`), which goes to the old address and has no code or link. Without it the Agora mailer would skip it.
+- `apps/web/src/routes/GroupSettings/PrivacySettingsTab/PrivacySettingsTab.jsx`: Hylo moved the Commons box into `CommonsRequestSection`; Agora's `showCommons` switch now wraps that component.
+- `apps/web/src/routes/UserSettings/AccountSettingsTab/AccountSettingsTab.js`: Agora's real form and password-manager step now surround Hylo's new email verification (code box, resend, cancel).
+- `apps/web/src/routes/RootRouter/RootRouter.js`: the claim page stays in the list of pages that need no waiting for login, next to Hylo's new `/h/invitation`, `/invite/` and `/view/`.
+- `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx`, `TopNav/TopNav.jsx`: built on Hylo's new list of navigation items (groups and pinned spaces); Agora's 7BP panel, Commons switch and extra buttons were put back on top of it.
+- `apps/web/src/store/actions/checkInvitation.js`: the description lists both `parentGroupId` (Agora) and `grantAccess` (Hylo).
+- `apps/web/src/routes/GroupDetail/GroupDetailJoinAtTop.test.js` (new): Agora's test, moved out of `GroupDetail.test.js`, which is Hylo's again.
+- `apps/web/public/locales/*.json`: merged key by key, every key of both sides kept.
+- `apps/web/src/routes/JoinGroup/JoinGroup.js`: someone logged in is not joined straight from a Hylo link that only lets people see the circle (`grantAccess` false); they land on its About page and ask to join. `JoinGroup.test.js`: Hylo's new test for a member invitation uses a circle the person is not in and a refused join, because Agora sends a member straight into the circle.
+- `apps/web/src/routes/GroupSettings/PrivacySettingsTab/PrivacySettingsTab.test.js`: Hylo's Commons box tests run with The Commons switched on.
+- `apps/web/src/store/actions/__snapshots__/fetchPosts.test.js.snap`: updated for the two event fields Agora asks for (`agoraKind`, `agoraForAll`).

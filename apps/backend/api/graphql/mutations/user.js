@@ -97,6 +97,7 @@ export const verifyEmail = (fetchOne) => async (_, { email: providedEmail, code:
 
     await user.save({ email_validated: true })
 
+    await UserSession.regenerate(context.req, user.id)
     context.req.session.userId = user.id
 
     return { me: fetchOne('Me', user.id) }
@@ -124,7 +125,7 @@ export const register = (fetchOne) => async (_, { name, password }, context) => 
     if (invalidPassword) throw new GraphQLError(invalidPassword)
 
     await bookshelf.transaction(async transacting => {
-      await user.save({ name, active: true }, { transacting })
+      await user.save({ name: name.trim(), active: true }, { transacting })
       await UserSession.login(context.req, user, 'password', { transacting }) // XXX: this does another save of the user, ideally we just do one of those
       await LinkedAccount.create(context.currentUserId, { type: 'password', password }, { transacting })
       await Analytics.trackSignup(user.id, context.req)

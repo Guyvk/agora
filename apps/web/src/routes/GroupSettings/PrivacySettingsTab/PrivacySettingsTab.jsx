@@ -20,7 +20,8 @@ import {
 } from 'store/models/Group'
 import SaveButton from '../SaveButton'
 import SettingsSection from '../SettingsSection'
-import { showCommons } from '@/agora/config'
+import CommonsRequestSection from './CommonsRequestSection'
+import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 
 function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSettings }) {
   const { t } = useTranslation()
@@ -70,9 +71,9 @@ function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSet
   const updateSettingDirectly = (key, changed) => value =>
     updateSetting(key, changed)({ target: { value } })
 
-  const save = async () => {
+  const save = () => {
     setState({ ...state, changed: false })
-    updateGroupSettings({ ...state.edits })
+    updateGroupSettings(state.edits)
   }
 
   const { setHeaderDetails } = useViewHeader()
@@ -152,24 +153,10 @@ function PrivacySettingsTab ({ group, fetchPending, parentGroups, updateGroupSet
         </div>
       </SettingsSection>
 
-      {/* Agora: no applying to The Commons while it is off */}
-      {showCommons && visibility === GROUP_VISIBILITY.Public && !group.allowInPublic && (
-        <SettingsSection>
-          <h3 className='text-foreground font-bold mb-2'>{t('Add my group into the commons')}</h3>
-          <p className='text-foreground/70 mb-2'>{t('commonsExplainerText1')}</p>
-          <p className='text-foreground/70 mb-4'>{t('commonsExplainerText2')}</p>
-          <p className='text-foreground/70'>
-            {t('Apply here') + ': '}
-            <a
-              href='https://docs.google.com/forms/d/e/1FAIpQLScuxRGl65OMCVkjjsFllWwK4TQjddkufMu9rukIocgmhyHL7w/viewform'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-accent hover:underline'
-            >
-              {t('Allow-in-Commons form')}
-            </a>
-          </p>
-        </SettingsSection>
+      {/* Follows the selected visibility, so it shows as soon as Public is clicked.
+          Agora: no applying to The Commons while it is off */}
+      {showCommons && visibility === GROUP_VISIBILITY.Public && (
+        <CommonsRequestSection group={group} />
       )}
 
       <SettingsSection>

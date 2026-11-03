@@ -169,17 +169,20 @@ export default function JoinGroup (props) {
           // right away and lands in the circle (a space invitation joins the parent circle
           // and the space). Agreements and join questions follow in the circle's welcome
           // window. If joining does not work, the About page with its Join button as before.
-          const joined = await joinFromInvitation({
-            dispatch,
-            myMemberships,
-            groupId,
-            groupSlug,
-            isSpace,
-            parentGroupId,
-            parentGroupSlug,
-            accessCode,
-            invitationToken
-          })
+          // Hylo's reusable "see only" links (grantAccess false) never join anyone: the person asks to join on the About page.
+          const joined = checkResult.grantAccess === false
+            ? null
+            : await joinFromInvitation({
+              dispatch,
+              myMemberships,
+              groupId,
+              groupSlug,
+              isSpace,
+              parentGroupId,
+              parentGroupSlug,
+              accessCode,
+              invitationToken
+            })
           if (joined) {
             setRedirectTo(joined)
             return

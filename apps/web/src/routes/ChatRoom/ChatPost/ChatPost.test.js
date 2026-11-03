@@ -3,6 +3,17 @@ import { fireEvent, render, screen, AllTheProviders } from 'util/testing/reactTe
 import orm from 'store/models'
 import ChatPost from './index'
 
+const mockNavigate = jest.fn()
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useParams: jest.fn().mockReturnValue({}),
+  useLocation: jest.fn().mockReturnValue({ pathname: '', search: '' }),
+  useNavigate: () => mockNavigate
+}))
+
+const mockViewPostDetails = jest.fn()
+jest.mock('hooks/useViewPostDetails', () => () => mockViewPostDetails)
+
 function testProviders () {
   const ormSession = orm.mutableSession(orm.getEmptyState())
   ormSession.Me.create({ id: '1' })
@@ -123,6 +134,34 @@ describe('ChatPost', () => {
     heightSpy.mockRestore()
   })
 
+  describe('clicking the post', () => {
+    beforeEach(() => mockViewPostDetails.mockClear())
+
+    it('opens the post when the click lands on an SVG inside it', () => {
+      renderComponent({
+        post: {
+          ...defaultProps.post,
+          details: '<p>chat with an icon <svg data-testid="inline-svg"><path d="M0 0h1v1z"></path></svg></p>'
+        }
+      })
+      const path = screen.getByTestId('inline-svg').querySelector('path')
+      expect(() => fireEvent.click(path)).not.toThrow()
+      expect(mockViewPostDetails).toHaveBeenCalled()
+    })
+
+    it('does not open the post when the click lands inside an .image or .icon-Smiley element', () => {
+      renderComponent({
+        post: {
+          ...defaultProps.post,
+          details: '<p>an image <span class="image"><svg data-testid="image-svg"></svg></span><span class="icon-Smiley" data-testid="smiley"></span></p>'
+        }
+      })
+      fireEvent.click(screen.getByTestId('image-svg'))
+      fireEvent.click(screen.getByTestId('smiley'))
+      expect(mockViewPostDetails).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not crash when a hover action that expects the click event is used', () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
     renderComponent()
@@ -130,5 +169,55 @@ describe('ChatPost', () => {
     fireEvent.click(document.querySelector('[data-tooltip-content="Delete post"]'))
     expect(confirmSpy).toHaveBeenCalled()
     confirmSpy.mockRestore()
+  })
+
+  describe('Edit from the hover action menu', () => {
+    const { useLocation, useParams } = require('react-router-dom')
+    let originalMatchMedia
+
+    beforeEach(() => {
+      mockNavigate.mockClear()
+      originalMatchMedia = window.matchMedia
+      useLocation.mockReturnValue({ pathname: '/groups/foomunity/chat', search: '' })
+      useParams.mockReturnValue({})
+    })
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia
+      useLocation.mockReturnValue({ pathname: '', search: '' })
+      useParams.mockReturnValue({})
+    })
+
+    const mockFinePointer = (fine) => {
+      window.matchMedia = jest.fn().mockImplementation(query => ({
+        matches: fine && query === '(hover: hover) and (pointer: fine)',
+        media: query,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn()
+      }))
+    }
+
+    it('on touch devices, opens the post edit route instead of editing inline', () => {
+      mockFinePointer(false)
+      renderComponent()
+
+      fireEvent.click(document.querySelector('[data-tooltip-content="Edit post"]'))
+
+      expect(mockNavigate).toHaveBeenCalledWith('/groups/foomunity/chat/post/1/edit')
+      expect(screen.queryByTestId('Save')).not.toBeInTheDocument()
+    })
+
+    it('with a mouse, edits inline in the chat room', () => {
+      mockFinePointer(true)
+      renderComponent()
+
+      fireEvent.click(document.querySelector('[data-tooltip-content="Edit post"]'))
+
+      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(screen.getByTestId('Save')).toBeInTheDocument()
+      expect(screen.getByTestId('Cancel')).toBeInTheDocument()
+    })
   })
 })
