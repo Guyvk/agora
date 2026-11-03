@@ -261,7 +261,9 @@ export async function feedFor (userId) {
 /* ---------- Calendar invitations for all of 7BP ---------- */
 
 /**
- * Sends every active Agora member (except the person who made it) an email
+ * Sends every active Agora member (except the person who made it) an email,
+ * skipping people who unsubscribed from all email or switched email off in
+ * every circle they are in,
  * with the calendar file of a new Meeting or Event for all of 7BP. Emails go
  * out only when the server can send email (AGORA_EMAIL_TRANSPORT); on a Mac
  * they are written to the log. Returns how many were handed to the mailer.
@@ -292,7 +294,12 @@ export async function inviteEveryone ({ postId, inviterId, sendEmail } = {}) {
         .whereRaw('group_memberships.user_id = users.id')
         .where('group_memberships.active', true)
         .where('groups.active', true)
+        // Email switched off for this circle (Hylo's per-circle "sendEmail"): this
+        // membership does not count. Only an explicit off counts as off.
+        .whereRaw("(group_memberships.settings->>'sendEmail') is distinct from 'false'")
     })
+    // Unsubscribed from all email (Hylo's "unsubscribe all" sets this to none)
+    .whereRaw("coalesce(users.settings->>'post_notifications', '') <> 'none'")
     .orderBy('users.id')
     .select('users.id', 'users.email', 'users.name')
 
