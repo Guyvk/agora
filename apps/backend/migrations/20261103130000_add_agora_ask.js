@@ -94,12 +94,14 @@ exports.up = async function (knex) {
 
   // pgvector, when the server has it (README-AGORA.md, "Ask"). Only a database
   // administrator may add it; without it Ask searches by keywords only.
+  // AGORA_ASK_VECTOR=off never touches it. Any failure here is only a notice: this migration must never fail on a server without pgvector.
+  if (String(process.env.AGORA_ASK_VECTOR || '').toLowerCase() === 'off') return
   await knex.raw(`DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
       BEGIN
         CREATE EXTENSION IF NOT EXISTS vector;
-      EXCEPTION WHEN insufficient_privilege THEN
-        RAISE NOTICE 'Agora Ask: pgvector is installed but only a database administrator can switch it on';
+      EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Agora Ask: pgvector could not be switched on (a database administrator may need to do it)';
       END;
     END IF;
   END $$`)

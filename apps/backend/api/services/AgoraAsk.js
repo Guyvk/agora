@@ -28,6 +28,7 @@ module.exports = {
   },
 
   removePost: async function ({ postId }) {
+    if (off()) return 0 // Agora: with Ask off nothing is in the index, so there is nothing to remove
     return AskIndex.removePost(postId)
   },
 

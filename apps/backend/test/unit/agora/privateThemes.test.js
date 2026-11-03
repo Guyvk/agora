@@ -19,7 +19,7 @@ const SAVED_ENV = {}
 const AMARA_SECRET = 'I honestly think the travel refunds take forever and the form is confusing'
 const LARS_SECRET = 'the travel refund form is far too confusing for new volunteers to finish'
 
-let calls, themeAnswer, checkFlags, answer
+let calls, themeAnswer, checkFlags, answer, themesPrompt
 function pretendInfomaniak () {
   calls = []
   AI.useFetchForTests(async (url, options) => {
@@ -139,10 +139,11 @@ describe('Agora Ask private themes', () => {
         ]
       }
       await PrivateThemes.refreshThemes()
+      themesPrompt = text(chats().find(c => c.body.messages[0].content.includes('THEMES'))) // kept here: the outer beforeEach empties `calls`
     })
 
     it('sends the AI no names, email addresses or phone numbers, only Person 1, Person 2', () => {
-      const prompt = text(chats().find(c => c.body.messages[0].content.includes('THEMES')))
+      const prompt = themesPrompt
       expect(prompt).to.include('Person 1')
       for (const bad of ['Amara', 'Okafor', 'Lars', 'Kenji', 'amara.private@example.org', '123 45 67']) expect(prompt, bad).not.to.include(bad)
     })
