@@ -482,10 +482,13 @@ module.exports = bookshelf.Model.extend(Object.assign({
       pick(POSTS_USERS_ATTR_UPDATE_WHITELIST, omitBy(isUndefined, attrs))
     )
 
-    const userIds = usersOrIds.map(x => x instanceof User ? x.id : x)
+    // Agora: compare ids as strings. The database returns them as strings, callers
+    // sometimes pass numbers, and a mismatch made an existing follower look new
+    // (duplicate key on posts_users, e.g. when a follower commented)
+    const userIds = uniq(usersOrIds.map(x => String(x instanceof User ? x.id : x)))
     const existingFollowers = await this.postUsers()
       .query(q => q.whereIn('user_id', userIds)).fetch({ transacting })
-    const existingUserIds = existingFollowers.pluck('user_id')
+    const existingUserIds = existingFollowers.pluck('user_id').map(String)
     const newUserIds = difference(userIds, existingUserIds)
     const updatedFollowers = await this.updateFollowers(existingUserIds, updatedAttribs, { transacting })
     const newFollowers = []

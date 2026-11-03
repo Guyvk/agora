@@ -13,10 +13,14 @@ import checkInvitation from 'store/actions/checkInvitation'
  * or a circle's join link (/groups/<circle>/join/<code>) leads to the sign-up
  * page, and keeps where to go afterwards in returnToPath, for example
  * /groups/governance/about?accessCode=abc or ...?token=xyz.
- * Returns { invitationToken } or { accessCode }, or null when there is none.
+ * A claim link for a profile (/claim/<secret>, see ../claim/ClaimPage.jsx)
+ * keeps itself there too, and counts as permission to sign up.
+ * Returns { invitationToken }, { accessCode } or { claimToken }, or null when there is none.
  */
 export function invitationFromPath (path) {
   if (!path || typeof path !== 'string') return null
+  const claim = path.match(CLAIM_PATH)
+  if (claim) return { claimToken: claim[1] }
   const query = path.includes('?') ? path.slice(path.indexOf('?') + 1) : ''
   const params = new URLSearchParams(query)
   const accessCode = params.get('accessCode')
@@ -25,6 +29,9 @@ export function invitationFromPath (path) {
   if (invitationToken) return { invitationToken }
   return null
 }
+
+/** The address of a claim link: /claim/ and 43 letters, digits, "-" or "_". */
+const CLAIM_PATH = /^\/claim\/([A-Za-z0-9_-]{43})\/?(?:[?#].*)?$/
 
 /** Asks the server whether new accounts need an invitation. */
 export async function fetchInviteOnly () {

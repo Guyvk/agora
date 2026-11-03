@@ -1839,6 +1839,9 @@ function PostEditorInner ({
       )}
       {/* Agora: no field for a video call link. Every event's call is its own Agora meeting room */}
       {currentPost.type === 'event' && (
+        <p className='text-xs text-foreground/50 m-0 px-1' data-testid='agora-meeting-hint'>{t('Every meeting gets its own video room in Agora, with minutes.')}</p>
+      )}
+      {currentPost.type === 'event' && (
         <div className='flex items-center border-2 border-transparent transition-all bg-input rounded-md p-2'>
           <div className='text-xs text-foreground/50 w-[100px]'>{t('Invite People')}</div>
           <div className='w-full'>

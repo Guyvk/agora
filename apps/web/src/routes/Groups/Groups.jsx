@@ -2,6 +2,7 @@ import { Network } from 'lucide-react'
 import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import { useDispatch, useSelector } from 'react-redux'
 import { createSelector } from 'reselect'
 import { cn } from 'util/index'
@@ -88,7 +89,7 @@ function Groups () {
   return (
     <div className='w-full pt-8 pb-8 overflow-y-auto h-full'>
       <Helmet>
-        <title>Groups | {group ? `${group.name} | ` : ''}Hylo</title>
+        <title>{agoraTitle('Groups', group?.name)}</title>
       </Helmet>
 
       {!groupRelationshipCount && (

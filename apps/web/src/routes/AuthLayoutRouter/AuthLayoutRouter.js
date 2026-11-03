@@ -4,6 +4,7 @@ import { matchPath, Route, Routes, Navigate, useLocation, useNavigate, useParams
 import { useDispatch, useSelector } from 'react-redux'
 import { IntercomProvider } from 'react-use-intercom'
 import { Helmet } from 'react-helmet'
+import { APP_NAME, DEMO_APP_NAME } from '@/agora/appName' // Agora: tab titles say Agora
 import { get, some } from 'lodash/fp'
 import { cn } from 'util/index'
 import {
@@ -84,8 +85,10 @@ import Members from 'routes/Members'
 import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
+import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
+import ProposedProfileBanner from '@/agora/claim/ProposedProfileBanner' // Agora: a profile proposed to this member
 import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
 import AdminPage, { OldHelpDeskAddress } from '@/agora/admin/AdminPage' // Agora: the admin area, with the Help desk
 import ThreadList from 'routes/Messages/ThreadList'
@@ -827,7 +830,7 @@ export default function AuthLayoutRouter (props) {
     return (
       <div data-testid='loading-screen' className={cn('flex flex-row items-stretch bg-midground h-full', { 'h-[100dvh]': compactLayout && !isSandboxMode() })}>
         <Helmet>
-          <title>{isSandboxMode() ? 'Hylo Demo' : 'Hylo'}</title>
+          <title>{isSandboxMode() ? DEMO_APP_NAME : APP_NAME}</title>
           <meta name='description' content='Prosocial Coordination for a Thriving Planet' />
           {isSandboxMode() && <meta name='robots' content='noindex, nofollow' />}
         </Helmet>
@@ -948,6 +951,7 @@ export default function AuthLayoutRouter (props) {
   return (
     <IntercomProvider appId={isTest || isSandboxMode() ? '' : config.intercom.appId} shouldInitialize={!!config.intercom.appId /* Agora: without an Intercom key, never contact Intercom */} autoBoot={!isSandboxMode()} autoBootProps={intercomProps}>
       <SiteBanners />
+      {!isSandboxMode() && <ProposedProfileBanner />} {/* Agora: "We found your profile", dismissible */}
       {!isSandboxMode() && <HelpWindow />} {/* Agora: the Help button at the bottom right of every page */}
       {/* Pull-to-refresh indicator - shows during and after gesture */}
       {(isPulling || isRefreshing) && (
@@ -971,7 +975,7 @@ export default function AuthLayoutRouter (props) {
         </div>
       )}
       <Helmet>
-        <title>{currentGroup ? `${currentGroup.name} | ` : ''}{isSandboxMode() ? 'Hylo Demo' : 'Hylo'}</title>
+        <title>{currentGroup ? `${currentGroup.name} | ` : ''}{isSandboxMode() ? DEMO_APP_NAME : APP_NAME}</title>
         <meta name='description' content='Prosocial Coordination for a Thriving Planet' />
         {isSandboxMode() && <meta name='robots' content='noindex, nofollow' />}
         {currentUser && (
@@ -1147,6 +1151,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='members/:personId/*' element={<MemberProfile context='groups' />} />
                             <Route path='members/*' element={<Members context='groups' />} />
                             <Route path='playbook' element={<PlaybookPage />} /> {/* Agora: the playbook page of a group */}
+                            <Route path='files' element={<FilesPage />} /> {/* Agora: the Files page of a circle, inside the app */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />
                             <Route path='chat/*' element={<ChatRoom context='groups' />} />

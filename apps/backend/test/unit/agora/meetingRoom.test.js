@@ -58,6 +58,17 @@ describe('Agora meeting room without speech to text', () => {
     expect(res.body).to.contain('"transcriptionReady":false')
   })
 
+  it('gives a member the address of the meeting post, so the room can send them back in the same tab', async () => {
+    const res = await call('room')
+    expect(res.body).to.contain('"eventUrl":"')
+    expect(res.body).to.match(new RegExp(`"eventUrl":"[^"]*/groups/room-circle/[^"]*/post/${event.id}"`))
+    // the page sends a member back to the post when the meeting ends, and has a button for it
+    expect(res.body).to.contain('Back to the meeting post')
+    expect(res.body).to.contain('location.href = BOOT.eventUrl')
+    // a guest never goes into Agora
+    expect(res.body).to.contain('if (BOOT.guest || !BOOT.eventUrl) return')
+  })
+
   it('never hands the page another platform\'s link', async () => {
     await bookshelf.knex('posts').where('id', event.id).update({ meeting_link: 'https://zoom.us/j/123' })
     const res = await call('room')

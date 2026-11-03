@@ -5,6 +5,7 @@ import {
   rateLimiter, LIMITS, FAILED_LIMIT, FAILED_WINDOW_MS, MAX_GUESTS_PER_MEETING, NAME_MAX,
   checkLink, cleanName, guestLabel, addGuest, countGuests, findGuest
 } from '../../lib/agora/meetingGuests'
+import { guestSeen, postMessage, listMessages, forPage, summary } from '../../lib/agora/meetingChat'
 
 /**
  * Agora: the meeting room for guests, people without an Agora account.
@@ -12,13 +13,16 @@ import {
  *   GET  /noo/meeting/<event id>/guest/<secret>          the guest's room page
  *   POST /noo/meeting/<event id>/guest/<secret>/join     name and consent, then the call
  *   POST /noo/meeting/<event id>/guest/<secret>/segment  one piece of the guest's own speech
- *   GET  /noo/meeting/<event id>/guest/<secret>/status   only: is the meeting still going?
+ *   GET  /noo/meeting/<event id>/guest/<secret>/status   is the meeting still going? and the new chat messages
+ *   POST /noo/meeting/<event id>/guest/<secret>/chat     one chat message by the guest
+ *   GET  /noo/meeting/<event id>/guest/<secret>/summary  the overview on the end screen
  *   POST /noo/meeting/<event id>/guest/<secret>/end      the guest leaves (the meeting goes on)
  *
  * None of these needs an Agora login. Each one checks the link's secret,
  * and every call after joining also checks the guest's own secret (headers
  * X-Agora-Guest-Id and X-Agora-Guest-Key). Calls are counted per address.
- * There is no way for a guest to read the notes or end the meeting.
+ * There is no way for a guest to read the notes or end the meeting. The chat
+ * and the end screen only show the meeting the guest is in.
  * See lib/agora/meetingGuests.js and README-AGORA.md, "Guests in a meeting".
  */
 
@@ -209,15 +213,52 @@ module.exports = {
   },
 
   /**
-   * Only whether the meeting is still going. Guests never get the notes, the
-   * names of others or the minutes.
+   * Whether the meeting is still going, and the new chat messages of this
+   * meeting. Asked every few seconds; it also counts as "still here", so the
+   * meeting does not end by itself while the guest is in it. Guests never get
+   * the notes, the transcript or the minutes.
    */
   status: async function (req, res) {
     if (!withinLimits(req, res, 'status', `guest-${req.headers['x-agora-guest-id']}`)) return
     const found = await loadGuest(req, res)
     if (!found) return
+    const { guest, session } = found
     res.set('Cache-Control', 'no-store')
-    res.ok({ status: found.session.get('status') })
+    if (guest.left_at) return res.ok({ status: session.get('status'), chat: [] })
+    if (session.isOpen()) await guestSeen(guest.id)
+    // A phone shows no chat for now, and asks with noChat=1 so the messages are not fetched.
+    const chat = req.query.noChat === '1' ? [] : forPage(await listMessages(session.id, { afterId: req.query.chatAfter }), { guestId: guest.id })
+    res.ok({ status: session.get('status'), chat })
+  },
+
+  /**
+   * One chat message from the guest, in the meeting they are in.
+   */
+  chat: async function (req, res) {
+    if (!fromAgoraPage(req)) return res.status(400).send({ error: 'Bad request.' })
+    if (!withinLimits(req, res, 'chat', `guest-${req.headers['x-agora-guest-id']}`)) return
+    const found = await loadGuest(req, res)
+    if (!found) return
+    const { guest, session } = found
+    if (!session.isOpen()) return res.status(409).send({ error: 'This meeting has ended.' })
+    if (guest.left_at) return res.status(403).send({ error: 'Join the meeting again from the guest link.' })
+
+    const { message, status, error } = await postMessage({ sessionId: session.id, guestId: guest.id, text: req.param('text') })
+    if (error) return res.status(status).send({ error })
+    await guestSeen(guest.id)
+    res.ok({ message: forPage([message], { guestId: guest.id })[0] })
+  },
+
+  /**
+   * The overview on the guest's end screen: title, date, how long, who took
+   * part and whether notes were taken. No links into Agora, no transcript.
+   */
+  summary: async function (req, res) {
+    if (!withinLimits(req, res, 'summary', `guest-${req.headers['x-agora-guest-id']}`)) return
+    const found = await loadGuest(req, res)
+    if (!found) return
+    res.set('Cache-Control', 'no-store')
+    res.ok(await summary(found.session, found.post))
   },
 
   /**

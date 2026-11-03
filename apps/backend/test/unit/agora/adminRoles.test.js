@@ -50,7 +50,8 @@ describe('Agora roles from the admin area', () => {
     sleeping = await person('Gone', 'gone@agora.test', { active: false })
     serverHelper = await person('Helper', 'helper@agora.test')
     serverByEmail = await person('Mailed', 'mailed@agora.test')
-    process.env.AGORA_ADMINS = `${guy.id}, MAILED@agora.test`
+    // Agora: only ids count; the email address entry for David must be ignored
+    process.env.AGORA_ADMINS = `${guy.id}, ${serverByEmail.id}, DAVID@agora.test`
     process.env.AGORA_HELPDESK_ADMINS = String(serverHelper.id)
   })
 
@@ -71,7 +72,6 @@ describe('Agora roles from the admin area', () => {
       expect(Admins.serverRoleOf({ id: guy.id })).to.equal('admin')
       expect(Admins.serverRoleOf({ id: serverHelper.id })).to.equal('helpdesk')
       expect(Admins.serverRoleOf({ id: serverByEmail.id, email: 'mailed@agora.test', email_validated: true })).to.equal('admin')
-      expect(Admins.serverRoleOf({ id: serverByEmail.id, email: 'mailed@agora.test', email_validated: false })).to.equal(null)
       expect(Admins.serverRoleOf({ id: david.id, email: 'david@agora.test', email_validated: true })).to.equal(null)
     })
 

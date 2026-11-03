@@ -23,7 +23,7 @@ const normalizeEmail = (email) => {
  */
 const findUserByEmail = (email) => User.query(q => q.whereRaw('lower(email) = ?', email)).fetch()
 
-export const sendEmailVerification = async (_, { email: providedEmail, invitationToken, accessCode }, context) => {
+export const sendEmailVerification = async (_, { email: providedEmail, invitationToken, accessCode, claimToken }, context) => {
   try {
     const email = normalizeEmail(providedEmail)
     if (!email) return { success: false, error: 'Invalid email address' }
@@ -39,7 +39,7 @@ export const sendEmailVerification = async (_, { email: providedEmail, invitatio
     // is made and no email is sent, but the answer is the same as for an address that has an
     // account, so it does not tell who has one. See lib/agora/signup.js.
     if (AgoraSignup.isInviteOnly()) {
-      const held = { invitationToken, accessCode }
+      const held = { invitationToken, accessCode, claimToken } // Agora: claimToken is a claim link for a profile (lib/agora/claims.js)
       const valid = AgoraSignup.hasInvitation(held) && await AgoraSignup.isValidInvitation(held, email)
       if (AgoraSignup.hasInvitation(held) && !valid) return { success: false, error: AgoraSignup.INVITATION_INVALID_ERROR }
       if (!user && !valid) return { success: true }
@@ -48,6 +48,9 @@ export const sendEmailVerification = async (_, { email: providedEmail, invitatio
     if (!user) {
       user = await User.create({ email, active: false })
     }
+
+    // Agora: keep the invitation with a new account, so it joins that circle once finished (lib/agora/signup.js)
+    await AgoraSignup.rememberInvitation(user, { invitationToken, accessCode })
 
     const { code, token } = await UserVerificationCode.create(email)
     const verifyUrl = Frontend.Route.verifyEmail(email, token)
@@ -126,6 +129,9 @@ export const register = (fetchOne) => async (_, { name, password }, context) => 
       await LinkedAccount.create(context.currentUserId, { type: 'password', password }, { transacting })
       await Analytics.trackSignup(user.id, context.req)
     })
+
+    // Agora: a new account made from a join link or invitation joins that circle now (lib/agora/signup.js)
+    await AgoraSignup.joinRememberedCircle(user)
 
     return { me: fetchOne('Me', user.id) }
   } catch (error) {

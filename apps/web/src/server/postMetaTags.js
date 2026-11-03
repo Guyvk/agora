@@ -1,4 +1,5 @@
 import * as TextHelpers from '@hylo/shared/TextHelpers'
+import { APP_NAME } from '../agora/appName.js' // Agora: shared links name Agora
 
 const MAX_DESCRIPTION_LENGTH = 144
 const POST_ID_PATH = /\/post\/(\d+)(?:\/|$)/
@@ -32,7 +33,7 @@ export function buildPostMetaTagHtml ({ title, description, imageUrl, url }) {
     `<title>${safeTitle}</title>`,
     `<meta name="description" content="${safeDescription}" />`,
     '<meta property="og:type" content="article" />',
-    '<meta property="og:site_name" content="Hylo" />',
+    `<meta property="og:site_name" content="${APP_NAME}" />`,
     `<meta property="og:title" content="${safeTitle}" />`,
     `<meta property="og:description" content="${safeDescription}" />`,
     `<meta name="twitter:title" content="${safeTitle}" />`,
@@ -71,7 +72,7 @@ export function injectPostMetaTagsIntoHtml (html, metaHtml) {
 export function presentPublicPostMeta (post) {
   if (!post) return null
   const description = TextHelpers.presentHTMLToText(post.details, { truncate: MAX_DESCRIPTION_LENGTH })
-  const title = post.title || description || 'Hylo'
+  const title = post.title || description || APP_NAME
   const attachments = post.attachments || []
   const firstImage = attachments
     .filter(a => a?.type === 'image' && a?.url)

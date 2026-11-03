@@ -14,6 +14,7 @@ Claude in Help answers from the guide above, which is the same guide members rea
 
 - Stewards are the people who run a circle (in Hylo they have the Administration responsibility). They change its settings, invite people and approve requests to join.
 - To join a circle, ask one of its stewards for an invitation or the join link.
+- The 7BP Home is the main circle. Every circle sits inside it and every member of any circle is a member of it. It opens on a welcome page, with the announcements, the meetings and events, the members and a menu entry for each circle. At the top of the welcome page, "This week in 7BP" shows the next meetings and events, the newest announcements, the latest minutes and the decisions of the last two weeks, from the circles the member is in (nothing from a circle they are not in). Only its members can see it.
 
 ## Events and meetings
 

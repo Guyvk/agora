@@ -7,12 +7,22 @@
 # Takes the newest code of the branch "agora" from GitHub, makes a backup of
 # the database first, installs, builds, updates the database and restarts.
 # It only moves forward to what is on GitHub; local changes on the server stop it.
+# auto-update.sh runs it by itself after each merge (agora-auto-update.timer).
 #
 set -euo pipefail
 APP_DIR=/srv/agora
 NODE_DIR=/opt/agora-node24
+STATE_DIR=/var/lib/agora
 as_agora() { sudo -u agora -H env "PATH=$NODE_DIR/bin:/usr/bin:/bin" COREPACK_ENABLE_DOWNLOAD_PROMPT=0 "$@"; }
 [[ "$(id -u)" == "0" ]] || { echo "Run this with sudo."; exit 1; }
+
+# Started from a folder the user agora may not enter (like /home/ubuntu), find in
+# backup.sh fails and the update stops halfway. So work from /.
+cd /
+# One update at a time, whether started by hand or by the timer.
+mkdir -p "$STATE_DIR"
+exec 9>"$STATE_DIR/update.lock"
+flock -n 9 || { echo "Another update is running. Try again when it is done."; exit 1; }
 
 echo "Fetching the new version"
 as_agora git -C "$APP_DIR" fetch --quiet origin
@@ -43,4 +53,7 @@ as_agora bash -c "cd '$APP_DIR/apps/backend' && node scripts/agora-steward-roles
 
 echo "Restarting"
 systemctl restart agora-api agora-worker agora-web
+# What runs now. auto-update.sh compares GitHub with this.
+as_agora git -C "$APP_DIR" rev-parse HEAD > "$STATE_DIR/deployed"
+rm -f "$STATE_DIR/failed"
 echo "Done: Agora now runs $after."

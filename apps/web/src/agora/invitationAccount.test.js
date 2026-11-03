@@ -63,6 +63,7 @@ function renderJoinGroup (me) {
     <Routes>
       <Route path='/h/use-invitation' element={<JoinGroup />} />
       <Route path='/groups/governance/about' element={<div>the Governance about page</div>} />
+      <Route path='/groups/governance' element={<div>inside Governance</div>} />
     </Routes>,
     { wrapper: loggedInAs(me) }
   )
@@ -92,11 +93,27 @@ describe('opening an invitation email while logged in', () => {
     expect(screen.queryByText('the Governance about page')).not.toBeInTheDocument()
   })
 
-  it('goes on as before when the invitation is for the address logged in', async () => {
+  it('joins the circle and lands in it when the invitation is for the address logged in', async () => {
     invitationAnswer({ valid: true, groupId: '3', groupSlug: 'governance', email: 'INFO@guyvankoolwijk.nl' })
+    mockGraphqlServer.use(
+      graphql.operation(({ query }) => {
+        if (!query.includes('joinGroup')) return undefined
+        return HttpResponse.json({
+          data: {
+            joinGroup: {
+              id: '30',
+              group: { id: '3', name: 'Governance', slug: 'governance' },
+              person: { id: '1' },
+              lastViewedAt: null,
+              settings: { agreementsAcceptedAt: null, joinQuestionsAnsweredAt: null, showJoinForm: true }
+            }
+          }
+        })
+      })
+    )
     renderJoinGroup(guy)
 
-    expect(await screen.findByText('the Governance about page')).toBeInTheDocument()
+    expect(await screen.findByText('inside Governance')).toBeInTheDocument()
     expect(screen.queryByText('Log out and continue')).not.toBeInTheDocument()
   })
 })

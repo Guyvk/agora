@@ -5,6 +5,7 @@ import { DateTimeHelpers, postAppearsInChat } from '@hylo/shared'
 import { EditorView } from 'prosemirror-view'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import { useTranslation } from 'react-i18next'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, Routes, Route } from 'react-router-dom'
@@ -901,7 +902,7 @@ export default function ChatRoom (props) {
   return (
     <div className={cn('ChatRoom flex-1 min-h-0 flex flex-col overflow-hidden items-center justify-center', { [styles.withoutNav]: withoutNav })} ref={setContainer}>
       <Helmet>
-        <title>{t('Chat')} | {group?.name ? `${group.name} | ` : ''}Hylo</title>
+        <title>{agoraTitle(t('Chat'), group?.name)}</title>
       </Helmet>
 
       <div
