@@ -42,6 +42,7 @@ Run `./agora/setup-cloud.sh`. It installs PostgreSQL 17 with PostGIS, Redis and 
 - A new database migration must also go into `apps/backend/migrations/schema.sql`.
 - New texts in the web app go into `apps/web/public/locales` for every language; English first, the others marked for checking if you are unsure.
 - Every change comes with a test. Run the tests that touch it before opening the pull request, and say in the pull request what you ran and what passed.
+- Every menu item and page opens inside the Agora app, in the same page, with the circle menu and the top bar still there, like Hylo's own menu items and the Playbook page; never send people to a separate page outside the app.
 
 ## Writing for Guy
 

@@ -83,8 +83,8 @@ function UpcomingItem ({ item }) {
         <div className='text-xs text-foreground/60'>{item.groups.map(g => g.name).join(', ')}</div>
       )}
       {item.roomUrl && (
-        <a className='text-sm text-selected inline-flex items-center gap-1 w-fit' href={item.roomUrl} target='_blank' rel='noopener noreferrer'>
-          <NotebookPen className='w-4 h-4' />{t('Meet in Agora, with minutes')}
+        <a className='text-sm text-selected inline-flex items-center gap-1 w-fit' href={item.roomUrl}>
+          <NotebookPen className='w-4 h-4' />{t('Video meeting in Agora (with minutes)')}
         </a>
       )}
       {item.location && (

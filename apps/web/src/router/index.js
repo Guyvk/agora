@@ -13,6 +13,7 @@ import store, { history, sandboxBasename } from '../store'
 import RootRouter from 'routes/RootRouter'
 import SandboxBanner from 'sandbox/SandboxBanner'
 import { Helmet } from 'react-helmet'
+import { DEMO_APP_NAME } from '@/agora/appName' // Agora: tab titles say Agora
 import { cn } from 'util/index'
 
 // same configuration you would create for the Rollbar.js SDK
@@ -51,7 +52,7 @@ export default function App () {
                     <Router history={history} basename={sandboxBasename}>
                       {sandboxBasename && (
                         <Helmet>
-                          <title>Hylo Demo</title>
+                          <title>{DEMO_APP_NAME}</title>
                           <meta name='robots' content='noindex, nofollow' />
                         </Helmet>
                       )}

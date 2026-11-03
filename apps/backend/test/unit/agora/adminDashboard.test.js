@@ -49,7 +49,7 @@ describe('Agora admin dashboard', () => {
     unconfirmed = await new User({ name: 'Not confirmed', email: 'boss@agora.test', active: true, email_validated: false, created_at: new Date() }).save()
     sleeping = await new User({ name: 'Gone', email: 'gone@agora.test', active: false, email_validated: true, created_at: new Date() }).save()
     helpOnly = await new User({ name: 'Helper', email: 'helper@agora.test', active: true, email_validated: true, created_at: new Date() }).save()
-    process.env.AGORA_ADMINS = `${guy.id}, boss@agora.test, GONE@agora.test`
+    process.env.AGORA_ADMINS = `${guy.id}, boss@agora.test, GONE@agora.test, ${sleeping.id}`
     process.env.AGORA_HELPDESK_ADMINS = String(helpOnly.id)
 
     circle = await factories.group({ name: 'Governance', slug: 'governance', access_code: 'join-governance', created_by_id: guy.id, created_at: new Date() }).save()
@@ -84,14 +84,22 @@ describe('Agora admin dashboard', () => {
   })
 
   describe('who gets in', () => {
-    it('knows Agora admins by id, or by a confirmed email address of an active account', async () => {
+    it('knows Agora admins by id of an active account, never by email address', async () => {
       expect(await Admins.isAgoraAdmin(guy.id)).to.equal(true)
       expect(await Admins.isAgoraAdmin(amara.id)).to.equal(false)
-      expect(await Admins.isAgoraAdmin(unconfirmed.id)).to.equal(false) // address listed, not confirmed
+      expect(await Admins.isAgoraAdmin(unconfirmed.id)).to.equal(false) // address listed: email entries are ignored
       expect(await Admins.isAgoraAdmin(sleeping.id)).to.equal(false) // listed, but deactivated
       expect(await Admins.isAgoraAdmin(helpOnly.id)).to.equal(false) // only runs the Help desk
       expect(await Admins.isAgoraAdmin(null)).to.equal(false)
       expect(await Admins.isAgoraAdmin('1 or 1=1')).to.equal(false)
+      // A confirmed address in the list gives nothing
+      const saved = process.env.AGORA_ADMINS
+      try {
+        process.env.AGORA_ADMINS = 'amara@agora.test'
+        expect(await Admins.isAgoraAdmin(amara.id)).to.equal(false)
+      } finally {
+        process.env.AGORA_ADMINS = saved
+      }
     })
 
     it('makes Help desk admins the people in either list', async () => {

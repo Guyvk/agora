@@ -56,7 +56,7 @@ const responses = {
     disk: { totalBytes: 42949672960, freeBytes: 21474836480, usedPercent: 50 },
     databaseBytes: 10485760,
     address: 'https://agora.example.org',
-    services: { speechToText: false, claude: true, email: noMail, googleDrive: false, driveUploads: false, meetDomain: null, inviteOnly: true },
+    services: { speechToText: false, claude: true, email: noMail, kdrive: true, googleDrive: false, driveUploads: false, meetDomain: null, inviteOnly: true },
     backups: { nightly: null, offsite: { configured: null, lastAt: null } }
   },
   '/activity': {
@@ -178,6 +178,8 @@ describe('AdminPage', () => {
     expect(screen.getByText('Not sent: emails only go into the server log')).toBeInTheDocument()
     expect(screen.getAllByText('check on the server').length).toBeGreaterThan(0)
     expect(screen.getByText('50% used, 20.0 GB free of 40.0 GB')).toBeInTheDocument()
+    expect(screen.getByText('kDrive (circle files)').nextSibling).toHaveTextContent('Yes')
+    expect(screen.queryByText('No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing')).toBeNull()
   })
 
   it('writes the activity log in plain sentences', async () => {

@@ -58,6 +58,13 @@ const hourly = now => {
       })
   ]
 
+  // Agora: someone added to AGORA_ADMINS becomes Administrator in every circle and space; quiet when nothing changes
+  tasks.push(require('./lib/agora/adminsEverywhere').hourlyAgoraAdminsEverywhere()
+    .catch(err => {
+      sails.log.error('Agora admins job failed; continuing hourly tasks', err)
+      return 0
+    }))
+
   switch (now.hour) {
     case 12:
       sails.log.debug('Sending daily digests')
@@ -86,9 +93,11 @@ const every10minutes = now => {
     Comment.sendDigests().then(count => sails.log.debug(`Sent ${count} comment/message digests`)),
     Group.updateAllMemberCounts(),
     Post.updateProposalStatuses(),
-    // Agora: end meetings that have been quiet for a while, so their minutes get written
-    MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} quiet meetings`)),
-    FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`))
+    // Agora: end meetings everybody has left (or that run 2 hours past the event), so their minutes get written
+    MeetingSession.closeStale().then(count => sails.log.debug(`Ended ${count} meetings nobody was in any more`)),
+    FundingRound.checkPhaseTransitions().then(count => sails.log.debug(`Sent ${count} funding round phase transition notifications`)),
+    // Agora: the 7BP Home holds every circle and every member; never throws (lib/agora/mainGroup.js)
+    require('./lib/agora/mainGroup').everyTenMinutesMainGroup()
   ]
 }
 

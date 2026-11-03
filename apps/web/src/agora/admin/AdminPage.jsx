@@ -513,6 +513,7 @@ function System () {
     [t('Speech to text (meeting notes)'), yesNo(t, s.speechToText)],
     [t('Claude (summaries and the Help chat)'), yesNo(t, s.claude)],
     [t('Email'), emailLabel(t, s.email)],
+    [t('kDrive (circle files)'), s.kdrive ? t('Yes') : (s.kdriveMissingTopFolder ? t('No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing') : t('No'))],
     [t('Google Drive'), s.googleDrive ? (s.driveUploads ? t('Yes, members may add files') : t('Yes, read only')) : t('No')],
     [t('Video calls (AGORA_MEET_DOMAIN)'), s.meetDomain || t('Not set')],
     [t('Sign-up by invitation only'), yesNo(t, s.inviteOnly)]
