@@ -168,7 +168,9 @@ describe('Agora roles from the admin area', () => {
     it('lets an admin from the table open the whole admin area', async () => {
       expect((await call('me', { userId: david.id })).body).to.deep.equal({ isAdmin: true, helpDesk: true })
       expect((await call('me', { userId: amara.id })).body).to.deep.equal({ isAdmin: false, helpDesk: true })
-      expect((await call('overview', { userId: david.id })).statusCode).to.equal(200)
+      const overview = await call('overview', { userId: david.id })
+      expect(overview.statusCode).to.equal(undefined) // success: the page sends no error status
+      expect(overview.body).to.be.an('object')
       expect((await call('overview', { userId: amara.id })).statusCode).to.equal(404)
     })
 
@@ -182,7 +184,7 @@ describe('Agora roles from the admin area', () => {
       expect(sent[0].email_data.url).to.match(/\/admin$/)
 
       const res = await setRole(guy, lars, 'member') // the real email sender, which only writes to the log here
-      expect(res.statusCode).to.equal(200)
+      expect(res.statusCode).to.equal(undefined)
       expect(res.body).to.include({ ok: true, from: 'admin', role: 'member', emailed: false })
     })
 
