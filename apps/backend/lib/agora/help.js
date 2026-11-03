@@ -54,7 +54,8 @@ const knex = () => bookshelf.knex
 
 /**
  * True for a Help desk admin: an active account whose id is in
- * AGORA_HELPDESK_ADMINS or AGORA_ADMINS (see admins.js).
+ * AGORA_HELPDESK_ADMINS or AGORA_ADMINS, or who was given the role Admin or
+ * Help desk in the admin area (see admins.js).
  */
 function isAdmin (userId) {
   return Admins.isHelpDeskAdmin(userId)

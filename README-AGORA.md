@@ -472,6 +472,8 @@ The admin area is a page in Agora at `/admin` (for example https://agora.guyvank
 
 ### Who gets in
 
+There are two ways to make someone an admin: from the admin area itself (the usual way, see "Give someone a role" below), or with two settings on the server.
+
 Two settings in `apps/backend/.env`, each a list of user ids (account numbers) separated by commas, for example `1,7`:
 
 | Setting | Who | What they see |
@@ -479,27 +481,30 @@ Two settings in `apps/backend/.env`, each a list of user ids (account numbers) s
 | `AGORA_ADMINS` | Agora admins | The whole admin area, all six tabs |
 | `AGORA_HELPDESK_ADMINS` | People who only run the Help desk | Only the Help desk tab. Every other part of the admin area refuses them |
 
-For both: the account must be switched on. Only numbers count, never email addresses: Agora lets a logged-in person change their email address without confirming the new one, so an address in the list could be taken over by anyone who types it into their account settings. An entry that is not a number is ignored, and the log says so once. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in (Help requests are still kept).
+For both: the account must be switched on. Email addresses in the list are ignored. To find a user id: open the profile in Agora; the number in the address (`/members/<number>`) is the id. Empty settings mean nobody gets in through the settings (Help requests are still kept).
 
-### Agora admins are Administrator everywhere
+The settings still work next to the roles given in the admin area, and they are the fallback: the admin area cannot change or remove what they say. Keep at least yourself in `AGORA_ADMINS`, so you can never be locked out.
 
-Agora admins have full access everywhere and can see everything (Guy's decision, 23 October 2026). Every Agora admin (`AGORA_ADMINS`) is always a member and Administrator of every circle and every space, also hidden ones and paid (paywalled) spaces. A space uses the roles of the circle it sits in, so there they are Administrator of that circle. Only `AGORA_ADMINS` does this, not `AGORA_HELPDESK_ADMINS`.
+### Give someone a role
 
-- When someone makes a circle or a space, the Agora admins join it straight away. The person who made it stays Administrator too. An entry in `AGORA_ADMINS` that matches no active account is skipped and named in the log; the circle is made anyway.
-- They join quietly: no join form, and nobody gets a "new member" notice. In those circles they get only important notices (mentions and announcements) and a weekly digest, not a notice for every post. Each admin can change that in the circle's own notification settings.
-- Every hour Agora checks all circles and spaces and adds what is missing, so someone you add to `AGORA_ADMINS` is Administrator everywhere within the hour. It writes a line in the log only when it changed something.
-- Admins are always in. If an admin leaves a circle or space, or a steward removes them or takes away their Administrator role, the next hourly check puts them back, and the log says "brought Agora admin ... back into group ...". To take someone out for good, remove them from `AGORA_ADMINS` first.
-- What admins still do not see: direct messages between other people, and the chat and end screen of a meeting they did not take part in (those are only for the people in that meeting).
+On the **Accounts** tab every account shows its role: **Member** (no role), **Help desk** (only the Help desk tab) or **Admin** (the whole admin area). To make David an admin:
 
-To do it at once for the circles and spaces that already exist, in `/srv/agora/apps/backend` on the server (or `apps/backend` on a Mac, without the `sudo` part):
+1. Open `/admin`, then the **Accounts** tab.
+2. Type David's name in the search box and press **Search**.
+3. In his row, choose **Admin** under **Role**.
+4. The page asks again and says what an admin can do. Press **Yes, make it Admin**.
 
-```
-sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-admins-everywhere.js
-```
+The change works at once; David sees the **Admin** link in his gear menu after he reloads the page. He gets an email "You are now an admin of Agora" (while Agora has no mailbox, it only goes into the server log). Choose **Member** to take a role away again.
 
-That only shows what it would change and saves nothing. Add `--apply` at the end to save it. It also brings admins back into circles and spaces they left or were removed from. It only adds what is missing, so it is safe to run again; a second run says "Nothing to change".
+The server checks these rules, whatever the page sends:
 
-To take someone out for good: first remove their number from `AGORA_ADMINS` (and restart), then run the same command with `--remove <number>` (a dry run) and `--remove <number> --apply`. It removes the Administrator role and the membership in every circle and space that this feature put them in. Memberships and roles they had on their own stay.
+- only Agora admins can change roles;
+- nobody can change their own role, so nobody can remove or lower their own admin role by mistake;
+- people named in `AGORA_ADMINS` or `AGORA_HELPDESK_ADMINS` show as "Admin (set on the server)" or "Help desk (set on the server)", and the page cannot change them;
+- a role can only be given to an account that is switched on. When an account is switched off, its role stops working; when it is switched on again, the role works again;
+- every change is written down (who changed whose role, from what to what, and when) and shows on the **Activity** tab.
+
+The roles are kept in the table `agora_roles`, and the changes in `agora_role_changes`. After updating to a version with roles, run `cd apps/backend && yarn migrate` once. Until then the settings still work, and the role control does not.
 
 ### The six tabs
 
@@ -513,9 +518,9 @@ To take someone out for good: first remove their number from `AGORA_ADMINS` (and
 
   The internal note and the builder task are for the Help desk only.
 - **Invitations**: every circle invitation in one list, with its circle, who sent it, when it was made and last sent, how often it was sent, and what became of it: waiting, accepted (by whom and when) or expired or withdrawn. Filter by status and circle. For a waiting invitation: copy its link, send it again (Hylo's own invitation email) or withdraw it. Below that, each circle's join link (to copy) and the join requests that wait. Hylo does not record who joined through a join link, so the page shows how many members joined without an email invitation (through the join link, a join request, or added by a steward).
-- **Accounts**: everyone with an account, with email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
+- **Accounts**: everyone with an account, with their role (see "Give someone a role"), email address, circles, when they joined, when they were last active, whether the email address is confirmed and whether the account is on, switched off or a sign-up that was never finished. Search by name or email. **Switch off** uses Hylo's own deactivate: the person is logged out everywhere and cannot log in, and nothing is deleted. **Switch on again** brings the account back. You cannot switch off your own account here, and nothing on this page deletes anyone.
 - **System**: the version (the code version, a git commit) that runs, how long Agora and the server have been running, disk, memory and database size, which outside services are set up (speech to text, Claude, email, kDrive, Google Drive, the video call domain, sign-up by invitation), and the backups: the last nightly backup and whether the copy away from the server is set up and when it last worked. What the page cannot read says "check on the server". It never shows a key, password or token.
-- **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended and Help desk requests. It is put together from what Agora already stores, so it needs nothing new.
+- **Activity**: the latest events, newest first, 50 per page: accounts made, invitations sent, accepted and withdrawn, circles made, people joining or leaving circles, join requests, meetings that ended, Help desk requests and changes of someone's role. It is put together from what Agora already stores, and the role changes from their own table.
 
 ### Let someone in
 
