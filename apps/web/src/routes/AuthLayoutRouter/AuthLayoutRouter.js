@@ -87,6 +87,7 @@ import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Co
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
 import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
+import CalendarPage from '@/agora/calendar/CalendarPage' // Agora: my calendar of Meetings and Events
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
 import ProposedProfileBanner from '@/agora/claim/ProposedProfileBanner' // Agora: a profile proposed to this member
 import HelpWindow from '@/agora/help/HelpWindow' // Agora: Help, bottom right
@@ -1214,6 +1215,7 @@ export default function AuthLayoutRouter (props) {
                 <Route path='contacts/:contactId' element={<ContactsPage />} />
                 <Route path='contacts' element={<ContactsPage />} />
                 <Route path='guide' element={<GuidePage />} /> {/* Agora: the guide */}
+                <Route path='calendar' element={<CalendarPage />} /> {/* Agora: my calendar */}
                 {/* Agora: the admin area, with the Help desk as a tab. The old Help desk addresses send people there */}
                 <Route path='admin/help-desk/:requestId' element={<AdminPage tab='help-desk' />} />
                 <Route path='admin/help-desk' element={<AdminPage tab='help-desk' />} />

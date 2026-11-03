@@ -33,7 +33,7 @@ export default function Calendar ({
       start: DateTimeHelpers.toDateTime(post.startTime, { locale: getLocaleFromLocalStorage() }).toJSDate(),
       end: DateTimeHelpers.toDateTime(post.endTime, { locale: getLocaleFromLocalStorage() }).toJSDate(),
       title: post.title,
-      type: post.type,
+      type: post.type === 'event' && post.agoraKind !== 'event' ? 'meeting' : post.type, // Agora: Meetings get their own colour
       multiday: isMultiday(post),
       post
     }

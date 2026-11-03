@@ -35,8 +35,10 @@ export default function CreateMenu ({ coordinates, mapView }) {
     <div>
       <h2 className='text-foreground/80 mb-3 font-bold mt-0 text-selected'>{coordinates ? t('New post at this location:') + ' ' : t('What would you like to create?')}</h2>
       <div className='flex flex-col gap-2'>
-        {visiblePostTypes.map(postType => {
+        {/* Agora: the event type is offered twice, as a Meeting and as an Event (see src/agora/calendar/api.js) */}
+        {visiblePostTypes.flatMap(type => type === 'event' ? [['event', 'meeting'], ['event', 'event']] : [[type]]).map(([postType, agoraKind]) => {
           const extra = { newPostType: postType }
+          if (agoraKind) extra.agoraKind = agoraKind // Agora
           if (coordinates) {
             extra.lat = coordinates.lat
             extra.lng = coordinates.lng
@@ -47,10 +49,10 @@ export default function CreateMenu ({ coordinates, mapView }) {
           const iconName = postType === 'request' ? 'Heart' : postTypeUppercase
 
           return (
-            <Link to={createPostForPostTypePath} key={postType} onClick={handleLinkClick} className='text-foreground transition-all hover:scale-105 hover:text-foreground group'>
+            <Link to={createPostForPostTypePath} key={agoraKind || postType} data-testid={`create-${agoraKind || postType}`} onClick={handleLinkClick} className='text-foreground transition-all hover:scale-105 hover:text-foreground group'>
               <div className='flex items-center rounded-lg border-2 border-foreground/20 hover:border-foreground/50 transition-all p-1 px-2'>
-                <Icon name={iconName} className='mr-2' />
-                <span className='text-base'>{t(postType)}</span>
+                <Icon name={agoraKind === 'meeting' ? 'People' : iconName} className='mr-2' />
+                <span className='text-base'>{agoraKind ? t(agoraKind === 'meeting' ? 'Meeting' : 'Event') : t(postType)}</span>
                 <CreateButton />
               </div>
             </Link>

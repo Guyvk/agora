@@ -6,6 +6,7 @@ import { assertGroupsAcceptPostType } from './validatePostData'
 import { groupRoom, pushToSockets } from '../../services/Websockets'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { fillMeetingLink, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
+import { withKind, afterCreate as agoraAfterCreate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
 import {
   POST_TYPE_TO_TYPED_VIEW,
   postCountsTowardChatUnread
@@ -17,6 +18,7 @@ export default async function createPost (userId, params) {
   refuseOutsideCallLocation(params.type, params.location) // Agora: calls only in the meeting room
   const { hosted: hostedImageUrls, remote: remoteImageUrls } = partitionImageUrls(params.imageUrls)
   return setupPostAttrs(userId, merge(Post.newPostAttrs(), params), true)
+    .then(attrs => withKind(userId, attrs, params)) // Agora: Meeting or Event, and "for all of 7BP"
     .then(attrs => bookshelf.transaction(transacting =>
       Post.create(attrs, { transacting })
         // Agora: an event's video call link is always its meeting room, whatever was sent
@@ -43,7 +45,10 @@ export default async function createPost (userId, params) {
       if (post.get('type') === Post.Type.CHAT && !params.silent) {
         Queue.classMethod('Post', 'upsertChatActivityNotice', { postId: post.id }, 0)
       }
-      return post
+      // Agora: calendar invitations for all of 7BP, when asked. A queue problem never fails the post
+      return Promise.resolve().then(() => agoraAfterCreate(post, params, userId))
+        .catch(err => console.error(`Agora: could not queue the calendar invitations for post ${post.id}:`, err && err.message))
+        .then(() => post)
     })
 }
 
