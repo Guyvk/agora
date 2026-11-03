@@ -86,6 +86,7 @@ import MessagesLayout from 'routes/Messages/MessagesLayout'
 import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Contacts page
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
 import LibraryPage from '@/agora/library/LibraryPage' // Agora: the Resources tab is the circle library
+import AskPage from '@/agora/ask/AskPage' // Agora: the Ask tab of a circle
 import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import CalendarPage from '@/agora/calendar/CalendarPage' // Agora: my calendar of Meetings and Events
@@ -1153,6 +1154,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='members/:personId/*' element={<MemberProfile context='groups' />} />
                             <Route path='members/*' element={<Members context='groups' />} />
                             <Route path='playbook' element={<PlaybookPage />} /> {/* Agora: the playbook page of a group */}
+                            <Route path='ask' element={<AskPage />} /> {/* Agora: the Ask tab of a circle */}
                             <Route path='files' element={<FilesPage />} /> {/* Agora: the Files page of a circle, inside the app */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />

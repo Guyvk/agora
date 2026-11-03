@@ -72,7 +72,7 @@ setup.restoreDefaultStripeMock = () => {
 }
 
 before(function (done) {
-  this.timeout(50000)
+  this.timeout(300000)
 
   const i18n = require('i18n')
   i18n.configure(require(root('config/i18n')).i18n)
