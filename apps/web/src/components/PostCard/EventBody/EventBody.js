@@ -56,7 +56,7 @@ function EventBody (props) {
                   tooltipId={`event-time-${id}`}
                 />
                 {isPastEvent && (
-                  <span className='ml-2 px-2 inline-block p-1 rounded-md bg-error/10 text-error text-xs font-bold' data-testid='event-passed'>{t('This event has passed')}</span>
+                  <span className='ml-2 px-2 inline-block p-1 rounded-md bg-error/10 text-error text-xs font-bold' data-testid='event-passed'>{/* Agora: Meeting or Event */}{event.agoraKind === 'meeting' ? t('This meeting has passed') : t('This event has passed')}</span>
                 )}
                 {isPastEvent && canEditEvent && onEditEvent && (
                   <button
@@ -111,7 +111,8 @@ function EventBody (props) {
           )}
         </div>
         {/* Agora: on the event's own page, a guest link for people without an account */}
-        {expanded && currentUser && <GuestLinkPanel postId={id} />}
+        {/* Agora: guest links only for a Meeting; an Event has no meeting room */}
+        {expanded && currentUser && event.agoraKind !== 'event' && <GuestLinkPanel postId={id} />}
         {showInviteDialog && (
           <EventInviteDialog
             eventId={id}

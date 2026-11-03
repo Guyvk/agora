@@ -1076,7 +1076,7 @@ $('joinWithoutNotes').addEventListener('click', () => join(false));
 $('leaveBtn').addEventListener('click', () => leaveCall());
 $('pauseBtn').addEventListener('click', () => { state.paused = !state.paused; sync(); });
 
-/* If a meeting on this event has already ended, show how it went instead of the lobby. */
+/* If this meeting has already ended, show how it went instead of the lobby. */
 const startFresh = BOOT.guest || new URLSearchParams(location.search).has('new');
 if (!startFresh) get('/transcript').then(data => {
   if (data.status === 'closing' || data.status === 'closed') {
