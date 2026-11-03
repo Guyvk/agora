@@ -27,6 +27,7 @@ import {
 } from 'util/webView'
 import { isSandboxMode } from 'sandbox/isSandbox'
 import LegalPage from '@/agora/legal/LegalPage' // Agora: our own Terms of use and Privacy notice
+import ClaimPage from '@/agora/claim/ClaimPage' // Agora: claiming a profile made from someone's sheet
 
 if (!isTest && config.mixpanel.token && !isSandboxMode()) {
   mixpanel.init(config.mixpanel.token, { debug: !isProduction })
@@ -83,6 +84,7 @@ function isNeutralRootSessionLoadingPath (pathname) {
   if (pathname.startsWith('/post/')) return true
   if (pathname.startsWith('/oauth/')) return true
   if (pathname === '/h/use-invitation') return true
+  if (pathname.startsWith('/claim/')) return true // Agora: the claim page
   if (pathname.includes('/join/')) return true
   // Single-segment paths that are not obvious “main app” entry slugs resolve to non-auth (e.g. → /login); avoid auth-shaped skeleton while checkLogin runs
   const oneSeg = pathname.match(/^\/([^/]+)$/)
@@ -235,6 +237,8 @@ export default function RootRouter () {
         {/* Agora: the Terms of use and the Privacy notice, also for people who are logged in */}
         <Route path='/terms' element={<LegalPage page='terms' />} />
         <Route path='/privacy' element={<LegalPage page='privacy' />} />
+        {/* Agora: claiming a profile made from someone's sheet */}
+        <Route path='/claim/:token' element={<ClaimPage loggedIn />} />
         <Route path='*' element={<AuthLayoutRouter />} />
       </Routes>
     )
@@ -261,6 +265,8 @@ export default function RootRouter () {
           {/* Agora: the Terms of use and the Privacy notice, readable without logging in */}
           <Route path='/terms' element={<LegalPage page='terms' />} />
           <Route path='/privacy' element={<LegalPage page='privacy' />} />
+          {/* Agora: claiming a profile made from someone's sheet, before having an account */}
+          <Route path='/claim/:token' element={<ClaimPage />} />
 
           <Route path='/post/:postId/*' element={<PublicPostDetail />} />
 

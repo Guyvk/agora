@@ -56,27 +56,39 @@ function PasswordReset ({ className }) {
           </div>
           {success && <div className='mb-4 text-selected text-center'>{t('If your email address matched an account in our system, we sent you an email. Please check your inbox.')}</div>}
           {error && <div className='mb-4 text-error text-center'>{t('There was a problem with your request. Please check your email and try again.')}</div>}
-          <TextInput
-            id='email'
-            internalLabel={t('Your email address')}
-            autoFocus
-            inputRef={emailRef}
-            name='email'
-            noClearButton
-            onChange={onChange}
-            onEnter={submit}
-            className='bg-card border-2 border-foreground/20 rounded-md mb-3 selected:text-foreground'
-            inputClassName='p-3 text-foreground bg-card w-full rounded-md autofill:text-foreground autofill:bg-transparent selected:text-foreground'
-            type='text'
-            value={email}
-          />
-
-          <Button
-            className={cn('w-full mt-2 rounded-md p-2', { 'bg-selected': canSubmit, 'bg-foreground/10 text-foreground/80': !canSubmit })}
-            onClick={canSubmit ? submit : null}
+          {/* Agora: a real form whose email field is the account's username, for password managers */}
+          <form
+            name='reset-password'
+            method='post'
+            action='/reset-password'
+            noValidate
+            onSubmit={event => {
+              event.preventDefault()
+              if (canSubmit) submit()
+            }}
           >
-            {t('Send reset email')}
-          </Button>
+            <TextInput
+              id='email'
+              internalLabel={t('Your email address')}
+              autoFocus
+              autoComplete='username'
+              inputRef={emailRef}
+              name='email'
+              noClearButton
+              onChange={onChange}
+              className='bg-card border-2 border-foreground/20 rounded-md mb-3 selected:text-foreground'
+              inputClassName='p-3 text-foreground bg-card w-full rounded-md autofill:text-foreground autofill:bg-transparent selected:text-foreground'
+              type='email'
+              value={email}
+            />
+
+            <Button
+              type='submit'
+              className={cn('w-full mt-2 rounded-md p-2', { 'bg-selected': canSubmit, 'bg-foreground/10 text-foreground/80': !canSubmit })}
+            >
+              {t('Send reset email')}
+            </Button>
+          </form>
         </div>
       </div>
     </>

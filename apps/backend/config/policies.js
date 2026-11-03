@@ -48,6 +48,20 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora: guests in a meeting have no login. Each call checks the guest link's
+  // secret and the guest's own secret instead (lib/agora/meetingGuests.js).
+  // These are the only actions; there is none to read the notes or end the meeting.
+  // The chat and the end screen only show the meeting the guest is in.
+  MeetingGuestController: {
+    page: true,
+    join: true,
+    segment: true,
+    status: true,
+    chat: true,
+    summary: true,
+    end: true
+  },
+
   // Agora files: for anyone logged in. The page sends people to the login page itself.
   // Adding files also checks that the person is a member of the circle.
   AgoraFilesController: {
@@ -55,10 +69,27 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora: circle files in kDrive. Every action also checks that the person is
+  // an active member of the circle.
+  AgoraKdriveController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora contacts: for Agora members. The page sends people to the login page itself.
   AgoraContactsController: {
     page: true,
     '*': 'sessionAuth'
+  },
+
+  // Agora: claiming a profile. Reading it needs only the claim link's secret (the person
+  // may have no account yet); claiming it needs a login (lib/agora/claims.js).
+  AgoraClaimController: {
+    show: true,
+    claim: 'sessionAuth',
+    myProposal: 'sessionAuth',
+    claimProposal: 'sessionAuth',
+    dismissProposal: 'sessionAuth',
+    removeSheetData: 'sessionAuth'
   },
 
   // Agora help: for anyone logged in. Each action checks who may see which request,
@@ -69,6 +100,11 @@ module.exports.policies = {
 
   // Agora Ask: for anyone logged in, and each action checks membership of the circle.
   AgoraAskController: {
+    '*': 'sessionAuth'
+  },
+
+  // Agora: "This week in 7BP", for anyone logged in. The answer only holds what the person may see.
+  AgoraThisWeekController: {
     '*': 'sessionAuth'
   },
 
@@ -103,8 +139,9 @@ module.exports.policies = {
     typing:      ['isSocket', 'sessionAuth', 'checkAndSetMembership']
   },
 
+  // Agora: circle profiles are not public (Agora does not use Murmurations); nothing is visible without logging in
   MurmurationsController: {
-    group: true
+    group: 'sessionAuth'
   },
 
   PostController: {

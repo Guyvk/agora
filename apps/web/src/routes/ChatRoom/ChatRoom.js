@@ -5,10 +5,12 @@ import { DateTimeHelpers, postAppearsInChat } from '@hylo/shared'
 import { EditorView } from 'prosemirror-view'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Helmet } from 'react-helmet'
+import { agoraTitle } from '@/agora/appName' // Agora: tab titles say Agora
 import { useTranslation } from 'react-i18next'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, Routes, Route } from 'react-router-dom'
-import { VirtuosoMessageList, VirtuosoMessageListLicense, useVirtuosoLocation, useVirtuosoMethods } from '@virtuoso.dev/message-list'
+// Agora: our own free message list instead of the paid @virtuoso.dev/message-list, which shows nothing without a licence key
+import AgoraMessageList, { useMessageListLocation as useVirtuosoLocation, useMessageListMethods as useVirtuosoMethods } from '@/agora/chat/AgoraMessageList'
 
 import { getSocket } from 'client/websockets.js'
 import { useLayoutFlags } from 'contexts/LayoutFlagsContext'
@@ -900,7 +902,7 @@ export default function ChatRoom (props) {
   return (
     <div className={cn('ChatRoom flex-1 min-h-0 flex flex-col overflow-hidden items-center justify-center', { [styles.withoutNav]: withoutNav })} ref={setContainer}>
       <Helmet>
-        <title>{t('Chat')} | {group?.name ? `${group.name} | ` : ''}Hylo</title>
+        <title>{agoraTitle(t('Chat'), group?.name)}</title>
       </Helmet>
 
       <div
@@ -974,47 +976,46 @@ export default function ChatRoom (props) {
             </div>
             )
           : (
-            <VirtuosoMessageListLicense licenseKey={import.meta.env.VITE_VIRTUOSO_KEY}>
-              <VirtuosoMessageList
-                style={{ height: '100%', width: '100%', marginTop: 'auto', overflowX: 'visible' }}
-                className='px-3 sm:px-5'
-                ref={messageListRef}
-                context={{
-                  currentUser,
-                  group,
-                  hasFetchedForCurrentRoom,
-                  initialAnimationComplete,
-                  latestOldPostId,
-                  loadedFuture,
-                  loadedPast,
-                  loadingFuture,
-                  loadingPast,
-                  hasMorePast: hasMorePastRef.current,
-                  keptHeaderPostIds: keptHeaderPostIdsRef.current,
-                  newPostCount: chatView?.newPostCount,
-                  numPosts: postsForDisplay.length,
-                  handleAddReaction,
-                  handleFlagPost,
-                  handleRemovePost,
-                  handleRemoveReaction,
-                  loadToLatest,
-                  postIdToStartAt,
-                  selectedPostId
-                }}
-                initialData={postsForDisplay}
-                initialLocation={{ index: initialPostToScrollTo, align: 'start-no-overflow' }}
-                shortSizeAlign='bottom-smooth'
-                computeItemKey={({ data, index }) => data?.id != null ? String(data.id) : (data?.localId ?? `chat-${chatView?.id ?? groupSlug}-${index}`)}
-                itemIdentity={item => item?.id != null ? String(item.id) : item?.localId}
-                onScroll={onScroll}
-                onRenderedDataChange={onRenderedDataChange}
-                EmptyPlaceholder={EmptyPlaceholder}
-                Footer={Footer}
-                Header={Header}
-                StickyFooter={StickyFooter}
-                ItemContent={ItemContent}
-              />
-            </VirtuosoMessageListLicense>
+            // Agora: AgoraMessageList, same props as Hylo's VirtuosoMessageList, no licence wrapper
+            <AgoraMessageList
+              style={{ height: '100%', width: '100%', marginTop: 'auto', overflowX: 'visible' }}
+              className='px-3 sm:px-5'
+              ref={messageListRef}
+              context={{
+                currentUser,
+                group,
+                hasFetchedForCurrentRoom,
+                initialAnimationComplete,
+                latestOldPostId,
+                loadedFuture,
+                loadedPast,
+                loadingFuture,
+                loadingPast,
+                hasMorePast: hasMorePastRef.current,
+                keptHeaderPostIds: keptHeaderPostIdsRef.current,
+                newPostCount: chatView?.newPostCount,
+                numPosts: postsForDisplay.length,
+                handleAddReaction,
+                handleFlagPost,
+                handleRemovePost,
+                handleRemoveReaction,
+                loadToLatest,
+                postIdToStartAt,
+                selectedPostId
+              }}
+              initialData={postsForDisplay}
+              initialLocation={{ index: initialPostToScrollTo, align: 'start-no-overflow' }}
+              shortSizeAlign='bottom-smooth'
+              computeItemKey={({ data, index }) => data?.id != null ? String(data.id) : (data?.localId ?? `chat-${chatView?.id ?? groupSlug}-${index}`)}
+              itemIdentity={item => item?.id != null ? String(item.id) : item?.localId}
+              onScroll={onScroll}
+              onRenderedDataChange={onRenderedDataChange}
+              EmptyPlaceholder={EmptyPlaceholder}
+              Footer={Footer}
+              Header={Header}
+              StickyFooter={StickyFooter}
+              ItemContent={ItemContent}
+            />
             )}
       </div>
 

@@ -56,11 +56,11 @@ module.exports.http = {
     ***************************************************************************/
 
     order: [
-      'agoraUploads', // Agora: files need no session, so they come first
       'cookieParser',
       'session',
       'passportInit',
       'passportSession',
+      'agoraUploads', // Agora: files are only for people who are logged in, so after the session
       'compress',
       'requestLogger',
       '$custom',

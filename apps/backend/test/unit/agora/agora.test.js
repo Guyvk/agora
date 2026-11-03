@@ -53,6 +53,24 @@ describe('Agora meeting minutes', () => {
     expect(html).to.contain('Amara &lt;x&gt;')
   })
 
+  it('with a summary, posts only the summary and who was there (no transcript, no chat)', () => {
+    const html = MeetingMinutes.renderHtml({
+      minutes: { summary: 'We agreed on consent.', topics: [], decisions: ['Use consent'], actions: [], open_questions: [] },
+      attendees: ['Lars', 'Amara'],
+      guests: ['Zoe (guest)'],
+      lines: [{ name: 'Lars', text: 'A spoken line', spokenAt: at(1) }],
+      chat: [{ name: 'Amara', text: 'A chat line', at: at(2) }],
+      startedAt
+    })
+    expect(html).to.contain('<h3>Summary</h3>')
+    expect(html).to.contain('<h3>Who was there</h3>')
+    expect(html).to.contain('Zoe (guest)')
+    expect(html).to.not.contain('<h3>Transcript</h3>')
+    expect(html).to.not.contain('A spoken line')
+    expect(html).to.not.contain('Chat during the meeting')
+    expect(html).to.not.contain('A chat line')
+  })
+
   it('falls back to the transcript when there is no summary', () => {
     const html = MeetingMinutes.renderHtml({ minutes: null, attendees: [], lines, startedAt })
     expect(html).to.contain('The assistant is not connected yet')

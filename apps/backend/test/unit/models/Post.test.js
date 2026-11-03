@@ -29,6 +29,14 @@ describe('Post', function () {
       expect(followers.length).to.equal(2)
     })
 
+    it('treats the same id as a number and as a string as one person', async () => {
+      await post.addFollowers([String(u2.id)])
+      await post.addFollowers([Number(u2.id), String(u2.id)])
+
+      const followers = await post.followers().fetch()
+      expect(followers.length).to.equal(1)
+    })
+
     it('queries for lastReadAt correctly', async () => {
       await post.addFollowers([u1.id])
 

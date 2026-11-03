@@ -1,0 +1,24 @@
+# Agora: the 7BP Home (main circle) and the circles inside it. See lib/agora/mainCircle.js.
+# Added to Hylo's schema in api/graphql/makeSchema.js.
+
+type AgoraMainCircle {
+  id: ID
+  slug: String
+  name: String
+  avatarUrl: String
+  # The active circles inside it that this person may see
+  circles: [AgoraMainCircleChild]
+}
+
+type AgoraMainCircleChild {
+  id: ID
+  slug: String
+  name: String
+  avatarUrl: String
+  memberCount: Int
+}
+
+extend type Query {
+  # The main circle, for its members. Null when there is none or for anyone else
+  agoraMainCircle: AgoraMainCircle
+}

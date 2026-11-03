@@ -70,6 +70,7 @@ export default function Login (props) {
             name='email'
             id='email'
             autoFocus
+            autoComplete='username' // Agora: for password managers
             internalLabel='Email'
             onChange={handleSetEmail}
             className='bg-input rounded-md mb-3 border-2 border-border'
@@ -84,6 +85,7 @@ export default function Login (props) {
             name='password'
             id='password'
             internalLabel='Password'
+            autoComplete='current-password' // Agora: for password managers
             onChange={handleSetPassword}
             onEnter={submit}
             className='bg-input rounded-md mb-3 border-2 border-border'

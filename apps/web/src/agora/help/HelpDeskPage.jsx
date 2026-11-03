@@ -10,7 +10,8 @@
  *                           "Build this", which writes a short task for a
  *                           builder without names or personal details
  *
- * Only Help desk admins (AGORA_ADMINS or AGORA_HELPDESK_ADMINS on the server) get in; the
+ * Only Help desk admins (AGORA_ADMINS or AGORA_HELPDESK_ADMINS on the server, or the role
+ * Admin or Help desk from the Accounts tab) get in; the
  * server checks this for every request. See apps/backend/lib/agora/help.js.
  */
 import React, { useCallback, useEffect, useState } from 'react'

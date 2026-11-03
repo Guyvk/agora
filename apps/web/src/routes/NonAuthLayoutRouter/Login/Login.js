@@ -110,7 +110,18 @@ export default function Login (props) {
         <title>{t('Sign in to Hylo')}</title>
       </Helmet>
       <div className='bg-midground shadow-md rounded-md w-full max-w-[320px] mx-auto'>
-        <div className='flex flex-col gap-2 p-4'>
+        {/* Agora: a real form, so password managers see a login and offer to fill and save it */}
+        <form
+          name='login'
+          method='post'
+          action='/login'
+          noValidate
+          className='flex flex-col gap-2 p-4'
+          onSubmit={event => {
+            event.preventDefault()
+            if (email && password) handleLogin()
+          }}
+        >
           <h1 className='text-2xl font-bold mb-4 text-foreground text-center'>{t('Sign in to Hylo')}</h1>
 
           {error && formatError(error, 'Login', t)}
@@ -118,6 +129,7 @@ export default function Login (props) {
           <TextInput
             aria-label='email' label='email' name='email' id='email'
             autoFocus
+            autoComplete='username' // Agora: for password managers
             internalLabel={t('Email')}
             onChange={handleEmailChange}
             doCheckAutofill
@@ -132,7 +144,7 @@ export default function Login (props) {
             internalLabel={t('Password')}
             onChange={handlePasswordChange}
             doCheckAutofill
-            onEnter={handleLogin}
+            autoComplete='current-password' // Agora: for password managers; Enter submits the form
             className='bg-card border-2 border-foreground/20 rounded-md mb-3'
             inputClassName='p-4 autofill:text-foreground text-foreground autofill:bg-transparent w-full bg-transparent rounded-md'
             type='password'
@@ -144,14 +156,14 @@ export default function Login (props) {
             </Link>
           </div>
           <Button
+            type='submit' // Agora: submits the form
             variant='highVisibility'
             className={cn('text-base', `${email && password ? 'bg-selected' : 'bg-gray-400 cursor-not-allowed'}`)}
-            onClick={handleLogin}
             disabled={!email || !password}
           >
             {t('Sign in')}
           </Button>
-        </div>
+        </form>
         {/* Agora: logging in with Google is not used */}
         {showGoogleLogin && (
           <div className='flex justify-center px-4 pb-4'>

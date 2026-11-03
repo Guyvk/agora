@@ -110,9 +110,8 @@ export default defineConfig(({ command }) => ({
     //   .trycloudflare.com — cloudflared quick tunnels, for anyone anywhere
     //     (cloudflared tunnel --url http://localhost:3000; random public URL)
     // A leading dot matches any name under that suffix, so none needs
-    // per-machine configuration. Note @virtuoso.dev/message-list only treats
-    // localhost and *.local as development, so the chat list carries its
-    // missing-license watermark over Tailscale until VITE_VIRTUOSO_KEY is set.
+    // per-machine configuration. (Agora: the chat list is our own now, so the
+    // old Virtuoso licence watermark note no longer applies.)
     allowedHosts: ['.local', '.ts.net', '.trycloudflare.com'],
     // https: process.env.HTTPS === 'true' ? {
     //   key: fs.readFileSync(path.resolve(__dirname, `./config/ssl/${process.env.LOCAL_CERT}.key`)),

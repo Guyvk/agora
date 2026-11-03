@@ -15,6 +15,7 @@ module.exports = {
   group: async function (req, res) {
     const groupSlug = req.param('groupSlug')
     const group = await Group.findActive(groupSlug)
+    if (!group) return res.notFound() // Agora: an unknown slug is a 404, not a 500
     if (group.hasMurmurationsProfile()) {
       const groupObject = await group.toMurmurationsObject()
       return res.ok(groupObject)

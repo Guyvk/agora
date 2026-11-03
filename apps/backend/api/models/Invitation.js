@@ -50,6 +50,8 @@ module.exports = bookshelf.Model.extend(Object.assign({
   // the tag follow already exists
   async use (userId, { transacting } = {}) {
     const user = await User.find(userId, { transacting })
+    // Agora: an email invitation is only for the address it was sent to (lib/agora/signup.js)
+    require('../../lib/agora/signup').checkInvitationFitsUser(this.get('email'), user)
     const group = await this.group().fetch({ transacting })
     const membership =
       await GroupMembership.forPair(user, group).fetch({ transacting }) ||

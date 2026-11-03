@@ -1,5 +1,8 @@
 import crypto from 'crypto'
 import createPost from './post/createPost'
+import { guestLabel } from '../../lib/agora/meetingGuests'
+import { reasonToEnd, listMessages, whoTookPart } from '../../lib/agora/meetingChat'
+import KdriveMinutes from '../../lib/agora/kdriveMinutes'
 
 /**
  * Agora: one meeting held on an event.
@@ -10,7 +13,6 @@ import createPost from './post/createPost'
  * the minutes and posts them in the same group as the event.
  */
 
-const STALE_AFTER_MINUTES = 45
 const WAIT_FOR_TRANSCRIPTION_MINUTES = 10
 
 module.exports = bookshelf.Model.extend({
@@ -99,29 +101,50 @@ module.exports = bookshelf.Model.extend({
   },
 
   /**
-   * Cron job: a meeting nobody ended by hand is ended once it has been quiet
-   * for a while, so the minutes still get written.
+   * Open meetings that should end by themselves now: nobody has been in
+   * them for 10 minutes (every room page says "still here" every few
+   * seconds), or, as a safety cap, they started 8 hours ago. A meeting with
+   * someone in it is never ended for running past the event's end time.
+   * See lib/agora/meetingChat.js.
+   * @returns {Promise<Array<{session, reason}>>} reason is 'empty' or 'too_long'
    */
-  closeStale: async function () {
-    const cutoff = new Date(Date.now() - STALE_AFTER_MINUTES * 60000)
-    const stale = await MeetingSession.query(q => {
+  findAbandoned: async function (now = new Date()) {
+    const open = await MeetingSession.query(q => {
       q.where({ status: MeetingSession.Status.OPEN })
-      q.where('last_activity_at', '<', cutoff)
-    }).fetchAll()
+      q.orderBy('id', 'asc')
+    }).fetchAll({ withRelated: ['post'] })
 
-    for (const session of stale.models) {
-      await MeetingSession.end({ sessionId: session.id })
+    const found = []
+    for (const session of open.models) {
+      const reason = await reasonToEnd(session, session.relations.post, now)
+      if (reason) found.push({ session, reason })
     }
-    return stale.length
+    return found
   },
 
   /**
-   * All transcribed lines of a meeting, oldest first.
-   * @returns {Promise<Array<{id, userId, name, text, spokenAt}>>}
+   * Cron job (every 10 minutes): a meeting nobody ended by hand ends by
+   * itself, exactly as if someone pressed End meeting, so the minutes still
+   * get written and posted.
+   * @returns {Promise<number>} how many meetings were ended
+   */
+  closeStale: async function (now = new Date()) {
+    const abandoned = await MeetingSession.findAbandoned(now)
+    for (const { session } of abandoned) {
+      await MeetingSession.end({ sessionId: session.id })
+    }
+    return abandoned.length
+  },
+
+  /**
+   * All transcribed lines of a meeting, oldest first. A line by a guest has
+   * no userId, and the guest's name ends in "(guest)".
+   * @returns {Promise<Array<{id, userId, name, text, spokenAt, guest}>>}
    */
   lines: async function (sessionId, { afterId } = {}) {
     const rows = await bookshelf.knex('meeting_segments')
-      .join('users', 'users.id', 'meeting_segments.user_id')
+      .leftJoin('users', 'users.id', 'meeting_segments.user_id')
+      .leftJoin('meeting_guests', 'meeting_guests.id', 'meeting_segments.guest_id')
       .where('meeting_segments.session_id', sessionId)
       .where('meeting_segments.status', MeetingSegment.Status.DONE)
       .modify(q => { if (afterId) q.where('meeting_segments.id', '>', afterId) })
@@ -132,10 +155,13 @@ module.exports = bookshelf.Model.extend({
         'meeting_segments.user_id',
         'meeting_segments.text',
         'meeting_segments.spoken_at',
-        'users.name'
+        'users.name',
+        'meeting_guests.name as guest_name'
       )
 
-    return rows.map(r => ({ id: String(r.id), userId: String(r.user_id), name: r.name, text: r.text, spokenAt: r.spoken_at }))
+    return rows.map(r => r.guest_name
+      ? { id: String(r.id), userId: null, name: guestLabel(r.guest_name), text: r.text, spokenAt: r.spoken_at, guest: true }
+      : { id: String(r.id), userId: String(r.user_id), name: r.name, text: r.text, spokenAt: r.spoken_at })
   },
 
   /**
@@ -188,8 +214,10 @@ module.exports = bookshelf.Model.extend({
       .update({ audio: null })
 
     const lines = await MeetingSession.lines(sessionId)
+    // The chat next to the call goes into the minutes too
+    const chat = await listMessages(sessionId, { limit: null })
 
-    if (lines.length === 0) {
+    if (lines.length === 0 && chat.length === 0) {
       await session.save({ status: MeetingSession.Status.CLOSED }, { patch: true })
       return
     }
@@ -198,12 +226,9 @@ module.exports = bookshelf.Model.extend({
     const groups = event.relations.groups.models
     const startedAt = session.get('started_at')
 
-    const participantRows = await bookshelf.knex('meeting_participants')
-      .join('users', 'users.id', 'meeting_participants.user_id')
-      .where('meeting_participants.session_id', sessionId)
-      .orderBy('meeting_participants.joined_at', 'asc')
-      .select('users.name')
-    const attendees = participantRows.map(r => r.name)
+    // Members first; guests are people without an Agora account who joined
+    // through the event's guest link, each name once and ending in "(guest)"
+    const { members: attendees, guests } = await whoTookPart(sessionId)
 
     const title = event.get('name') || 'Meeting'
     const date = new Date(startedAt).toISOString().slice(0, 10)
@@ -212,14 +237,14 @@ module.exports = bookshelf.Model.extend({
     let error = null
     if (MeetingMinutes.isConfigured()) {
       try {
-        minutes = await MeetingMinutes.summarise({ title, date, attendees, lines, startedAt })
+        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, chat, startedAt })
       } catch (err) {
         error = err
         sails.log.error(`MeetingSession.finalize: could not write minutes for session ${sessionId}: ${err.message}`)
       }
     }
 
-    const description = MeetingMinutes.renderHtml({ minutes, attendees, lines, startedAt, error })
+    const description = MeetingMinutes.renderHtml({ minutes, attendees, guests, lines, chat, startedAt, error })
 
     const assistant = await MeetingSession.assistantUser()
     const now = new Date()
@@ -251,6 +276,27 @@ module.exports = bookshelf.Model.extend({
       minutes_post_id: minutesPost.id
     }, { patch: true })
 
+    // A copy of the minutes in each circle's kDrive folder, when kDrive is set
+    // up. It never stops the minutes: a failure is logged and tried once more.
+    try {
+      await KdriveMinutes.copy({
+        sessionId,
+        groupIds: groups.map(g => g.id),
+        fileName: KdriveMinutes.fileNameFor(date, title),
+        markdown: MeetingMinutes.renderMarkdown({ title, date, minutes, attendees, guests, lines, chat, startedAt, error })
+      })
+    } catch (err) {
+      sails.log.error(`MeetingSession.finalize: no kDrive copy of the minutes of session ${sessionId}: ${err.message}`)
+    }
+
     return minutesPost
+  },
+
+  /**
+   * Worker job: tries once more to save the copy of the minutes in kDrive,
+   * for the circles where the first try failed (lib/agora/kdriveMinutes.js).
+   */
+  copyMinutesToKdrive: async function ({ sessionId, groupIds, fileName, markdown, attempt }) {
+    await KdriveMinutes.copy({ sessionId, groupIds, fileName, markdown, attempt })
   }
 })

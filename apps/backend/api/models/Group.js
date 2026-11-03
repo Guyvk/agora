@@ -1439,6 +1439,10 @@ module.exports = bookshelf.Model.extend(merge({
       }
     })
 
+    // Agora: the Agora admins (AGORA_ADMINS) become members and Administrator of every new circle.
+    // Never makes the creation fail; see lib/agora/adminsEverywhere.js
+    await require('../../lib/agora/adminsEverywhere').addAgoraAdminsToNewGroup(group.id)
+
     if (data.location && !data.location_id) {
       await Queue.classMethod('Group', 'geocodeLocation', { groupId: group.id })
     }

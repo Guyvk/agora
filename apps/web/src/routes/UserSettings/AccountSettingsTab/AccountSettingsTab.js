@@ -137,7 +137,14 @@ function AccountSettingsTab ({
       changed: {}
     }))
     setConfirm(false)
-    updateUserSettings(pick(keys(omit('confirm', changed)), edits))
+    // Agora: after a successful save, a same-page history step tells password managers the new password worked
+    return Promise.resolve(updateUserSettings(pick(keys(omit('confirm', changed)), edits)))
+      .then(result => {
+        if (changed.password && !result?.error && typeof window !== 'undefined' && window.history?.replaceState) {
+          window.history.replaceState(window.history.state, '', window.location.href)
+        }
+        return result
+      })
   }
 
   const { updateCookieConsent } = useCookieConsent()
@@ -193,32 +200,45 @@ function AccountSettingsTab ({
         <div className='text-destructive text-sm' key={i}>{formErrorText}</div>
       )}
 
-      <div className='space-y-4'>
-        <SettingsControl label={t('Email')} onChange={updateSetting('email')} value={email} id='email' />
-        <SettingsControl label={t('New Password')} onChange={updateSetting('password')} value={password} type='password' id='password' />
-        <SettingsControl label={t('New Password (Confirm)')} onChange={updateSetting('confirm')} value={confirm} type='password' id='confirm' />
-      </div>
+      {/* Agora: a real form (email as username, new-password fields), so password managers offer to save a changed password */}
+      <form
+        name='account-settings'
+        method='post'
+        action='/my/account'
+        noValidate
+        className='space-y-6'
+        onSubmit={event => {
+          event.preventDefault()
+          if (canSaveValue) save()
+        }}
+      >
+        <div className='space-y-4'>
+          <SettingsControl label={t('Email')} onChange={updateSetting('email')} value={email} id='email' name='email' autoComplete='username' />
+          <SettingsControl label={t('New Password')} onChange={updateSetting('password')} value={password} type='password' id='password' name='new-password' autoComplete='new-password' />
+          <SettingsControl label={t('New Password (Confirm)')} onChange={updateSetting('confirm')} value={confirm} type='password' id='confirm' name='confirm-password' autoComplete='new-password' />
+        </div>
 
-      <div className='text-sm text-foreground/70'>
-        {t('Passwords must be at least 9 characters long, and should be a mix of lower and upper case letters, numbers and symbols.')}
-      </div>
+        <div className='text-sm text-foreground/70'>
+          {t('Passwords must be at least 9 characters long, and should be a mix of lower and upper case letters, numbers and symbols.')}
+        </div>
 
-      <div className='flex items-center justify-between pt-4 mt-6'>
-        <span className={cn(
-          'text-sm',
-          canSaveValue ? 'text-accent' : 'text-foreground/50'
-        )}
-        >
-          {canSaveValue ? 'Changes not saved' : 'Current settings up to date'}
-        </span>
-        <Button
-          disabled={!canSaveValue}
-          variant={canSaveValue ? 'secondary' : 'primary'}
-          onClick={canSaveValue ? save : null}
-        >
-          {t('Save Changes')}
-        </Button>
-      </div>
+        <div className='flex items-center justify-between pt-4 mt-6'>
+          <span className={cn(
+            'text-sm',
+            canSaveValue ? 'text-accent' : 'text-foreground/50'
+          )}
+          >
+            {canSaveValue ? 'Changes not saved' : 'Current settings up to date'}
+          </span>
+          <Button
+            type='submit'
+            disabled={!canSaveValue}
+            variant={canSaveValue ? 'secondary' : 'primary'}
+          >
+            {t('Save Changes')}
+          </Button>
+        </div>
+      </form>
 
       <div className='pt-4 flex flex-col sm:flex-row gap-4 items-center max-w-[280px] sm:max-w-none mx-auto sm:mx-0'>
         <Button

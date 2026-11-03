@@ -85,6 +85,13 @@ describe('buildPostMetaTagHtml / injectPostMetaTagsIntoHtml', () => {
     expect(html).toContain('summary_large_image')
     expect(html).not.toMatch(/<title>Hylo<\/title>/)
   })
+
+  // Agora: shared links name Agora as the site
+  it('names Agora as the site', () => {
+    const metaHtml = buildPostMetaTagHtml({ title: 'Garden day', description: '' })
+    expect(metaHtml).toContain('<meta property="og:site_name" content="Agora" />')
+    expect(presentPublicPostMeta({ title: '', details: '' }).title).toBe('Agora')
+  })
 })
 
 describe('fetchPublicPostMeta', () => {

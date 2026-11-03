@@ -247,10 +247,14 @@ describe('Agora uploads on disk', () => {
     let server, address
 
     before(done => {
-      server = http.createServer((req, res) => diskUploads.serveUploads(req, res, () => {
-        res.statusCode = 418
-        res.end('not ours')
-      }))
+      server = http.createServer((req, res) => {
+        // Agora: the session is faked here; send the header x-logged-out to be a visitor without an account
+        req.session = req.headers['x-logged-out'] ? {} : { userId: '1' }
+        diskUploads.serveUploads(req, res, () => {
+          res.statusCode = 418
+          res.end('not ours')
+        })
+      })
       server.listen(0, '127.0.0.1', () => {
         address = `http://127.0.0.1:${server.address().port}`
         done()
@@ -273,6 +277,17 @@ describe('Agora uploads on disk', () => {
       expect(response.headers.get('content-disposition')).to.equal('inline')
       expect(response.headers.get('x-content-type-options')).to.equal('nosniff')
       expect(response.headers.get('content-security-policy')).to.include('sandbox')
+    })
+
+    it('answers someone who is not logged in with 401 and no file', async () => {
+      const response = await fetch(`${address}/noo/uploads/evo-uploads/user/1/userAvatar/1/me.png`, { headers: { 'x-logged-out': '1' } })
+      expect(response.status).to.equal(401)
+      expect(await response.text()).not.to.include('a picture')
+    })
+
+    it('answers someone who is not logged in with 401 also for a file that does not exist', async () => {
+      const response = await fetch(`${address}/noo/uploads/nothing-here.png`, { headers: { 'x-logged-out': '1' } })
+      expect(response.status).to.equal(401)
     })
 
     it('offers a web page as a download, never as part of the site', async () => {

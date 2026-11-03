@@ -91,6 +91,23 @@ module.exports.routes = {
   'POST   /noo/meeting/:postId/segment':                  'MeetingController.segment',
   'GET    /noo/meeting/:postId/transcript':               'MeetingController.transcript',
   'POST   /noo/meeting/:postId/end':                      'MeetingController.end',
+  // Agora: "still here" with the chat, a chat message, leaving the call, the end screen
+  'POST   /noo/meeting/:postId/live':                     'MeetingController.live',
+  'POST   /noo/meeting/:postId/chat':                     'MeetingController.chat',
+  'POST   /noo/meeting/:postId/leave':                    'MeetingController.leave',
+  'GET    /noo/meeting/:postId/summary':                  'MeetingController.summary',
+  // Agora: guest links. Making and closing one is for members (MeetingController);
+  // the guest's own room and calls need no login (MeetingGuestController)
+  'GET    /noo/meeting/:postId/guest-link':               'MeetingController.guestLink',
+  'POST   /noo/meeting/:postId/guest-link':               'MeetingController.createGuestLink',
+  'POST   /noo/meeting/:postId/guest-link/revoke':        'MeetingController.revokeGuestLink',
+  'GET    /noo/meeting/:postId/guest/:token':             'MeetingGuestController.page',
+  'POST   /noo/meeting/:postId/guest/:token/join':        'MeetingGuestController.join',
+  'POST   /noo/meeting/:postId/guest/:token/segment':     'MeetingGuestController.segment',
+  'GET    /noo/meeting/:postId/guest/:token/status':      'MeetingGuestController.status',
+  'POST   /noo/meeting/:postId/guest/:token/chat':        'MeetingGuestController.chat',
+  'GET    /noo/meeting/:postId/guest/:token/summary':     'MeetingGuestController.summary',
+  'POST   /noo/meeting/:postId/guest/:token/end':         'MeetingGuestController.end',
 
   // Agora files: a circle's Google Drive folder. Members may add files and folders
   'GET    /noo/agora/files/:groupSlug':                   'AgoraFilesController.page',
@@ -100,6 +117,15 @@ module.exports.routes = {
   'POST   /noo/agora/files/:groupSlug/upload':            'AgoraFilesController.upload',
   'POST   /noo/agora/files/:groupSlug/folder':            'AgoraFilesController.createFolder',
   'POST   /noo/agora/files/:groupSlug/my-folder':         'AgoraFilesController.myFolder',
+  // Agora: the same Files pages when the files are in Infomaniak kDrive (AgoraKdriveController)
+  'GET    /noo/agora/files/:groupSlug/kd/list':           'AgoraKdriveController.list',
+  'GET    /noo/agora/files/:groupSlug/kd/download':       'AgoraKdriveController.download',
+  'POST   /noo/agora/files/:groupSlug/kd/upload':         'AgoraKdriveController.upload',
+  'POST   /noo/agora/files/:groupSlug/kd/folder':         'AgoraKdriveController.createFolder',
+  'POST   /noo/agora/files/:groupSlug/kd/link':           'AgoraKdriveController.addLink',
+  'POST   /noo/agora/files/:groupSlug/kd/rename':         'AgoraKdriveController.rename',
+  'POST   /noo/agora/files/:groupSlug/kd/move':           'AgoraKdriveController.move',
+  'POST   /noo/agora/files/:groupSlug/kd/delete':         'AgoraKdriveController.remove',
 
   // Agora contacts: one shared list of people and organisations outside Agora
   'GET    /noo/agora/contacts':                           'AgoraContactsController.page',
@@ -111,9 +137,27 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/update':     'AgoraContactsController.update',
   'POST   /noo/agora/contacts/api/:contactId/notes':      'AgoraContactsController.addNote',
   'POST   /noo/agora/contacts/api/:contactId/delete':     'AgoraContactsController.destroy',
+  'POST   /noo/agora/contacts/api/:contactId/claim-link': 'AgoraContactsController.createClaimLink',
+  'POST   /noo/agora/contacts/api/:contactId/claim-link/withdraw': 'AgoraContactsController.withdrawClaimLink',
+  // Agora: proposing a profile to a member (stewards only)
+  'GET    /noo/agora/contacts/api/:contactId/member-choices': 'AgoraContactsController.memberChoices',
+  'POST   /noo/agora/contacts/api/:contactId/propose':        'AgoraContactsController.propose',
+  'POST   /noo/agora/contacts/api/:contactId/propose/clear':  'AgoraContactsController.clearProposal',
+
+  // Agora: claiming a profile made from someone's sheet (lib/agora/claims.js)
+  // (the fixed addresses come before :token)
+  'GET    /noo/agora/claim/api/proposal':                 'AgoraClaimController.myProposal',
+  'POST   /noo/agora/claim/api/proposal/claim':           'AgoraClaimController.claimProposal',
+  'POST   /noo/agora/claim/api/proposal/dismiss':         'AgoraClaimController.dismissProposal',
+  'GET    /noo/agora/claim/api/:token':                   'AgoraClaimController.show',
+  'POST   /noo/agora/claim/api/:token/claim':             'AgoraClaimController.claim',
+  'POST   /noo/agora/claim/api/remove-sheet-data':        'AgoraClaimController.removeSheetData',
 
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',
+
+  // Agora: "This week in 7BP" on the main circle's welcome page, for anyone logged in
+  'GET    /noo/agora/this-week':                          'AgoraThisWeekController.show',
 
   // Agora help: the Help window for everyone logged in, the Help desk for its admins
   'GET    /noo/agora/help/api/status':                    'AgoraHelpController.status',
@@ -145,6 +189,7 @@ module.exports.routes = {
   'POST   /noo/agora/admin/api/accounts/let-in':          'AgoraAdminController.letIn',
   'POST   /noo/agora/admin/api/accounts/:accountId/deactivate': 'AgoraAdminController.deactivate',
   'POST   /noo/agora/admin/api/accounts/:accountId/reactivate': 'AgoraAdminController.reactivate',
+  'POST   /noo/agora/admin/api/accounts/:accountId/role':  'AgoraAdminController.setRole', // Agora: change someone's Agora role
   'GET    /noo/agora/admin/api/system':                   'AgoraAdminController.system',
   'GET    /noo/agora/admin/api/activity':                 'AgoraAdminController.activity',
 

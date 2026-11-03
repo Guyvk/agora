@@ -81,6 +81,27 @@ describe('PostDetail', () => {
     })
   })
 
+  // Agora: "Join online" opens the meeting room in this same tab
+  it('opens the meeting room of an event in the same tab', async () => {
+    const event = { ...post, type: 'event', meetingLink: '/noo/meeting/91/room', eventInvitations: [] }
+    mockGraphqlServer.use(
+      graphql.query('FetchPost', () => HttpResponse.json({ data: { post: event } }))
+    )
+
+    const ormSession = orm.session(orm.getEmptyState())
+    extractModelsForTest({ posts: [event] }, 'Post', ormSession)
+    extractModelsForTest({ groups: [{ id: '109', slug: 'foo' }] }, 'Group', ormSession)
+
+    render(
+      <PostDetail />,
+      { wrapper: AllTheProviders({ orm: ormSession.state, pending: {} }) }
+    )
+
+    const link = await screen.findByText('Join online')
+    expect(link.closest('a').getAttribute('href')).toContain('/noo/meeting/91/room')
+    expect(link.closest('a')).not.toHaveAttribute('target')
+  })
+
   it('shows loading state when post is pending', () => {
     mockGraphqlServer.use(
       graphql.query('FetchPost', async () => {

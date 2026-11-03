@@ -5,7 +5,8 @@ import { safeFetch } from '../../lib/safeFetch'
 import { v4 as uuidv4 } from 'uuid'
 import validator from 'validator'
 import { GraphQLError } from 'graphql'
-import { Validators } from '@hylo/shared'
+import { LocationHelpers, Validators } from '@hylo/shared'
+import mbxGeocoder from '@mapbox/mapbox-sdk/services/geocoding'
 import { normalizeLocaleToFull } from '../../lib/localeHelpers'
 import RedisClient from '../services/RedisClient'
 import HasSettings from './mixins/HasSettings'
@@ -13,6 +14,7 @@ import { findThread } from './post/findOrCreateThread'
 import { generateHyloJWT } from '../../lib/HyloJWT'
 import ical from 'ical-generator'
 import Frontend from '../services/Frontend'
+import { findOrCreateLocation } from '../graphql/mutations/location'
 
 module.exports = bookshelf.Model.extend(merge({
   tableName: 'users',
@@ -533,6 +535,11 @@ module.exports = bookshelf.Model.extend(merge({
 
       this.setSanely(omit(whitelist, 'password'))
 
+      // Typed a location without picking a suggestion: drop the old pin and
+      // geocode the text on the server, as Group does
+      const geocodeLocation = has(this.changed, 'location') && !whitelist.location_id
+      if (geocodeLocation) this.set('location_id', null)
+
       if (changes.password) {
         await this.setPassword(changes.password, sessionId, { transacting })
       }
@@ -549,6 +556,10 @@ module.exports = bookshelf.Model.extend(merge({
 
         if (!isEmpty(changedForTrigger)) {
           Queue.classMethod('User', 'afterUpdate', { userId: this.id, changes: changedForTrigger })
+        }
+
+        if (geocodeLocation && this.get('location')) {
+          Queue.classMethod('User', 'geocodeLocation', { userId: this.id })
         }
 
         if (changes.settings && changes.settings.signup_in_progress === false) {
@@ -914,6 +925,20 @@ module.exports = bookshelf.Model.extend(merge({
         }
       }
     }
+  },
+
+  async geocodeLocation ({ userId }) {
+    const user = await User.find(userId)
+    if (!user || !user.get('location') || user.get('location_id') || !process.env.MAPBOX_TOKEN) return
+    const geocoder = mbxGeocoder({ accessToken: process.env.MAPBOX_TOKEN })
+    const response = await geocoder.forwardGeocode({
+      query: user.get('location'),
+      limit: 1
+    }).send()
+    const match = response.body?.features?.[0]
+    if (!match) return
+    const loc = await findOrCreateLocation(omit(LocationHelpers.convertMapboxToLocation(match), 'mapboxId'))
+    await user.save({ location_id: loc.id }, { patch: true })
   },
 
   async afterUpdate ({ userId, changes }) {
