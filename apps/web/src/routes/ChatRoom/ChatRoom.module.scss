@@ -100,7 +100,7 @@
     overflow: clip;
   }
 
-  :global(.ChatRoom #chats [data-virtuoso-scroller]) {
+  :global(.ChatRoom #chats [data-agora-chat-scroller]) { // Agora: our own chat list (was Virtuoso's scroller)
     overflow-x: clip !important;
   }
 }

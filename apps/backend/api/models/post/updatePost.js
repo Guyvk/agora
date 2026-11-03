@@ -8,7 +8,9 @@ import {
   updateFollowers
 } from './util'
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
-import { keepMeetingLink } from '../../../lib/agora/meetingLink' // Agora: events keep their meeting room
+import { keepMeetingLink, lockMeetingLinkParam, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events keep their meeting room
+import { withKindForUpdate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
+import { assertCanEditPost } from '../../../lib/agora/postEditing' // Agora: who may change a post
 
 export default function updatePost (userId, id, params) {
   if (!id) throw new GraphQLError('updatePost called with no ID')
@@ -16,7 +18,10 @@ export default function updatePost (userId, id, params) {
   const paramsForUpdate = params.imageUrls
     ? { ...params, imageUrls: hostedImageUrls }
     : params
-  return setupPostAttrs(userId, paramsForUpdate)
+  // Agora: only the post's author, or a steward with Manage Content or Administration in one of its circles
+  return assertCanEditPost(userId, id)
+    .then(() => setupPostAttrs(userId, paramsForUpdate))
+    .then(attrs => withKindForUpdate(userId, id, attrs, paramsForUpdate)) // Agora: Meeting or Event, and "for all of 7BP"
     .then(attrs => bookshelf.transaction(transacting =>
       Post.find(id).then(post => {
         if (!post) throw new GraphQLError('Post not found')
@@ -40,10 +45,14 @@ export default function updatePost (userId, id, params) {
           attrs.edited_at = new Date()
         }
 
-        // important: record relevant event changes before post is saved
-        const eventChanges = post.isEvent() && getEventChanges({ post, params: paramsForUpdate })
+        // Agora: calls only in the meeting room, so no other platform's link as the location
+        refuseOutsideCallLocation(attrs.type || post.get('type'), attrs.location)
 
-        // Agora: an event whose video call link is cleared gets its meeting room back
+        // important: record relevant event changes before post is saved
+        // Agora: with the meeting room as the link, whatever link the client sent
+        const eventChanges = post.isEvent() && getEventChanges({ post, params: lockMeetingLinkParam(post, paramsForUpdate) })
+
+        // Agora: an event's video call link stays its meeting room, whatever was sent
         return post.save(keepMeetingLink(post, attrs), { patch: true, transacting })
           .tap(updatedPost => afterUpdatingPost(updatedPost, { params: paramsForUpdate, userId, eventChanges, transacting }))
       })))

@@ -44,7 +44,8 @@ module.exports.http = {
     compress: responseCompression,
 
     requestLogger: function (req, res, next) {
-      sails.log.info(magenta(`${req.method} ${req.url}`))
+      // Agora: the secret of a calendar link never goes into the log
+      sails.log.info(magenta(`${req.method} ${require('../lib/agora/hideSecrets').hideCalendarSecret(req.url)}`))
       next()
     },
 
@@ -56,11 +57,11 @@ module.exports.http = {
     ***************************************************************************/
 
     order: [
-      'agoraUploads', // Agora: files need no session, so they come first
       'cookieParser',
       'session',
       'passportInit',
       'passportSession',
+      'agoraUploads', // Agora: files are only for people who are logged in, so after the session
       'compress',
       'requestLogger',
       '$custom',

@@ -2,9 +2,11 @@
 #
 # GitHub's own computers open Agora's login page and ask Agora's server one
 # small question (/noo/graphql, "who am I", which answers even when nobody is
-# logged in). If either fails three times in a row, a few minutes apart, this
-# opens an issue "Agora is down" assigned to the owner of the repository, so
-# GitHub sends an email. When Agora answers again, it comments and closes it.
+# logged in). If either fails three times in a row, a few minutes apart, the
+# run fails, and GitHub emails the owner of the repository that it failed.
+# While Agora is up the run passes and nobody is emailed. (Until 23 October
+# this opened an issue instead, but issues are off in this repository, so
+# every run failed and emailed even when Agora was up.)
 #
 # This repository is public, so everything here and in the logs is public:
 # only the address and the answer codes are shown, no keys are used.
@@ -19,7 +21,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  issues: write
+  contents: read
 
 concurrency:
   group: agora-uptime
@@ -71,31 +73,15 @@ jobs:
             { echo 'problem<<AGORA_EOF'; echo "$problem"; echo 'AGORA_EOF'; } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open or close the issue "Agora is down"
+      - name: Fail the run when Agora is down, so GitHub sends an email
         env:
           UP: ${{ steps.check.outputs.up }}
           PROBLEM: ${{ steps.check.outputs.problem }}
         run: |
           set -euo pipefail
-          title="Agora is down"
-          open="$(gh issue list --state open --limit 100 --json number,title \
-            --jq ".[] | select(.title == \"$title\") | .number" | head -1)"
           now="$(TZ=Europe/Amsterdam date '+%d %B %Y %H:%M') (Amsterdam time)"
-          if [[ "$UP" == no && -z "$open" ]]; then
-            printf '%s\n' \
-              "@$OWNER Agora at $AGORA_URL did not answer properly at $now, three times in a row." \
-              "" \
-              "What failed: $PROBLEM" \
-              "" \
-              "What to do: see \"When Agora is down\" in README-AGORA.md. This issue closes by itself when Agora answers again." \
-              "" \
-              "Check: $RUN_URL" > body.md
-            gh issue create --title "$title" --assignee "$OWNER" --body-file body.md
-          elif [[ "$UP" == yes && -n "$open" ]]; then
-            gh issue comment "$open" --body "Agora answers again at $now. Closing. Check: $RUN_URL"
-            gh issue close "$open"
-          elif [[ "$UP" == no ]]; then
-            echo "Still down; issue #$open is already open, no new email."
-          else
-            echo "Up, nothing to do."
+          if [[ "$UP" == no ]]; then
+            echo "::error::Agora at $AGORA_URL did not answer properly at $now, three times in a row. What failed: $PROBLEM. What to do: see \"When Agora is down\" in README-AGORA.md."
+            exit 1
           fi
+          echo "Agora is up at $now. Nothing to do."

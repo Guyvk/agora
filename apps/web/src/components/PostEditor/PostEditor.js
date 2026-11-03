@@ -38,6 +38,7 @@ import LinkPreview from './LinkPreview'
 import { DateTimePicker } from 'components/ui/datetimepicker'
 import TimezoneSelect from 'components/TimezoneSelect/TimezoneSelect'
 import PublicToggle from 'components/PublicToggle'
+import AgoraEventKindFields from '@/agora/calendar/AgoraEventKindFields' // Agora: Meeting or Event
 import AnonymousVoteToggle from './AnonymousVoteToggle/AnonymousVoteToggle'
 import SliderInput from 'components/SliderInput/SliderInput'
 import { PROJECT_CONTRIBUTIONS } from 'config/featureFlags'
@@ -250,6 +251,7 @@ function PostEditorInner ({
 
   const postType = getQuerystringParam('newPostType', urlLocation)
   const eventDateParam = getQuerystringParam('eventDate', urlLocation)
+  const agoraKindParam = getQuerystringParam('agoraKind', urlLocation) // Agora: Meeting or Event, from the create menu
   // Prefer explicit newPostType (if still allowed), else top dropdown option (POST_TYPES order)
   const createPostType = (() => {
     const fallback = firstDropdownPostType(allowedPostTypes)
@@ -356,7 +358,6 @@ function PostEditorInner ({
   const editorRef = useRef()
   const toFieldRef = useRef()
   const endTimeRef = useRef()
-  const meetingLinkInputRef = useRef()
 
   // Track the topic that was injected from the current route so we can
   // replace it when the route changes without touching user-added topics
@@ -390,6 +391,9 @@ function PostEditorInner ({
       topics: topic ? [topic] : [],
       type: createPostType,
       votingMethod: VOTING_METHOD_SINGLE,
+      agoraKind: agoraKindParam === 'event' ? 'event' : 'meeting', // Agora: a new event post is a Meeting unless Event was chosen
+      agoraForAll: false,
+      agoraInviteEveryone: false,
       ...(inputPost || {}),
       ...prefilledEventTimes,
       location: inputPost?.location || selectedLocation || '',
@@ -397,7 +401,7 @@ function PostEditorInner ({
       startTime: typeof inputPost?.startTime === 'string' ? new Date(inputPost.startTime) : (inputPost?.startTime || prefilledEventTimes.startTime),
       endTime: typeof inputPost?.endTime === 'string' ? new Date(inputPost.endTime) : (inputPost?.endTime || prefilledEventTimes.endTime)
     }
-  }, [inputPost?.id, inputPost?.location, inputPost?.locationId, inputPost?.linkPreview?.id, inputPost?.linkPreviewFeatured, createPostType, currentGroup, topic, context, editing, eventDateParam, inputPost?.startTime, inputPost?.endTime, currentTrack?.actionDescriptor, selectedLocation, t])
+  }, [inputPost?.id, inputPost?.location, inputPost?.locationId, inputPost?.linkPreview?.id, inputPost?.linkPreviewFeatured, createPostType, currentGroup, topic, context, editing, eventDateParam, agoraKindParam, inputPost?.startTime, inputPost?.endTime, currentTrack?.actionDescriptor, selectedLocation, t])
 
   const [currentPost, setCurrentPostState] = useState(initialPost)
   const [editorInitialContent, setEditorInitialContent] = useState(initialPost.details || '')
@@ -1032,11 +1036,6 @@ function PostEditorInner ({
     setCurrentPost(prev => ({ ...prev, projectManagementLink }))
   }, [setCurrentPost])
 
-  const handleMeetingLinkChange = useCallback((evt) => {
-    const meetingLink = evt.target.value
-    setCurrentPost(prev => ({ ...prev, meetingLink }))
-  }, [setCurrentPost])
-
   const handleLocationChange = useCallback((locationObject) => {
     setCurrentPost(prev => ({
       ...prev,
@@ -1055,10 +1054,8 @@ function PostEditorInner ({
 
   const handleAddLinkPreview = useEventCallback((url, force) => {
     debouncedFetchLinkPreview(url, force, currentPost.linkPreview)
-    if (currentPost.type === 'event' && isMeetingUrl(url)) {
-      setCurrentPost(prev => (prev.meetingLink ? prev : { ...prev, meetingLink: url }))
-    }
-  }, [currentPost.linkPreview, currentPost.type, debouncedFetchLinkPreview, setCurrentPost])
+    // Agora: a pasted Zoom or Meet link no longer becomes the event's video call link
+  }, [currentPost.linkPreview, debouncedFetchLinkPreview])
 
   const handleAddTopic = useEventCallback((topic) => {
     setCurrentPost(prev => {
@@ -1116,7 +1113,7 @@ function PostEditorInner ({
    */
   const attachmentCount = imageAttachments.length + fileAttachments.length
   const isValid = useMemo(() => {
-    const { type, title, groups, startTime, endTime, donationsLink, projectManagementLink, meetingLink, proposalOptions } = currentPost
+    const { type, title, groups, startTime, endTime, donationsLink, projectManagementLink, location, proposalOptions } = currentPost
 
     const errorMessages = []
 
@@ -1125,8 +1122,9 @@ function PostEditorInner ({
         if (!endTime || !startTime || startTime >= endTime) {
           errorMessages.push(t('Valid start and end time required'))
         }
-        if (meetingLink?.length > 0 && !sanitizeURL(meetingLink)) {
-          errorMessages.push(t('Video call link must be a valid URL'))
+        // Agora: calls only in the event's meeting room, so no other platform's link as the location
+        if (isMeetingUrl(location)) {
+          errorMessages.push(t('Video calls in Agora only take place in a meeting\'s own meeting room. Please take the video call link out of the location.'))
         }
         break
       case 'project':
@@ -1159,7 +1157,7 @@ function PostEditorInner ({
     }
 
     return errorMessages.length === 0
-  }, [attachmentCount, hasDescription, currentPost.type, currentPost.title, currentPost.groups, currentPost.startTime, currentPost.endTime, currentPost.donationsLink, currentPost.projectManagementLink, currentPost.meetingLink, currentPost.proposalOptions])
+  }, [attachmentCount, hasDescription, currentPost.type, currentPost.title, currentPost.groups, currentPost.startTime, currentPost.endTime, currentPost.donationsLink, currentPost.projectManagementLink, currentPost.location, currentPost.proposalOptions])
 
   // const handleCancel = () => {
   //   if (onCancel) {
@@ -1194,7 +1192,6 @@ function PostEditorInner ({
         linkPreviewFeatured,
         skipLinkPreview,
         locationId,
-        meetingLink,
         members,
         projectManagementLink,
         proposalOptions,
@@ -1229,7 +1226,6 @@ function PostEditorInner ({
         location: postLocation,
         locationId
       })
-      const meetingLinkValue = meetingLinkInputRef.current?.value ?? meetingLink
 
       const postToSave = {
         id,
@@ -1251,7 +1247,11 @@ function PostEditorInner ({
         imageAttachments, // For optimistic display of the new post
         imageUrls,
         isAnonymousVote,
-        isPublic: type === 'submission' ? false : isPublic,
+        isPublic: type === 'submission' || (type === 'event' && currentPost.agoraKind !== 'event') ? false : isPublic, // Agora: a Meeting is never public
+        // Agora: Meeting or Event, and for all of 7BP (the server checks who may)
+        agoraKind: type === 'event' ? (currentPost.agoraKind === 'event' ? 'event' : 'meeting') : undefined,
+        agoraForAll: type === 'event' ? !!currentPost.agoraForAll : undefined,
+        agoraInviteEveryone: type === 'event' && !isEditing && !!currentPost.agoraForAll && !!currentPost.agoraInviteEveryone,
         isStrictProposal,
         linkPreview,
         linkPreviewFeatured,
@@ -1259,7 +1259,7 @@ function PostEditorInner ({
         localId: uniqueId('post_'), // For optimistic display of the new post
         location: postLocation,
         locationId: actualLocationId,
-        meetingLink: sanitizeURL(meetingLinkValue?.trim()),
+        // Agora: no meetingLink is sent; the server always sets the event's meeting room
         memberIds,
         pending: true, // For optimistic display of the new post
         projectManagementLink: sanitizeURL(projectManagementLink),
@@ -1397,7 +1397,7 @@ function PostEditorInner ({
   const locationPrompt = currentPost.type === 'proposal'
     ? t('Is there a relevant location for this proposal?')
     : currentPost.type === 'event'
-      ? t('Where is the event taking place?')
+      ? t('Where does it take place?') // Agora: a Meeting or an Event
       : t('Where is your {{type}} located?', { type: currentPost.type })
   const locationLabel = currentPost.type === 'event' ? t('Venue') : t('Location')
   const hasStripeAccount = get('hasStripeAccount', currentUser)
@@ -1609,7 +1609,11 @@ function PostEditorInner ({
           />
         </div>
       </div> */}
-      {!isAction && !isSubmission && !isChat && (
+      {/* Agora: a Meeting (meeting room, minutes, never public) or an Event (a place, may be public) */}
+      {currentPost.type === 'event' && (
+        <AgoraEventKindFields post={currentPost} setPost={setCurrentPost} editing={isEditing} disabled={loading} />
+      )}
+      {!isAction && !isSubmission && !isChat && !(currentPost.type === 'event' && currentPost.agoraKind !== 'event') && ( /* Agora: a Meeting is never public */
         <div className='PostEditorPublic flex w-full items-center bg-input rounded p-1' data-tour='post-public'>
           <PublicToggle
             togglePublic={togglePublic}
@@ -1846,19 +1850,9 @@ function PostEditorInner ({
           />
         </div>
       )}
+      {/* Agora: no field for a video call link. A Meeting's call is its own Agora meeting room; an Event has none */}
       {currentPost.type === 'event' && (
-        <div className='flex items-center border-2 border-transparent transition-all bg-input rounded-md p-2 gap-2'>
-          <div className={cn('text-xs text-foreground/50 w-[100px]', { 'text-destructive': !!currentPost.meetingLink && !sanitizeURL(currentPost.meetingLink) })}>{t('Join link')}</div>
-          <input
-            type='text'
-            className='w-full outline-none border-none bg-transparent placeholder:text-foreground/50'
-            placeholder={t('Add a video call link (Zoom, Meet, Jitsi, etc.)')}
-            value={currentPost.meetingLink || ''}
-            onChange={handleMeetingLinkChange}
-            ref={meetingLinkInputRef}
-            disabled={loading}
-          />
-        </div>
+        <p className='text-xs text-foreground/50 m-0 px-1' data-testid='agora-meeting-hint'>{t('Every meeting gets its own video room in Agora, with minutes.')}</p>
       )}
       {currentPost.type === 'event' && (
         <div className='flex items-center border-2 border-transparent transition-all bg-input rounded-md p-2'>

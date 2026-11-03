@@ -234,7 +234,8 @@ describe('Agora library', function () {
       res.statusCode = 200
       await new Promise(resolve => {
         res.end = () => resolve()
-        diskUploads.serveUploads({ url: '/noo/uploads/.library/library/1/2026-10/abc/secret.pdf', method: 'GET' }, res, () => resolve('next'))
+        // Agora: uploads are for people who are logged in (the session is faked), so the hidden folder is what answers 404
+        diskUploads.serveUploads({ url: '/noo/uploads/.library/library/1/2026-10/abc/secret.pdf', method: 'GET', headers: {}, session: { userId: '1' } }, res, () => resolve('next'))
       })
       expect(res.statusCode).to.equal(404)
     })
@@ -245,6 +246,8 @@ describe('Agora library', function () {
       const item = await addFile(member.id, { name: 'Notes.txt', type: 'text/plain', contents: Buffer.from('Secret notes about the river'), title: 'Notes' })
       const fileUrl = (await bookshelf.knex('media').where({ post_id: item.id }).first()).url
       const fileId = Library.fileIdFromUrl(fileUrl)
+      // Reading the text is a queued job; the tests have their own queue with no worker, so run it here.
+      await Library.extractPost({ postId: item.id })
 
       for (const [action, extra] of [
         ['list', {}],

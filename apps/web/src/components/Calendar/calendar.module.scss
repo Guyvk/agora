@@ -8,6 +8,13 @@
   border-color: $color-events-50;
 }
 
+// Agora: a Meeting (for the team) looks different from an Event (a gathering)
+.meeting {
+  background-color: $color-projects-20;
+  border-color: $color-projects-50;
+  border-style: dashed;
+}
+
 .offer {
   background-color: $color-offers-20;
   border-color: $color-offers-50;

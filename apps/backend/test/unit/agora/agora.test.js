@@ -53,6 +53,24 @@ describe('Agora meeting minutes', () => {
     expect(html).to.contain('Amara &lt;x&gt;')
   })
 
+  it('with a summary, posts only the summary and who was there (no transcript, no chat)', () => {
+    const html = MeetingMinutes.renderHtml({
+      minutes: { summary: 'We agreed on consent.', topics: [], decisions: ['Use consent'], actions: [], open_questions: [] },
+      attendees: ['Lars', 'Amara'],
+      guests: ['Zoe (guest)'],
+      lines: [{ name: 'Lars', text: 'A spoken line', spokenAt: at(1) }],
+      chat: [{ name: 'Amara', text: 'A chat line', at: at(2) }],
+      startedAt
+    })
+    expect(html).to.contain('<h3>Summary</h3>')
+    expect(html).to.contain('<h3>Who was there</h3>')
+    expect(html).to.contain('Zoe (guest)')
+    expect(html).to.not.contain('<h3>Transcript</h3>')
+    expect(html).to.not.contain('A spoken line')
+    expect(html).to.not.contain('Chat during the meeting')
+    expect(html).to.not.contain('A chat line')
+  })
+
   it('falls back to the transcript when there is no summary', () => {
     const html = MeetingMinutes.renderHtml({ minutes: null, attendees: [], lines, startedAt })
     expect(html).to.contain('The assistant is not connected yet')
@@ -119,6 +137,35 @@ describe('Agora mailer', () => {
     expect(email.subject).to.equal('Lars invites you to Circle meeting')
     expect(email.text).to.contain('When: Mon, Oct 20, 7:00 PM')
     expect(email.text).to.contain('Where: Online')
+  })
+
+  it('says "meeting" or "event" in an invitation, as the post is', () => {
+    const meeting = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
+      group_name: 'Network', post: { title: 'Weekly', agora_kind: 'meeting', url: 'https://agora.test/p/2' }
+    }, { sender: { name: 'Lars' } })
+    expect(meeting.text).to.contain('Lars invites you to a meeting in Network.')
+    expect(meeting.text).to.contain('See the meeting and reply')
+    const gathering = mailer.TEMPLATES.tem_8pt9FjFkxRGQ7XYhRRW3BBrK({
+      post: { title: 'Info evening', agora_kind: 'event', url: 'https://agora.test/p/3' }
+    }, { sender: { name: 'Lars' } })
+    expect(gathering.text).to.contain('Lars invites you to an event.')
+  })
+
+  it('writes the calendar invitation for all of 7BP', () => {
+    const email = mailer.TEMPLATES.agora_calendar_invite({
+      kind: 'meeting',
+      title: 'All hands',
+      inviter_name: 'Demo Steward',
+      recipient_name: 'Amara',
+      when: 'Mon, Oct 20',
+      room_url: 'https://agora.test/noo/meeting/9/room',
+      details: '<p>Agenda</p>',
+      url: 'https://agora.test/post/9'
+    })
+    expect(email.subject).to.equal('Invitation for all of 7BP: All hands')
+    expect(email.text).to.contain('Demo Steward invites everyone in 7BP to this meeting:')
+    expect(email.text).to.contain('Meeting room: https://agora.test/noo/meeting/9/room')
+    expect(email.text).to.contain('calendar file')
   })
 
   it('says what a reply to an event means and mentions the calendar file', () => {

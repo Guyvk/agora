@@ -3,7 +3,8 @@
  *
  * Only used when ANTHROPIC_API_KEY is set in apps/backend/.env. Then a person
  * may chat in the Help window instead of filling in the form. Claude answers
- * how-to questions from Agora's guide (helpGuide.md next to this file), and
+ * how-to questions from Agora's guide, the same one members read at /guide
+ * (see helpGuideText.js), plus the Help desk notes in helpGuide.md, and
  * for a fault or a wish asks at most one or two questions and then files a
  * request with a short title, a type, an urgency and a summary.
  *
@@ -13,11 +14,10 @@
  * Settings (see .env.example):
  *   ANTHROPIC_API_KEY        a key from a Claude developer account. Without it, Help is a plain form
  *   AGORA_HELP_MODEL         the Claude model for Help, default claude-haiku-5-5 (small and fast)
- *   AGORA_HELP_GUIDE_FILE    another guide for Claude to answer from, instead of helpGuide.md
+ *   AGORA_HELP_GUIDE_FILE    another guide for Claude to answer from, instead of the guide and helpGuide.md
  *   AGORA_HELP_CHAT_PER_HOUR chat messages per person per hour (default 30), see help.js
  */
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { buildHelpGuide } from './helpGuideText'
 
 const DEFAULT_MODEL = 'claude-haiku-5-5'
 
@@ -44,14 +44,14 @@ function client () {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 30 * 1000, maxRetries: 1 })
 }
 
+// Made once, the first time Help needs it, and again only if AGORA_HELP_GUIDE_FILE changes (in tests)
 let guideText = null
+let guideFrom = null
 function guide () {
-  if (guideText === null) {
-    try {
-      guideText = readFileSync(process.env.AGORA_HELP_GUIDE_FILE || join(__dirname, 'helpGuide.md')).toString()
-    } catch (e) {
-      guideText = ''
-    }
+  const from = process.env.AGORA_HELP_GUIDE_FILE || ''
+  if (guideText === null || guideFrom !== from) {
+    guideText = buildHelpGuide()
+    guideFrom = from
   }
   return guideText
 }
@@ -96,6 +96,7 @@ function systemPrompt () {
     '',
     'How to help:',
     '- A how-to question: answer it from the guide below, in a few short sentences. If the guide does not cover it, say you are not sure and offer to pass the question on to the team.',
+    '- When a part of the guide answers the question, name that part, so the person can read it under Guide in this Help window or on the guide page at /guide.',
     '- A fault or a wish: ask at most one or two short questions when something important is unclear (what they did, what happened, what they expected, which page). Then call file_request. Do not keep asking.',
     '- When you call file_request, also write one short sentence to the person saying their request is on its way to the team and that they will see answers under "My requests".',
     '- If the person asks to pass something on, do so with file_request.',
@@ -181,4 +182,4 @@ async function builderTask ({ type, title, summary, page, conversation }) {
   return (response.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim()
 }
 
-module.exports = { available, model, reply, builderTask, useClientForTests, systemPrompt, FILE_TOOL, DEFAULT_MODEL }
+module.exports = { available, model, reply, builderTask, useClientForTests, systemPrompt, guide, FILE_TOOL, DEFAULT_MODEL }

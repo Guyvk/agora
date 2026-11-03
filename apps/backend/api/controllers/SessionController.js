@@ -95,6 +95,9 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
         if (!(await hasLinkedAccount(user, service))) {
           await LinkedAccount.create(user.id, { type: service, profile }, { updateUser: true })
         }
+        // Agora: someone who started signing up by email and now logs in with Apple or Google
+        // joins the circle of the invitation kept with the account (a no-op when none is kept)
+        await AgoraSignup.joinRememberedCircle(user)
         return user
       }
 
@@ -114,6 +117,8 @@ const upsertUser = (req, service, profile, { tokenAuth = false } = {}) => {
 
       const newUser = await User.create(attrs)
       await Analytics.trackSignup(newUser.id, req)
+      // Agora: a new account made with a join link or invitation joins that circle (lib/agora/signup.js)
+      await AgoraSignup.joinInvitedCircle(newUser, AgoraSignup.invitationFromRequest(req))
       if (tokenAuth) {
         await recordTokenLogin(newUser)
       } else {

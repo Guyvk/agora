@@ -41,7 +41,8 @@ function escapeHtml (value) {
  */
 function plainText (html, max = 600) {
   const text = String(html == null ? '' : html)
-    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<br\s*\/?>[ \t]*\n?/gi, '\n')
     .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '\n')
     .replace(/<li[^>]*>/gi, '- ')
     .replace(/<[^>]*>/g, '')
@@ -64,9 +65,77 @@ function ourName (value) {
   return value == null ? value : String(value).replace(/\bHylo\b/g, APP_NAME)
 }
 
-/** "Lars (via Hylo)" becomes "Lars". */
+/**
+ * "Lars (via Hylo)" becomes "Lars". Also the other languages, like
+ * "Lars (über Hylo)" or "Lars (Hylo के माध्यम से)".
+ */
 function personName (senderName) {
-  return senderName ? String(senderName).replace(/\s*\(via [^)]*\)\s*$/i, '').trim() : ''
+  return senderName
+    ? String(senderName)
+      .replace(/\s*\(via [^)]*\)\s*$/i, '')
+      .replace(/\s*\([^)]*\b(Hylo|Agora)\b[^)]*\)\s*$/i, '')
+      .trim()
+    : ''
+}
+
+/**
+ * Hylo adds click counting to the links in its emails
+ * (?ctt=post_email&cti=<user id>&ctcn=<circle>). Agora counts nothing, and
+ * such links look long and spammy, so they are taken out. Everything else in
+ * a link, like the token of an invitation, stays.
+ */
+const TRACKING_PARAMS = /^(ctt|cti|ctcn|utm_[a-z]+)$/i
+
+function cleanLink (link) {
+  if (!link) return link
+  let parsed
+  try {
+    parsed = new URL(String(link))
+  } catch (err) {
+    return link
+  }
+  for (const key of [...parsed.searchParams.keys()]) {
+    if (TRACKING_PARAMS.test(key)) parsed.searchParams.delete(key)
+  }
+  return parsed.toString()
+}
+
+/**
+ * Where people change which emails they get. Hylo's link holds a login token
+ * of about 600 characters, the person's name and their user id. Agora links
+ * to the plain settings page instead: whoever is not logged in logs in first
+ * and then lands there. No secret, name or id is in the link.
+ */
+function settingsLink (data) {
+  if (!data || !data.email_settings_url) return null
+  try {
+    return new URL('/my/notifications', new URL(String(data.email_settings_url)).origin).toString()
+  } catch (err) {
+    return null
+  }
+}
+
+/**
+ * The text an invitation carries. Hylo stores it as HTML (Markdown turned
+ * into <p> paragraphs), so it is turned into plain paragraphs here, and
+ * compose() escapes it again: no HTML from the message reaches the email.
+ * Hylo's old default text said "on Hylo"; that becomes Agora.
+ */
+function invitationMessage (message) {
+  const text = plainText(ourName(message), 5000)
+  return text ? text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean) : []
+}
+
+/**
+ * The subject of an invitation. Invitations made before Agora had its own
+ * wording carry Hylo's "Join me in <circle> on Hylo!"; those get Agora's.
+ */
+function invitationSubject (data) {
+  const given = data.subject && String(data.subject).trim()
+  if (given && !/\bHylo\b/.test(given)) return given
+  return data.inviter_name
+    ? `${data.inviter_name} invites you to ${data.group_name} in ${APP_NAME}`
+    : `You are invited to ${data.group_name} in ${APP_NAME}`
 }
 
 /**
@@ -79,9 +148,13 @@ function personName (senderName) {
  * @param {{label: string, url: string}} [parts.button]  the one thing to click
  * @param {string} [parts.footer]
  */
-function compose ({ subject, lines, sections = [], button, footer }) {
+function compose ({ subject, lines, sections = [], button: givenButton, footer }) {
   const paragraphs = lines.filter(line => line != null && line !== '')
-  const lists = sections.filter(section => section && section.items && section.items.length > 0)
+  const lists = sections
+    .filter(section => section && section.items && section.items.length > 0)
+    .map(section => ({ ...section, items: section.items.map(item => ({ ...item, url: cleanLink(item.url) })) }))
+  // A short, clean link for the button and for its copy under the button
+  const button = givenButton && givenButton.url ? { ...givenButton, url: cleanLink(givenButton.url) } : null
 
   const text = [
     ...paragraphs,
@@ -129,9 +202,10 @@ function compose ({ subject, lines, sections = [], button, footer }) {
  */
 const TEMPLATES = {
   // A plain message with a subject and a body, used for alerts to the people who run the platform.
+  // Hylo writes some of these bodies with <br/> line breaks: they become plain lines.
   tem_jFYJ3bxMyfbbtbwgDGS4JGfK: data => compose({
-    subject: data.subject || `A message from ${APP_NAME}`,
-    lines: [data.body]
+    subject: ourName(data.subject) || `A message from ${APP_NAME}`,
+    lines: [/<[a-z][^>]*>/i.test(String(data.body || '')) ? plainText(ourName(data.body), 5000) : ourName(data.body)]
   }),
 
   // "I forgot my password"
@@ -169,14 +243,18 @@ const TEMPLATES = {
   }),
 
   // An invitation to join a group, written by a member
-  tem_GTwXKBfkTpTHRfHpmJWbYr9d: data => compose({
-    subject: data.subject || `${data.inviter_name} invites you to ${data.group_name} on ${APP_NAME}`,
-    lines: [
-      data.message || `${data.inviter_name} invites you to join ${data.group_name} on ${APP_NAME}.`
-    ],
-    button: { label: `Join ${data.group_name}`, url: data.invite_link },
-    footer: `This invitation was sent by ${data.inviter_name}. Reply to this email to reach them.`
-  }),
+  // Its message is HTML in Hylo's database: invitationMessage() makes plain, safe paragraphs of it.
+  tem_GTwXKBfkTpTHRfHpmJWbYr9d: data => {
+    const message = invitationMessage(data.message)
+    return compose({
+      subject: invitationSubject(data),
+      lines: message.length > 0
+        ? message
+        : [`${data.inviter_name} invites you to join ${data.group_name} in ${APP_NAME}.`],
+      button: { label: `Join ${data.group_name}`, url: data.invite_link },
+      footer: `This invitation was sent by ${data.inviter_name}. Reply to this email to reach them.`
+    })
+  },
 
   // Sent a little while after someone finishes signing up
   tem_jkdjbcSVK9cmGvwXbtX9PQbJ: data => compose({
@@ -242,36 +320,38 @@ const TEMPLATES = {
     })
   },
 
-  // A member invites you to an event
+  // A member invites you to a meeting or an event
   tem_8pt9FjFkxRGQ7XYhRRW3BBrK: (data, options) => {
     const post = data.post || {}
     const inviter = personName(options.sender && options.sender.name) || (post.user && post.user.name) || 'Someone'
+    // Agora splits Hylo's events into Meetings and Events (lib/agora/eventKinds.js)
+    const what = post.agora_kind === 'event' ? 'event' : 'meeting'
     return compose({
       subject: `${inviter} invites you to ${post.title}`,
       lines: [
         data.group_name
-          ? `${inviter} invites you to an event in ${data.group_name}.`
-          : `${inviter} invites you to an event.`,
+          ? `${inviter} invites you to a${what === 'event' ? 'n' : ''} ${what} in ${data.group_name}.`
+          : `${inviter} invites you to a${what === 'event' ? 'n' : ''} ${what}.`,
         ...postLines(post)
       ],
-      button: { label: 'See the event and reply', url: post.url },
+      button: { label: `See the ${what} and reply`, url: post.url },
       footer: settingsFooter(data)
     })
   },
 
-  // You said whether you are going to an event. The calendar file is attached.
+  // You said whether you are going to a meeting or event. The calendar file is attached.
   tem_93YXdBV6bg4WmD8w3krpGP7H: data => compose({
     subject: `Your reply: ${data.event_name}`,
     lines: [
       data.user_name ? `Hi ${data.user_name},` : null,
       `${RSVP_ANSWERS[data.response] || 'You replied to'} ${data.event_name}.`,
       ...eventLines(data),
-      'The calendar file attached to this email adds the event to your calendar.'
+      'The calendar file attached to this email adds it to your calendar.'
     ],
-    button: { label: 'See the event', url: data.event_url }
+    button: { label: `See it in ${APP_NAME}`, url: data.event_url }
   }),
 
-  // An event you replied to has changed. The new calendar file is attached.
+  // A meeting or event you replied to has changed. The new calendar file is attached.
   tem_77XY6QJTVYKKFhDtkVgW3W93: data => compose({
     subject: `Changed: ${data.event_name}`,
     lines: [
@@ -280,12 +360,12 @@ const TEMPLATES = {
       data.newDate ? `New time: ${data.newDate}` : null,
       data.newLocation ? `New place: ${data.newLocation}` : null,
       ...eventLines({ ...data, date: data.newDate ? null : data.date, event_location: data.newLocation ? null : data.event_location }),
-      'The calendar file attached to this email updates the event in your calendar.'
+      'The calendar file attached to this email updates it in your calendar.'
     ],
-    button: { label: 'See the event', url: data.event_url }
+    button: { label: `See it in ${APP_NAME}`, url: data.event_url }
   }),
 
-  // An event you replied to is cancelled. The calendar file removes it.
+  // A meeting or event you replied to is cancelled. The calendar file removes it.
   tem_YCTQy4pJywkRDw6pfhShDg9H: data => compose({
     subject: `Cancelled: ${data.event_name}`,
     lines: [
@@ -293,7 +373,7 @@ const TEMPLATES = {
       data.date
         ? `${data.event_name} on ${data.date} is cancelled.`
         : `${data.event_name} is cancelled.`,
-      'The calendar file attached to this email takes the event out of your calendar.'
+      'The calendar file attached to this email takes it out of your calendar.'
     ]
   }),
 
@@ -315,6 +395,27 @@ const TEMPLATES = {
     })
   },
 
+  // A steward invites everyone to a Meeting or Event for all of 7BP (lib/agora/calendar.js).
+  // The calendar file is attached.
+  agora_calendar_invite: data => {
+    const what = data.kind === 'event' ? 'event' : 'meeting'
+    return compose({
+      subject: `Invitation for all of 7BP: ${data.title}`,
+      lines: [
+        data.recipient_name ? `Hi ${data.recipient_name},` : null,
+        `${data.inviter_name || 'A steward'} invites everyone in 7BP to this ${what}:`,
+        data.title,
+        data.when ? `When: ${data.when}` : null,
+        data.room_url ? `Meeting room: ${data.room_url}` : null,
+        data.location ? `Where: ${data.location}` : null,
+        plainText(data.details, 400),
+        'The calendar file attached to this email adds it to your calendar.'
+      ],
+      button: data.url ? { label: `See the ${what} in ${APP_NAME}`, url: data.url } : null,
+      footer: `You get this email because a steward of 7BP sent this ${what} to everyone in ${APP_NAME}.`
+    })
+  },
+
   // The Help desk answered a request someone sent from the Help window (lib/agora/help.js)
   agora_help_reply: data => compose({
     subject: `An answer to your request: ${data.title}`,
@@ -325,7 +426,28 @@ const TEMPLATES = {
     ],
     button: data.url ? { label: 'Open my request', url: data.url } : null,
     footer: `You get this email because you sent a request from the Help window of ${APP_NAME}.`
-  })
+  }),
+
+  // An Agora admin gave someone a role on the Accounts tab (lib/agora/adminDashboard.js)
+  agora_role_given: data => data.role === 'admin'
+    ? compose({
+      subject: `You are now an admin of ${APP_NAME}`,
+      lines: [
+        `You are now an admin of ${APP_NAME}.`,
+        'You can open the admin area from the gear menu in the bar on the left, under "Admin". There you find the overview, the Help desk, the invitations, the accounts, the system and the activity log.'
+      ],
+      button: data.url ? { label: 'Open the admin area', url: data.url } : null,
+      footer: `You get this email because an admin of ${APP_NAME} gave you this role.`
+    })
+    : compose({
+      subject: `You now help run the ${APP_NAME} Help desk`,
+      lines: [
+        `You can now answer the requests people send from the Help window of ${APP_NAME}.`,
+        'You find the Help desk in the gear menu in the bar on the left, under "Admin", and in your own Help window.'
+      ],
+      button: data.url ? { label: 'Open the Help desk', url: data.url } : null,
+      footer: `You get this email because an admin of ${APP_NAME} gave you this role.`
+    })
 }
 
 /** What a reply to an event invitation means, in Hylo's words and in ours. */
@@ -345,7 +467,7 @@ function postLines (post) {
   ]
 }
 
-/** Time, place and description of an event in the reply emails. */
+/** Time, place and description of a meeting or event in the reply emails. */
 function eventLines (data) {
   return [
     data.date ? `When: ${data.date}` : null,
@@ -356,8 +478,9 @@ function eventLines (data) {
 }
 
 function settingsFooter (data) {
-  return data.email_settings_url
-    ? `You get this email because of your notification settings. You can change them here: ${data.email_settings_url}`
+  const link = settingsLink(data)
+  return link
+    ? `You get this email because of your notification settings. You can change them here: ${link}`
     : null
 }
 
@@ -377,7 +500,7 @@ function digestSections (data) {
   return [
     list('Coming up', 'upcoming', post => post.start_time),
     list('Ending soon', 'ending', post => post.end_time),
-    list('New events', 'events', post => [post.when, by(post)].filter(Boolean).join(', ')),
+    list('New meetings and events', 'events', post => [post.when, by(post)].filter(Boolean).join(', ')),
     list('New proposals', 'proposals'),
     list('New discussions', 'discussions'),
     list('Requests', 'requests'),
@@ -418,12 +541,18 @@ function usableReplyTo (address) {
   return address
 }
 
+/** "The Team at Hylo" in each of Hylo's languages, and its robot "Hylobot". */
+function isHyloTeamName (name) {
+  const { locales } = require('../i18n/locales')
+  return name === 'Hylobot' || Object.values(locales).some(strings => strings && strings.theTeamAtHylo === name)
+}
+
 function fromHeader (options) {
   const sender = options.sender || {}
   const rawName = sender.name || process.env.AGORA_EMAIL_SENDER_NAME || APP_NAME
   return {
     // Hylo's code signs emails as "The Team at Hylo" or "Name (via Hylo)".
-    name: rawName === 'The Team at Hylo' ? APP_NAME : rawName.replace(/\bHylo\b/g, APP_NAME),
+    name: isHyloTeamName(rawName) ? APP_NAME : rawName.replace(/\bHylo\b/g, APP_NAME),
     email: process.env.EMAIL_SENDER,
     replyTo: usableReplyTo(sender.reply_to)
   }
@@ -564,4 +693,4 @@ function send (options, callback) {
     .catch(err => done(err))
 }
 
-module.exports = { send, compose, plainText, fromHeader, TEMPLATES }
+module.exports = { send, compose, plainText, fromHeader, cleanLink, settingsLink, TEMPLATES }

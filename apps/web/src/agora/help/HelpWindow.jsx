@@ -9,17 +9,23 @@
  * Claude (Anthropic); the plain form is always one click away, and is used
  * whenever Claude cannot answer.
  *
+ * The window opens on the Guide (HelpGuide.jsx), the same parts as the
+ * guide page; "Still stuck? Tell us" leads to the form or chat. Other pages
+ * open the window on a given view with openHelp() from openHelp.js.
+ *
  * An address with ?help=<request id> (the link in a reply email) opens that request.
  * The server part is apps/backend/lib/agora/help.js.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, LifeBuoy, Send, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, LifeBuoy, Send, X } from 'lucide-react'
 import Button from 'components/ui/button'
 import { Label } from 'components/ui/label'
 import { cn } from 'util/index'
 import { helpApi, helpContext, helpLabels, formatMoment, HELP_DESK_URL } from './api'
+import HelpGuide from './HelpGuide'
+import { OPEN_HELP_EVENT } from './openHelp'
 
 export const fieldClasses = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
@@ -298,7 +304,8 @@ export default function HelpWindow () {
   const labels = helpLabels(t)
   const [open, setOpen] = useState(false)
   const [meta, setMeta] = useState(null)
-  const [tab, setTab] = useState('new') // new | mine
+  const [tab, setTab] = useState('guide') // guide | new | mine
+  const [guidePart, setGuidePart] = useState(null)
   const [mode, setMode] = useState(null) // chat | form | sent
   const [prefill, setPrefill] = useState('')
   const [note, setNote] = useState(null)
@@ -316,6 +323,24 @@ export default function HelpWindow () {
     return () => clearInterval(timer)
   }, [refresh])
 
+  // openHelp({ view, part }) from any page opens the window on that view
+  useEffect(() => {
+    const onOpenHelp = event => {
+      const { view, part } = (event && event.detail) || {}
+      setOpen(true)
+      setRequestId(null)
+      if (view === 'new') {
+        setTab('new'); setMode(null); setPrefill(''); setNote(null)
+      } else if (view === 'mine') {
+        setTab('mine')
+      } else {
+        setTab('guide'); setGuidePart(part || null)
+      }
+    }
+    window.addEventListener(OPEN_HELP_EVENT, onOpenHelp)
+    return () => window.removeEventListener(OPEN_HELP_EVENT, onOpenHelp)
+  }, [])
+
   if (!meta) return null
 
   // Chat rooms and Messages have their send button at the bottom right, so Help sits higher there.
@@ -329,7 +354,7 @@ export default function HelpWindow () {
       {!open && (
         <button
           type='button'
-          onClick={() => setOpen(true)}
+          onClick={() => { setOpen(true); setTab('guide'); setGuidePart(null) }}
           className={cn(
             'fixed right-4 z-[60] flex items-center gap-1.5 rounded-full bg-foreground text-background shadow-lg px-3 py-2 text-sm font-semibold hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             raised ? 'bottom-28' : 'bottom-20 sm:bottom-4'
@@ -348,7 +373,8 @@ export default function HelpWindow () {
             <h2 className='font-semibold text-base m-0'>{t('Help')}</h2>
             <button type='button' className='ml-auto text-muted-foreground hover:text-foreground' onClick={() => setOpen(false)} aria-label={t('Close')}><X className='w-5 h-5' /></button>
           </div>
-          <div className='flex items-center gap-2 px-4 pt-3'>
+          <div className='flex flex-wrap items-center gap-2 px-4 pt-3'>
+            <Button size='sm' variant={tab === 'guide' ? 'selectedOutline' : 'outline'} aria-pressed={tab === 'guide'} onClick={() => { setTab('guide'); setGuidePart(null) }}><BookOpen className='w-4 h-4' /> {t('Guide')}</Button>
             <Button size='sm' variant={tab === 'new' ? 'selectedOutline' : 'outline'} aria-pressed={tab === 'new'} onClick={newRequest}>{t('New request')}</Button>
             <Button size='sm' variant={tab === 'mine' ? 'selectedOutline' : 'outline'} aria-pressed={tab === 'mine'} onClick={() => { setTab('mine'); setRequestId(null) }}>
               {t('My requests')}
@@ -359,6 +385,7 @@ export default function HelpWindow () {
             )}
           </div>
           <div className='overflow-y-auto px-4 py-3'>
+            {tab === 'guide' && <HelpGuide part={guidePart} onPart={setGuidePart} onAsk={newRequest} onNavigate={() => setOpen(false)} />}
             {tab === 'new' && currentMode === 'sent' && (
               <div className='flex flex-col gap-3'>
                 <p className='text-sm'>{t('Thank you. Your request is with the team. You will find their answers under My requests.')}</p>

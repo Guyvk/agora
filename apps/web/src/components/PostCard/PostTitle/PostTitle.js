@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { CircleCheckBig, NotebookPen, Video } from 'lucide-react'
+import { CircleCheckBig, Video } from 'lucide-react' // Agora: Video is for the meeting room line
 import { DateTime } from 'luxon'
 import { LocationHelpers } from '@hylo/shared'
 import Highlight from 'components/Highlight'
@@ -27,10 +27,6 @@ export default function PostTitle ({
   const looksLikeUrl = /^https?:\/\/\S+$/i.test(trimmedLocation) || /^www\./i.test(trimmedLocation)
   const normalizedUrl = looksLikeUrl
     ? (trimmedLocation.startsWith('http') ? trimmedLocation : `https://${trimmedLocation}`)
-    : null
-  const trimmedMeetingLink = (meetingLink || '').toString().trim()
-  const normalizedMeetingUrl = trimmedMeetingLink
-    ? (trimmedMeetingLink.startsWith('http') ? trimmedMeetingLink : `https://${trimmedMeetingLink}`)
     : null
 
   return (
@@ -61,33 +57,17 @@ export default function PostTitle ({
               : <span className='min-w-0 break-words'>{generalLocation}</span>}
           </div>
         )}
-        {/* Agora: the meeting room already has its own line below */}
-        {meetingLink && !/\/noo\/meeting\/\d+\/room\/?$/.test(trimmedMeetingLink) && (
-          <div className={cn('text-xs text-foreground/50 flex min-w-0 items-start gap-1', { [classes.constrained]: constrained, 'mb-2': type !== 'event' })}>
-            <Video className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-Video' />
-            <a
-              className='min-w-0 break-words'
-              href={normalizedMeetingUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              onClick={(e) => e.stopPropagation()}
-            >
-              {t('Join online')}
-            </a>
-          </div>
-        )}
-        {/* Agora: every event has a meeting room that writes its own minutes */}
-        {type === 'event' && post.id && (
+        {/* Agora: calls only in the meeting room (its line is below), so no link to another platform is shown */}
+        {/* Agora: every Meeting has a meeting room that writes its own minutes; an Event has none */}
+        {type === 'event' && post.agoraKind !== 'event' && post.id && (
           <div className={cn('text-xs text-foreground/50 flex min-w-0 items-start gap-1', { [classes.constrained]: constrained })}>
-            <NotebookPen className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-AgoraMeeting' />
+            <Video className='mt-px w-4 h-4 shrink-0 text-foreground/50' data-testid='icon-AgoraMeeting' />
             <a
               className='min-w-0 break-words'
-              href={`/noo/meeting/${post.id}/room`}
-              target='_blank'
-              rel='noopener noreferrer'
+              href={`/noo/meeting/${post.id}/room`} // Agora: opens in this same tab, and the room sends people back here when the call ends
               onClick={(e) => e.stopPropagation()}
             >
-              {t('Meet in Agora, with minutes')}
+              {t('Video meeting in Agora (with minutes)')}
             </a>
           </div>
         )}

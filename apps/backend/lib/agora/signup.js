@@ -8,6 +8,9 @@
  *     was sent to, so a forwarded link cannot make accounts for others.
  *   - a circle's join link (its access code). Anyone who has it may make an
  *     account, with any address, until a steward makes a new link.
+ *   - a claim link for a profile made from someone's sheet (lib/agora/claims.js).
+ *     Like a join link it has no address; it works until the profile is
+ *     claimed or the link is withdrawn. It is not an invitation to a circle.
  * People who already have an account log in as before.
  *
  * The setting is AGORA_INVITE_ONLY in apps/backend/.env:
@@ -70,14 +73,14 @@ function clean (value) {
   return trimmed && trimmed.length <= 255 ? trimmed : undefined
 }
 
-/** The invitation someone holds, from what they sent: { invitationToken, accessCode }. */
-function invitation ({ invitationToken, accessCode } = {}) {
-  return { invitationToken: clean(invitationToken), accessCode: clean(accessCode) }
+/** The invitation someone holds, from what they sent: { invitationToken, accessCode, claimToken }. */
+function invitation ({ invitationToken, accessCode, claimToken } = {}) {
+  return { invitationToken: clean(invitationToken), accessCode: clean(accessCode), claimToken: clean(claimToken) }
 }
 
 function hasInvitation (held) {
-  const { invitationToken, accessCode } = invitation(held)
-  return Boolean(invitationToken || accessCode)
+  const { invitationToken, accessCode, claimToken } = invitation(held)
+  return Boolean(invitationToken || accessCode || claimToken)
 }
 
 async function isActiveGroup (groupId) {
@@ -95,7 +98,7 @@ async function isActiveGroup (groupId) {
  */
 async function isValidInvitation (held, email) {
   const InvitationService = require('../../api/services/InvitationService')
-  const { invitationToken, accessCode } = invitation(held)
+  const { invitationToken, accessCode, claimToken } = invitation(held)
   if (invitationToken) {
     const result = await InvitationService.check(invitationToken, null)
     if (result?.valid && sameAddress(email, result.email) && await isActiveGroup(result.groupId)) return true
@@ -104,7 +107,34 @@ async function isValidInvitation (held, email) {
     const result = await InvitationService.check(null, accessCode)
     if (result?.valid && await isActiveGroup(result.groupId)) return true
   }
+  // A claim link for a profile: any address, until the profile is claimed (lib/agora/claims.js)
+  if (claimToken && await require('./claims').isValidToken(claimToken)) return true
   return false
+}
+
+/** The error when someone logged in with another address tries to use an email invitation. */
+const INVITATION_OTHER_ACCOUNT_ERROR = 'agora-invitation-other-account'
+
+/**
+ * True when someone logged in with userEmail may use an invitation that was
+ * sent to invitationEmail. An email invitation belongs to the address it was
+ * sent to, also for people who already have an account: Guy, logged in as
+ * himself, cannot use an invitation he sent to someone else, and so cannot
+ * take that person's place. A join link has no address and fits everyone.
+ * Only while sign-up is by invitation only, as everything in this file.
+ */
+function invitationFitsUser (invitationEmail, userEmail) {
+  if (!isInviteOnly() || !invitationEmail) return true
+  return sameAddress(invitationEmail, userEmail)
+}
+
+/** Throws when the invitation may not be used by this user (see invitationFitsUser). */
+function checkInvitationFitsUser (invitationEmail, user) {
+  const userEmail = user && typeof user.get === 'function' ? user.get('email') : user?.email
+  if (!invitationFitsUser(invitationEmail, userEmail)) {
+    const { GraphQLError } = require('graphql')
+    throw new GraphQLError(INVITATION_OTHER_ACCOUNT_ERROR)
+  }
 }
 
 /** True when a new account may be made for this address, holding this invitation (or none). */
@@ -122,12 +152,100 @@ async function mayCreateAccount (held, email) {
  */
 function invitationFromRequest (req) {
   const param = name => (typeof req?.param === 'function' ? req.param(name) : undefined) ?? req?.body?.[name]
+  // A claim link is left out on purpose: it is only for signing up with an email address
   return invitation({ invitationToken: param('invitationToken'), accessCode: param('accessCode') })
 }
 
+/**
+ * Joining the circle of the invitation someone signed up with.
+ *
+ * Someone who opens a circle's join link or an invitation email while they
+ * have no account goes through: sign-up page (email address), a code or link
+ * in an email, a name and password, the welcome steps. Hylo itself never makes
+ * them a member on the way: it only remembers in the browser to show the
+ * circle's About page at the end, where they still have to click Join. When
+ * the email link opens in another browser or app, that memory is gone, and
+ * someone who does not click Join is not a member either. Both leave a new
+ * account outside the circle it was invited to.
+ *
+ * So the server remembers the invitation with the new account when the email
+ * is sent (rememberInvitation), and makes the person a member as soon as the
+ * account is finished (joinRememberedCircle), the same way the Join button
+ * does. The link itself is the steward's permission. The invitation is
+ * checked again at that moment: a join link that was replaced or an invitation
+ * that was withdrawn in between does nothing.
+ */
+const REMEMBERED_INVITATION = 'agora_signup_invitation'
+
+/** Keeps the invitation with an account that is not finished yet. Accounts that already exist are left alone. */
+async function rememberInvitation (user, held) {
+  if (!user || user.get('active')) return
+  const { invitationToken, accessCode } = invitation(held)
+  if (!invitationToken && !accessCode) return
+  const remembered = invitationToken ? { invitationToken } : { accessCode }
+  const settings = { ...(user.get('settings') || {}), [REMEMBERED_INVITATION]: remembered }
+  await user.save({ settings }, { patch: true })
+}
+
+/**
+ * Tries to make the user a member of the circle of this invitation, with Hylo's
+ * own join (the one behind the Join button), when the invitation can be used now.
+ * Never throws: a sign-up must not fail because joining did not work.
+ * Returns { membership, settled }. settled is true when there is nothing more to
+ * try (joined, or the invitation is not valid any more) and false when joining
+ * failed for another reason and may work later.
+ */
+async function tryJoinInvitedCircle (user, held) {
+  try {
+    const { invitationToken, accessCode } = invitation(held)
+    if (!user || (!invitationToken && !accessCode)) return { membership: null, settled: true }
+    const InvitationService = require('../../api/services/InvitationService')
+    const check = await InvitationService.check(invitationToken, accessCode)
+    if (!check?.valid || !(await isActiveGroup(check.groupId))) return { membership: null, settled: true }
+    // A space invitation joins its parent circle and the space together
+    const groupId = (check.isSpace && check.parentGroupId) ? check.parentGroupId : check.groupId
+    const { joinGroup } = require('../../api/graphql/mutations/group')
+    const membership = await joinGroup(groupId, user.id, [], accessCode, invitationToken, false, {})
+    return { membership: membership || null, settled: Boolean(membership) }
+  } catch (error) {
+    console.warn(`Agora: could not add user ${user?.id} to the circle of their invitation: ${error.message}`)
+    return { membership: null, settled: false }
+  }
+}
+
+/** Returns the membership, or null. Never throws. */
+async function joinInvitedCircle (user, held) {
+  return (await tryJoinInvitedCircle(user, held)).membership
+}
+
+/**
+ * Joins the circle of the invitation kept by rememberInvitation. The invitation is
+ * forgotten only once it has been used or is not valid any more; when joining
+ * failed for another reason it is kept, so the next time the account is finished
+ * or logged in to, it is tried again.
+ */
+async function joinRememberedCircle (user) {
+  const remembered = user && typeof user.getSetting === 'function' ? user.getSetting(REMEMBERED_INVITATION) : null
+  if (!remembered) return null
+  const { membership, settled } = await tryJoinInvitedCircle(user, remembered)
+  if (settled) {
+    const settings = { ...(user.get('settings') || {}) }
+    delete settings[REMEMBERED_INVITATION]
+    await user.save({ settings }, { patch: true })
+  }
+  return membership
+}
+
 module.exports = {
+  REMEMBERED_INVITATION,
+  rememberInvitation,
+  joinInvitedCircle,
+  joinRememberedCircle,
   INVITE_ONLY_ERROR,
   INVITATION_INVALID_ERROR,
+  INVITATION_OTHER_ACCOUNT_ERROR,
+  invitationFitsUser,
+  checkInvitationFitsUser,
   isInviteOnly,
   hasInvitation,
   isValidInvitation,

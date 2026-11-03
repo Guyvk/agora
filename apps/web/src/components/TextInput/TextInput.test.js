@@ -54,4 +54,14 @@ describe('TextInput', () => {
     const label = screen.getByText('Username')
     expect(label).toBeInTheDocument()
   })
+
+  // Agora: the X sends the field's own name, so a form with two fields clears the right one
+  it('clear button sends the name of its own field', () => {
+    const onChange = jest.fn()
+    render(<TextInput name='password' onChange={onChange} value='test value' />)
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(onChange).toHaveBeenCalledWith({ target: { name: 'password', value: '' } })
+  })
 })
