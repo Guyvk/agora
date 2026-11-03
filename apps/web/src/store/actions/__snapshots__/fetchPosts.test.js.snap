@@ -22,7 +22,8 @@ Object {
   $sortBy: String,
   $topic: ID,
   $topics: [ID],
-  $types: [String]
+  $types: [String],
+  $rsvpResponse: String
 ) {
   group(slug: $slug, updateLastViewed: true) {
     id
@@ -49,6 +50,7 @@ posts: viewPosts(
   search: $search,
   topic: $topic,
   topics: $topics,
+  rsvpResponse: $rsvpResponse,
   types: $types
 ) {
   hasMore
@@ -91,6 +93,9 @@ posts: viewPosts(
   linkPreviewFeatured
   location
   meetingLink
+  # Agora: Meeting or Event, and for all of 7BP
+  agoraKind
+  agoraForAll
   locationObject {
     id
     center {
@@ -235,6 +240,7 @@ posts: viewPosts(
       "mentionsOf": undefined,
       "offset": 20,
       "order": undefined,
+      "rsvpResponse": undefined,
       "savedBy": undefined,
       "search": "gardening",
       "slug": undefined,
@@ -249,6 +255,7 @@ posts: viewPosts(
     "extractQueryResults": Object {
       "getItems": [Function],
       "getRouteParams": [Function],
+      "replace": false,
     },
     "groupId": undefined,
     "slug": undefined,
@@ -284,7 +291,8 @@ Object {
   $sortBy: String,
   $topic: ID,
   $topics: [ID],
-  $types: [String]
+  $types: [String],
+  $rsvpResponse: String
 ) {
   
 posts(
@@ -311,6 +319,7 @@ posts(
   search: $search,
   topic: $topic,
   topics: $topics,
+  rsvpResponse: $rsvpResponse,
   types: $types
 ) {
   hasMore
@@ -353,6 +362,9 @@ posts(
   linkPreviewFeatured
   location
   meetingLink
+  # Agora: Meeting or Event, and for all of 7BP
+  agoraKind
+  agoraForAll
   locationObject {
     id
     center {
@@ -496,6 +508,7 @@ posts(
       "mentionsOf": undefined,
       "offset": 20,
       "order": undefined,
+      "rsvpResponse": undefined,
       "savedBy": undefined,
       "search": "graphic design",
       "slug": undefined,
@@ -510,6 +523,7 @@ posts(
     "extractQueryResults": Object {
       "getItems": [Function],
       "getRouteParams": [Function],
+      "replace": false,
     },
     "groupId": undefined,
     "slug": undefined,

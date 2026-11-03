@@ -1,6 +1,7 @@
 /* globals UploadController */
 
 var root = require('root-path')
+var nock = require('nock')
 require(root('test/setup'))
 var factories = require(root('test/setup/factories'))
 
@@ -59,6 +60,8 @@ describe('UploadController', () => {
   describe('uploading via file', () => {
     beforeEach(() => {
       req.headers['content-type'] = 'multipart/form-data; boundary=125b0ae93a754d0ba988b98b397d587f'
+      // never upload to a real S3 bucket from tests (nock intercepts HTTP for every module instance)
+      nock(/amazonaws\.com/).put(/.*/).reply(200, '', { ETag: '"test"' })
     })
 
     it('parses a multipart request', () => {
@@ -66,9 +69,7 @@ describe('UploadController', () => {
       req.session.userId = '42'
       return UploadController.create(req, res)
       .then(() => {
-        // this error is thrown by createS3StorageStream; the fact that it is
-        // thrown confirms that busboy was able to parse the request and set up
-        // the stream pipeline.
+        // busboy parsed the request and set up the stream pipeline (Hylo mocks S3, so nothing leaves the test).
         // Agora: a profile picture must be a picture, so this text file is refused
         // as one, after busboy has read the type, the id and the file
         expect(res.body.error).to.equal('Validation error: Profile pictures and banners must be JPEG, PNG, GIF or WebP')

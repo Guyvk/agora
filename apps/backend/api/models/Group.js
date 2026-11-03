@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 import knexPostgis from 'knex-postgis'
 import { GraphQLError } from 'graphql'
-import { clone, defaults, difference, flatten, intersection, isEmpty, mapValues, merge, sortBy, pick, omit, omitBy, isUndefined, trim, xor } from 'lodash'
+import { clone, defaults, difference, escape, flatten, intersection, isEmpty, mapValues, merge, sortBy, pick, omit, omitBy, isUndefined, trim, xor } from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
 import mbxGeocoder from '@mapbox/mapbox-sdk/services/geocoding'
 import fetch from 'node-fetch'
@@ -48,6 +48,12 @@ function notificationSettingsFromMembership (membership) {
 // For files in the public directory, reference them with the base URL
 const DEFAULT_BANNER = '/default-group-banner.svg'
 const DEFAULT_AVATAR = '/default-group-avatar.svg'
+
+// GroupInput.invitePolicy is 'everyone' or 'stewards'
+function invitePolicyFromData (policy) {
+  if (policy && typeof policy === 'object') return policy.mode
+  return policy
+}
 
 module.exports = bookshelf.Model.extend(merge({
   tableName: 'groups',
@@ -932,7 +938,9 @@ module.exports = bookshelf.Model.extend(merge({
     const wasAutoAdd = this.get('type') === 'space' && !!this.getSetting('auto_add_members')
 
     if (attributes.settings) {
-      saneAttrs.settings = merge({}, this.get('settings'), attributes.settings)
+      // The commons request is only changed through requestPublicListing / reviewPublicListingRequest
+      const { public_listing_request: _ignored, ...settingsChanges } = attributes.settings
+      saneAttrs.settings = merge({}, this.get('settings'), settingsChanges)
     }
 
     // If location_id is explicitly set to something empty then set it to null
@@ -941,8 +949,7 @@ module.exports = bookshelf.Model.extend(merge({
 
     // Make sure geometry column goes into the database correctly, converting from GeoJSON
     if (!isEmpty(attributes.geo_shape)) {
-      const st = knexPostgis(bookshelf.knex)
-      saneAttrs.geo_shape = st.geomFromGeoJSON(attributes.geo_shape)
+      saneAttrs.geo_shape = Group.geoShapeFromGeoJSON(attributes.geo_shape)
     } else if (Object.prototype.hasOwnProperty.call(saneAttrs, 'geo_shape')) {
       // if geo_shape is explicitly set to an empty value then unset it
       saneAttrs.geo_shape = null
@@ -954,6 +961,10 @@ module.exports = bookshelf.Model.extend(merge({
       !!this.getSetting('auto_add_members') &&
       !wasAutoAdd
     await bookshelf.transaction(async transacting => {
+      if (changes.invite_policy) {
+        await GroupRole.setInvitePolicy(this.id, invitePolicyFromData(changes.invite_policy), { transacting })
+      }
+
       if (changes.agreements && this.get('type') !== 'space' && !this.get('parent_id')) {
         const currentAgreementIds = (await this.agreements().fetch({ transacting })).pluck('id')
         const newAgreementIds = []
@@ -1341,6 +1352,12 @@ module.exports = bookshelf.Model.extend(merge({
     Activity.saveForReasons(activities)
   },
 
+  /** Convert a GeoJSON geometry (object or JSON string) into a value for the geo_shape column. */
+  geoShapeFromGeoJSON (geoJSON) {
+    const st = knexPostgis(bookshelf.knex)
+    return st.geomFromGeoJSON(geoJSON)
+  },
+
   async create (userId, data) {
     if (!data.slug) {
       throw new GraphQLError('Missing required field: slug')
@@ -1365,6 +1382,11 @@ module.exports = bookshelf.Model.extend(merge({
       }
     )
 
+    // Convert the GeoJSON boundary into the geometry column's format
+    if (!isEmpty(data.geo_shape)) {
+      attrs.geo_shape = Group.geoShapeFromGeoJSON(data.geo_shape)
+    }
+
     // XXX: for now groups by default cannot post to public on production
     attrs.allow_in_public = process.env.NODE_ENV === 'development'
 
@@ -1379,7 +1401,7 @@ module.exports = bookshelf.Model.extend(merge({
     const homeRoute = defaultSettings.homeView === 'CHAT' ? '/chat/general' : defaultSettings.homeView === 'MAP' ? '/map' : '/all'
 
     // eslint-disable-next-line camelcase
-    const access_code = attrs.access_code || await Group.getNewAccessCode()
+    const access_code = attrs.access_code || await GroupInviteLink.generateCode()
     const group = new Group(merge(attrs, {
       access_code,
       created_at: new Date(),
@@ -1393,6 +1415,18 @@ module.exports = bookshelf.Model.extend(merge({
       await group.save(null, { transacting: trx })
 
       await GroupRole.setupSystemRoles(group.id, { transacting: trx })
+      await GroupInviteLink.createForGroup(group.id, {
+        userId,
+        accessCode: group.get('access_code'),
+        grantAccess: true,
+        system: true
+      }, { transacting: trx })
+
+      if (data.invite_policy) {
+        await GroupRole.setInvitePolicy(group.id, invitePolicyFromData(data.invite_policy), { transacting: trx })
+      } else if (group.get('type') !== 'space') {
+        await GroupRole.setInvitePolicy(group.id, GroupRole.DEFAULT_NEW_GROUP_INVITE_POLICY, { transacting: trx })
+      }
 
       if (data.group_extensions) {
         for (const extData of data.group_extensions) {
@@ -1447,7 +1481,10 @@ module.exports = bookshelf.Model.extend(merge({
       await Queue.classMethod('Group', 'geocodeLocation', { groupId: group.id })
     }
 
-    await Queue.classMethod('Group', 'notifyAboutCreate', { groupId: group.id })
+    // Internal alert to NEW_GROUP_EMAIL. Spaces are not new top-level groups.
+    if (group.get('type') !== 'space') {
+      await Queue.classMethod('Group', 'notifyAboutCreate', { groupId: group.id })
+    }
 
     // Send email to creator
     await Queue.classMethod('Group', 'sendGroupCreatedEmail', { groupId: group.id })
@@ -1704,6 +1741,7 @@ module.exports = bookshelf.Model.extend(merge({
   notifyAboutCreate: function (opts) {
     return Group.find(opts.groupId, { withRelated: ['creator'] })
       .then(g => {
+        if (!g || g.get('type') === 'space') return
         const creator = g.relations.creator
         const recipient = process.env.NEW_GROUP_EMAIL
         const L = getLocaleStrings(creator.getLocale())
@@ -1727,6 +1765,108 @@ module.exports = bookshelf.Model.extend(merge({
           }
         })
       })
+  },
+
+  // Tells the Hylo team (NEW_GROUP_EMAIL) that a group wants to be added to the commons.
+  // Runs as its own job, separate from messageAdminsAboutPublicListingRequest, so a
+  // retry after a failed send can't repeat the admins' in-app message.
+  notifyAboutPublicListingRequest: async function ({ groupId }) {
+    const recipient = process.env.NEW_GROUP_EMAIL
+    if (!recipient) {
+      sails.log.warn(`Group.notifyAboutPublicListingRequest: NEW_GROUP_EMAIL is not set, no email sent for group ${groupId}`)
+      return false
+    }
+    const { group, request } = await Group.findPublicListingRequest(groupId, 'notifyAboutPublicListingRequest')
+    if (!request) return false
+    const requester = await User.find(request.requested_by_id)
+    const sent = await Email.sendRawEmail({
+      email: recipient,
+      data: {
+        subject: `Commons request: ${group.get('name')}`,
+        body: [
+          `Group: ${escape(group.get('name'))}`,
+          `URL: ${Frontend.Route.group(group)}`,
+          requester && `Requested by: ${escape(requester.get('name'))} (${escape(requester.get('email'))})`,
+          request.message && `Message: ${escape(request.message)}`,
+          '',
+          `Review requests: ${Frontend.Route.managementCommonsRequests()}`
+        ].filter(line => typeof line === 'string').join('<br/>\n')
+      },
+      extraOptions: {
+        sender: {
+          name: 'Hylobot',
+          address: 'dev+bot@hylo.com'
+        }
+      }
+    })
+    // sendRawEmail swallows SendWithUs errors; throw so the job is retried and reported
+    if (!sent) throw new Error(`Group.notifyAboutPublicListingRequest: email for group ${groupId} failed to send`)
+    return sent
+  },
+
+  // Sends every Hylo admin (HYLO_ADMINS) one Axolotl direct message about a new commons
+  // request, in a single thread like flagged-content alerts (flaggedItem/notifyUtils)
+  messageAdminsAboutPublicListingRequest: async function ({ groupId }) {
+    const adminIds = (process.env.HYLO_ADMINS || '').split(',').map(id => Number(id.trim())).filter(id => id > 0)
+    if (adminIds.length === 0) {
+      sails.log.warn(`Group.messageAdminsAboutPublicListingRequest: HYLO_ADMINS is not set, no message sent for group ${groupId}`)
+      return false
+    }
+    const { group, request } = await Group.findPublicListingRequest(groupId, 'messageAdminsAboutPublicListingRequest')
+    if (!request) return false
+    const requester = await User.find(request.requested_by_id)
+    const text = [
+      `${escape(requester ? requester.get('name') : 'Someone')} asked to add ${escape(group.get('name'))} to the commons.`,
+      request.message && `Message: ${escape(request.message)}`,
+      `Review requests: ${Frontend.Route.managementCommonsRequests()}`
+    ].filter(Boolean).join('\n')
+    return MessagingService.sendMessageFromAxolotl(adminIds, text)
+  },
+
+  // Loads a group's commons request for a notification job, warning when it's gone
+  findPublicListingRequest: async function (groupId, jobName) {
+    const group = await Group.find(groupId)
+    const request = group && group.getSetting('public_listing_request')
+    if (!request) {
+      sails.log.warn(`Group.${jobName}: no commons request found for group ${groupId}`)
+    }
+    return { group, request }
+  },
+
+  // Emails the steward who asked to join the commons whether they were approved or denied
+  sendPublicListingDecision: async function ({ groupId }) {
+    const { group, request } = await Group.findPublicListingRequest(groupId, 'sendPublicListingDecision')
+    if (!request) return false
+    if (!['approved', 'denied'].includes(request.status)) {
+      sails.log.warn(`Group.sendPublicListingDecision: commons request for group ${groupId} is ${request.status}, not reviewed`)
+      return false
+    }
+    const requester = await User.find(request.requested_by_id)
+    if (!requester || !requester.get('email')) {
+      sails.log.warn(`Group.sendPublicListingDecision: requester ${request.requested_by_id} for group ${groupId} has no email`)
+      return false
+    }
+    const L = getLocaleStrings(requester.getLocale())
+    const approved = request.status === 'approved'
+    const groupName = escape(group.get('name'))
+    const body = [
+      approved ? L.publicListingApprovedBody(groupName) : L.publicListingDeniedBody(groupName),
+      request.review_message && `<br/>\n${L.publicListingReviewerNote()}<br/>\n${escape(request.review_message)}`,
+      `<br/>\n${Frontend.Route.groupSettings(group)}/privacy`
+    ].filter(Boolean).join('<br/>\n')
+    const sent = await Email.sendRawEmail({
+      email: requester.get('email'),
+      data: {
+        subject: approved ? L.publicListingApprovedSubject(group.get('name')) : L.publicListingDeniedSubject(group.get('name')),
+        body
+      },
+      extraOptions: {
+        sender: { name: L.theTeamAtHylo }
+      }
+    })
+    // sendRawEmail swallows SendWithUs errors; throw so the job is retried and reported
+    if (!sent) throw new Error(`Group.sendPublicListingDecision: email for group ${groupId} failed to send`)
+    return sent
   },
 
   sendGroupCreatedEmail: function (opts) {
@@ -1839,17 +1979,16 @@ module.exports = bookshelf.Model.extend(merge({
    */
   selectIdsByResponsibilities (userOrId, responsibilities) {
     const useTitles = responsibilities.some(r => typeof r === 'string' && Number.isNaN(Number(r)))
-    const throughGroupRole = MemberGroupRole.collection().query(q => {
-      q.select('group_memberships_group_roles.group_id')
-      whereId(q, userOrId, 'group_memberships_group_roles.user_id')
-      q.join('group_roles_responsibilities', 'group_roles_responsibilities.group_role_id', 'group_memberships_group_roles.group_role_id')
-      if (useTitles) {
-        q.join('responsibilities', 'responsibilities.id', 'group_roles_responsibilities.responsibility_id')
-        q.whereIn('responsibilities.title', responsibilities)
-      } else {
-        q.whereIn('group_roles_responsibilities.responsibility_id', responsibilities)
-      }
-    })
+    const throughGroupRole = bookshelf.knex('group_member_effective_roles as mgr')
+      .select('mgr.group_id')
+    whereId(throughGroupRole, userOrId, 'mgr.user_id')
+    throughGroupRole.join('group_roles_responsibilities', 'group_roles_responsibilities.group_role_id', 'mgr.group_role_id')
+    if (useTitles) {
+      throughGroupRole.join('responsibilities', 'responsibilities.id', 'group_roles_responsibilities.responsibility_id')
+      throughGroupRole.whereIn('responsibilities.title', responsibilities)
+    } else {
+      throughGroupRole.whereIn('group_roles_responsibilities.responsibility_id', responsibilities)
+    }
 
     return GroupMembership.forIds(userOrId, null, {
       query: q => {
@@ -1858,8 +1997,8 @@ module.exports = bookshelf.Model.extend(merge({
         q.where('groups.active', true)
         // Direct role on this group, or (for spaces) role on parent_id
         q.where(function () {
-          this.whereIn('groups.id', throughGroupRole.query())
-            .orWhereIn('groups.parent_id', throughGroupRole.query())
+          this.whereIn('groups.id', throughGroupRole)
+            .orWhereIn('groups.parent_id', throughGroupRole.clone())
         })
       },
       multiple: true

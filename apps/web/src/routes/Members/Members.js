@@ -9,6 +9,7 @@ import { createSelector as ormCreateSelector } from 'redux-orm'
 import { isSystemGroupRole, sortCustomGroupRoles, sortSystemGroupRoles } from '@hylo/hooks/groupRoleHelpers'
 import { LayoutGrid, List, Search, Waypoints } from 'lucide-react'
 import InviteMembersDialog from 'components/InviteMembersDialog/InviteMembersDialog'
+import { inviteAccessFor } from 'util/inviteAccess'
 import Dropdown from 'components/Dropdown'
 import Icon from 'components/Icon'
 import MasonryGrid from 'components/MasonryGrid/MasonryGrid'
@@ -74,10 +75,11 @@ function Members (props) {
   const trackCompleted = trackCompletedParam === 'completed' ? true : trackCompletedParam === 'not' ? false : null
   const fundingRoundCapabilityParam = getQuerystringParam('fr', location)
   const fundingRoundCapability = FUNDING_ROUND_CAPABILITIES.includes(fundingRoundCapabilityParam) ? fundingRoundCapabilityParam : null
+  const highlightMemberId = getQuerystringParam('highlightMember', location) || null
   const memberCount = useSelector(state => get('memberCount', group))
   const memberQueryProps = useMemo(
-    () => getMemberQueryProps({ slug, search, sortBy, groupRoleIds, trackCompleted, fundingRoundCapability }),
-    [slug, search, sortBy, groupRoleIds, trackCompleted, fundingRoundCapability]
+    () => getMemberQueryProps({ slug, search, sortBy, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId }),
+    [slug, search, sortBy, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId]
   )
   const members = useSelector(state => getMembers(state, memberQueryProps))
   const graphMembers = useSelector(state => getGraphMembers(state, { slug }))
@@ -219,18 +221,18 @@ function Members (props) {
   }, [dispatch, group?.id, slug])
   const fetchMembersAction = useCallback((offset = 0) => {
     if (!group?.id || !slug) return
-    dispatch(fetchMembers({ slug, groupId: group.id, sortBy, offset, search, groupRoleIds, trackCompleted, fundingRoundCapability }))
-  }, [dispatch, slug, group?.id, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability])
+    dispatch(fetchMembers({ slug, groupId: group.id, sortBy, offset, search, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId }))
+  }, [dispatch, slug, group?.id, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId])
 
   useLayoutEffect(() => {
     const centerColumn = document.getElementById(CENTER_COLUMN_ID)
     if (centerColumn) centerColumn.scrollTop = 0
-  }, [slug, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability])
+  }, [slug, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId])
 
   useEffect(() => {
     if (!group?.id || !slug) return
     fetchMembersAction(0)
-  }, [group?.id, slug, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability, fetchMembersAction])
+  }, [group?.id, slug, sortBy, search, groupRoleIds, trackCompleted, fundingRoundCapability, highlightMemberId, fetchMembersAction])
 
   // The skill map is loved but heavy — it starts collapsed behind a toggle.
   const [showSkillMap, setShowSkillMap] = useState(false)
@@ -250,7 +252,7 @@ function Members (props) {
   const { setHeaderDetails } = useViewHeader()
   const isAboutMembersTab = /\/about\/members/.test(location.pathname)
   const pageTitle = isAboutMembersTab ? t('Members') : t('Member Directory')
-  const canAddMembers = myResponsibilityTitles.includes(RESP_ADD_MEMBERS)
+  const canInvite = !!inviteAccessFor(group, myResponsibilityTitles.includes(RESP_ADD_MEMBERS))
   const inviteParentGroup = group?.parentId ? rolesSourceGroup : null
   useEffect(() => {
     setHeaderDetails({
@@ -259,7 +261,7 @@ function Members (props) {
       icon: 'Users',
       info: '',
       search: true,
-      headerActions: canAddMembers
+      headerActions: canInvite
         ? (
           <InviteMembersDialog
             group={group}
@@ -271,7 +273,7 @@ function Members (props) {
           )
         : null
     })
-  }, [t, pageTitle, canAddMembers, group?.id, inviteParentGroup?.id])
+  }, [t, pageTitle, canInvite, group?.id, inviteParentGroup?.id])
 
   const fetchMore = () => {
     if (pending || members.length === 0 || !hasMore) return
@@ -498,6 +500,7 @@ function Members (props) {
                 submitterRoles={submitterRoles}
                 voterRoles={voterRoles}
                 layout={displayMode === 'list' ? 'row' : 'card'}
+                highlighted={Boolean(highlightMemberId) && String(member.id) === String(highlightMemberId)}
               />
             ))}
         </MasonryGrid>
