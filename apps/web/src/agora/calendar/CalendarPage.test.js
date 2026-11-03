@@ -49,11 +49,11 @@ describe('CalendarPage', () => {
     expect(rows).toHaveLength(2)
     expect(within(rows[0]).getByText('Governance weekly')).toBeInTheDocument()
     expect(within(rows[0]).getByTestId('calendar-kind-meeting')).toBeInTheDocument()
-    expect(within(rows[0]).getByRole('link', { name: /Meet in Agora/ })).toHaveAttribute('href', 'https://agora.test/noo/meeting/1/room')
+    expect(within(rows[0]).getByRole('link', { name: /Video meeting in Agora/ })).toHaveAttribute('href', 'https://agora.test/noo/meeting/1/room')
     expect(within(rows[1]).getByTestId('calendar-kind-event')).toBeInTheDocument()
     expect(within(rows[1]).getByText('All of 7BP')).toBeInTheDocument()
     expect(within(rows[1]).getByText('Community Hall')).toBeInTheDocument()
-    expect(within(rows[1]).queryByRole('link', { name: /Meet in Agora/ })).toBeNull()
+    expect(within(rows[1]).queryByRole('link', { name: /Video meeting in Agora/ })).toBeNull()
   })
 
   it('makes a calendar link on request and explains how to add it', async () => {
