@@ -377,6 +377,23 @@ describe('Agora meetings and events', () => {
       const closed = await make(steward)
       expect(await Calendar.inviteEveryone({ postId: closed.id, inviterId: steward.id, sendEmail: async () => { throw new Error('no') } })).to.equal(0)
     })
+
+    it('skips people who unsubscribed from all email or switched email off in every circle', async () => {
+      const post = await make(steward, { name: 'Quiet launch', agoraForAll: true, agoraKind: 'event' })
+      const unsubscribed = await new User({ name: 'Ines', email: 'ines@agora.test', active: true, settings: { post_notifications: 'none' } }).save()
+      await unsubscribed.joinGroup(main)
+      const emailOff = await new User({ name: 'Tom', email: 'tom@agora.test', active: true }).save()
+      await emailOff.joinGroup(main)
+      await bookshelf.knex.raw(`update group_memberships set settings = settings || '{"sendEmail": false}'::jsonb where user_id = ?`, [emailOff.id])
+      try {
+        const sent = []
+        const count = await Calendar.inviteEveryone({ postId: post.id, inviterId: steward.id, sendEmail: async (email) => sent.push(email) })
+        expect(sent.sort()).to.deep.equal(['amara@agora.test', 'kenji@agora.test', 'priya@agora.test'])
+        expect(count).to.equal(3)
+      } finally {
+        await bookshelf.knex('users').whereIn('id', [unsubscribed.id, emailOff.id]).update({ active: false })
+      }
+    })
   })
 
   describe('who may change a post', () => {
