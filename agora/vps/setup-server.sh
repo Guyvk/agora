@@ -57,6 +57,8 @@ apt-get install -y -qq ca-certificates curl git ufw fail2ban unattended-upgrades
   build-essential python3 rsync rclone postgresql postgresql-contrib redis-server caddy >/dev/null
 PG_MAJOR="$(apt-cache depends postgresql | sed -n 's/.*Depends: postgresql-\([0-9]*\)$/\1/p' | head -1)"
 apt-get install -y -qq "postgresql-$PG_MAJOR-postgis-3" >/dev/null
+# Search by meaning for the Ask tab. Ask still works by keywords without it.
+apt-get install -y -qq "postgresql-$PG_MAJOR-pgvector" >/dev/null || echo "  pgvector could not be installed. Ask will search by keywords only."
 echo "  PostgreSQL $PG_MAJOR, Redis $(redis-server --version | awk '{print $3}'), Caddy $(caddy version | awk '{print $1}')"
 
 step "2/10  Security: firewall, automatic security updates, login protection"
@@ -150,6 +152,9 @@ if ! sudo -u postgres psql -lqt | cut -d '|' -f 1 | grep -qw agora; then
   done
   NEW_DATABASE=1
 fi
+# pgvector for the Ask tab, also on a database made before. Safe to run again.
+sudo -u postgres psql -q -d agora -c 'create extension if not exists vector with schema public' >/dev/null 2>&1 \
+  || echo "  pgvector is not switched on. Ask will search by keywords only."
 
 step "7/10  Settings"
 as_agora bash -c "cd '$APP_DIR' && node agora/vps/server-env.mjs '$SITE' '$DB_PASSWORD'"

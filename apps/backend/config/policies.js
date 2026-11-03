@@ -98,6 +98,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora Ask: for anyone logged in, and each action checks membership of the circle.
+  AgoraAskController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora: "This week in 7BP", for anyone logged in. The answer only holds what the person may see.
   AgoraThisWeekController: {
     '*': 'sessionAuth'
