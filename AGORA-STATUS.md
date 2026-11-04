@@ -2,7 +2,19 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 25 October 2026, by the Agora coordinator session on the Mac. "25 October" is current; older sections below are partly out of date.
+**Last updated:** 4 November 2026, by the Agora coordinator session on the Mac. "3-4 November" is current; older sections below are partly out of date.
+
+## 3-4 November 2026
+
+- **Live on aad374c0d3** (deployed 3 Nov 22:37 UTC, unit agora-update-1103c). No open pull requests.
+- Merged and live on 3 November (Guy: "merge all of them"): #35 safer update.sh + auto-update.sh (the timer is NOT installed; Claude advised to leave it off for now), #34 roles from the Accounts tab, #32 Meetings and Events + calendar + private feed (the 5 existing events became Meetings; "for all of 7BP" items readable by every logged-in member), #28 Ask (hidden: `AGORA_ASK_ENABLED` unset; Guy said yes to anonymous private themes for when it is switched on), #29 circle library (the Resources tab of a circle is now the library; kDrive Files unchanged; recordings are turned into text, max 240 min each). Server got pgvector, poppler-utils, unzip, ffmpeg.
+- #66: "invite everyone" calendar mail skips people who unsubscribed from all email or switched email off in every circle.
+- David (user 6) is in `AGORA_ADMINS=1,6` (backup `.env.bak-before-david-admin-20261103`); `agora-admins-everywhere.js --apply` made him Administrator of Governance, Tech Support (joined) and 7BP.
+- #67: upstream Hylo dev up to d1ec91655a merged in (257 commits: session hardening, email change verified first, custom roles fix, emoji button, profile hover card, pinned spaces, native date pickers). Hylo deleted apps/mobile. 4 Hylo migrations ran. Checked live: logged-out `groups`/`posts` return nothing; the logged-out mutations are the same 7 as before.
+- Deploy tip: when update.sh itself changes, fast-forward `/srv/agora` first (`sudo -u agora git -C /srv/agora merge --ff-only origin/agora`), then run `update.sh --force`, so the script is not replaced while it runs.
+- Never create a branch named `dev` on Guyvk/agora: Hylo's CI workflows would start running.
+- Tests known to fail on agora (not real breakage): help.test.js "Coming soon: A guest link"; agora.test.js verification link (Node 24 writes `<` as `%3C`); claims.test.js "gives a claimed profile no new link" in the full file (two tests share an email); 4 logged-out reading tests in api/graphql/index.test.js (the lockdown removes that on purpose).
+- Small follow-ups: the email-change code mail reuses the sign-up text; rewrite the 4 logged-out tests for the lockdown; `test/setup/index.js` has a committed timeout of 300000 and a tracked `index.js.bak`; optional `scripts/report-session-counts.js --purge` (dry run first).
 
 ## 25 October 2026
 
