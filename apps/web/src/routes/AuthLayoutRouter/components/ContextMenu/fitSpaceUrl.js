@@ -2,7 +2,7 @@
 export function fitSpaceUrl (fullUrl, maxWidth, measure) {
   if (maxWidth <= 0 || measure(fullUrl) <= maxWidth) return fullUrl
 
-  const prefix = 'hylo.com/…'
+  const prefix = fullUrl.split('/')[0] + '/…'
   let low = 0
   let high = fullUrl.length
   let bestLength = 0
@@ -19,7 +19,7 @@ export function fitSpaceUrl (fullUrl, maxWidth, measure) {
   }
 
   let tail = fullUrl.slice(fullUrl.length - bestLength)
-  // Drop a partial path segment so the ellipsis lands on a slash: hylo.com/…/spaces/slug
+  // Drop a partial path segment so the ellipsis lands on a slash: host/…/spaces/slug
   if (tail && !tail.startsWith('/')) {
     const slash = tail.indexOf('/')
     if (slash !== -1) tail = tail.slice(slash)

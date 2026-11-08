@@ -277,3 +277,10 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/web/src/routes/JoinGroup/JoinGroup.js`: someone logged in is not joined straight from a Hylo link that only lets people see the circle (`grantAccess` false); they land on its About page and ask to join. `JoinGroup.test.js`: Hylo's new test for a member invitation uses a circle the person is not in and a refused join, because Agora sends a member straight into the circle.
 - `apps/web/src/routes/GroupSettings/PrivacySettingsTab/PrivacySettingsTab.test.js`: Hylo's Commons box tests run with The Commons switched on.
 - `apps/web/src/store/actions/__snapshots__/fetchPosts.test.js.snap`: updated for the two event fields Agora asks for (`agoraKind`, `agoraForAll`).
+
+## Clean-up of 8 November 2026
+
+- `apps/backend/api/services/Email.js`, `apps/backend/api/graphql/mutations/emailChange.js`, `apps/backend/api/graphql/mutations/emailChange.test.js`, `apps/backend/lib/agora/mailer.js`: the code mail for a changed email address is its own message (`sendEmailChangeCode`, text `agora_email_change_code`) and no longer reuses the sign-up text. With a SendWithUs key the old sign-up text is still used, because SendWithUs has no such text.
+- `apps/backend/api/graphql/index.test.js`: Hylo's tests that read public groups, posts and profiles without logging in now check that Agora returns nothing.
+- `apps/backend/test/setup/index.js`: the timeout is Hylo's again (50000). `test/setup/index.js.bak` removed.
+- `apps/web/src/routes/CreateGroup/CreateGroupForm.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/SpaceSlugField.jsx`, `fitSpaceUrl.js` and their tests: the address preview shows the host of the running site (`window.location.host`) instead of hylo.com.

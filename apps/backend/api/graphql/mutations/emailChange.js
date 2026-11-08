@@ -107,7 +107,7 @@ export async function startEmailChange (user, email, { ip } = {}) {
   }
 
   // Awaited so a failure to queue the emails surfaces as an error instead of a silent success
-  await Queue.classMethod('Email', 'sendEmailVerification', {
+  await Queue.classMethod('Email', 'sendEmailChangeCode', {
     email,
     locale,
     version: 'with link',

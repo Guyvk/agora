@@ -11,10 +11,10 @@ import { fitSpaceUrl } from './fitSpaceUrl'
 
 const SLUG_CHECK_DEBOUNCE = 300
 
-/** Preview of the space URL. Keeps hylo.com and the end of the path, ellipsizing the middle when the line is too narrow. */
+/** Preview of the space URL. Keeps the site's own address and the end of the path, ellipsizing the middle when the line is too narrow. */
 function SpaceUrlPreview ({ parentSlug, slug }) {
   const ref = useRef(null)
-  const fullUrl = `hylo.com/groups/${parentSlug || '…'}/spaces/${slug || '…'}`
+  const fullUrl = `${window.location.host}/groups/${parentSlug || '…'}/spaces/${slug || '…'}`
   const [fittedUrl, setFittedUrl] = useState(fullUrl)
   const [sourceUrl, setSourceUrl] = useState(fullUrl)
   if (sourceUrl !== fullUrl) {

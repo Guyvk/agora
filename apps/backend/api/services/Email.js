@@ -14,6 +14,11 @@ const { isDemoAddress } = require('../../lib/demo/addresses')
 // Source: scripts/i18n/i18n-templates/Email_Change_Requested_i18n/ (translations in scripts/i18n/sendwithus-locales/*.po)
 const EMAIL_CHANGE_REQUESTED_TEMPLATE = 'tem_gfCWyJRpp6Q996d6ykVgJKCW'
 
+// Agora: the code that goes to the NEW address when someone changes their account email. Agora's own mailer has
+// its own text for it. SendWithUs has no such text, so with a SendWithUs key the sign-up text is used, as before.
+// Data: code, verify_url
+const EMAIL_CHANGE_CODE_TEMPLATE = 'agora_email_change_code'
+
 /**
  * Never send from unit tests or the isolated E2E backend (DISABLE_EMAIL_SENDING=1), whatever key the local
  * .env holds: sendwithus delivers mail sent with a test key to the account owner (#1722).
@@ -97,6 +102,9 @@ module.exports = {
 
   sendEmailVerification: opts =>
     sendSimpleEmail(opts.email, 'tem_h99yGHv9MXTpMrPSDVTjQFyB', opts.templateData, {}, normalizeLocaleToFull(opts.locale)),
+
+  sendEmailChangeCode: opts =>
+    sendSimpleEmail(opts.email, process.env.SENDWITHUS_KEY ? 'tem_h99yGHv9MXTpMrPSDVTjQFyB' : EMAIL_CHANGE_CODE_TEMPLATE, opts.templateData, {}, normalizeLocaleToFull(opts.locale)),
 
   sendEmailChangeRequested: opts =>
     sendSimpleEmail(opts.email, EMAIL_CHANGE_REQUESTED_TEMPLATE, opts.templateData, {}, normalizeLocaleToFull(opts.locale)),

@@ -22,7 +22,7 @@ describe('email change', () => {
 
   const emailsSent = method => queued.filter(([, name]) => name === method).map(([, , opts]) => opts)
   const lastVerification = () => {
-    const opts = emailsSent('sendEmailVerification').slice(-1)[0]
+    const opts = emailsSent('sendEmailChangeCode').slice(-1)[0]
     return {
       email: opts.email,
       code: opts.templateData.code,
@@ -58,7 +58,7 @@ describe('email change', () => {
       const newEmail = uniqueEmail()
       await updateMe('session', user.id, { email: newEmail })
 
-      const verification = emailsSent('sendEmailVerification')
+      const verification = emailsSent('sendEmailChangeCode')
       expect(verification.length).to.equal(1)
       expect(verification[0].email).to.equal(newEmail)
       expect(verification[0].templateData.code).to.match(/^\d{6}$/)

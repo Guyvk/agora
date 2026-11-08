@@ -605,120 +605,95 @@ describe('graphql request handler', () => {
       })
     })
 
-    it('does not return group members or their contact details', async () => {
+    // Agora's lockdown (24 October 2026): nothing can be read without logging in. Hylo let logged-out
+    // visitors read public groups, posts and opted-in profiles; these tests check that Agora does not.
+
+    it('returns no groups, and no group members or their contact details', async () => {
       const publicGroup = await factories.group({
         visibility: Group.Visibility.PUBLIC,
         settings: { public_member_directory: true }
-      }).save()
-      const privateDirectory = await factories.group({
-        visibility: Group.Visibility.PUBLIC,
-        settings: { public_member_directory: false }
       }).save()
       const member = await factories.user({
         contact_email: 'member@example.com',
         contact_phone: '5551212',
         location: 'Barcelona, Spain',
         bio: 'secret bio',
-        facebook_url: 'https://facebook.com/member',
-        linkedin_url: 'https://linkedin.com/in/member',
-        twitter_name: 'member',
         last_active_at: new Date()
       }).save()
       await publicGroup.addMembers([member.id])
-      await privateDirectory.addMembers([member.id])
 
       const { executionResult } = await handler.inject({
         document: `{
           groups(first: 10) {
+            total
+            hasMore
             items {
               id
               members(first: 5) {
-                items { id name contactEmail contactPhone location bio facebookUrl linkedinUrl twitterName lastActiveAt }
+                items { id name contactEmail contactPhone location bio lastActiveAt }
               }
             }
           }
-          group(id: "${publicGroup.id}") {
+          byId: group(id: "${publicGroup.id}") {
+            id
+            name
             members(first: 5) {
               items { id name contactEmail contactPhone lastActiveAt }
             }
           }
-          privateDirectory: group(slug: "${privateDirectory.get('slug')}") {
-            settings { publicMemberDirectory }
-            members(first: 5, offset: 0) {
-              items { id name contactEmail contactPhone location bio }
-            }
+          bySlug: group(slug: "${publicGroup.get('slug')}") {
+            id
+            name
           }
         }`,
         serverContext: { req, res }
       })
 
       expect(executionResult.errors).to.not.be.ok
-      const listed = executionResult.data.groups.items.find(item => item.id === String(publicGroup.id))
-      expect(listed.members.items).to.deep.equal([])
-      expect(executionResult.data.group.members.items).to.deep.equal([])
-      expect(executionResult.data.privateDirectory.settings.publicMemberDirectory).to.equal(false)
-      expect(executionResult.data.privateDirectory.members.items).to.deep.equal([])
+      expect(executionResult.data.groups).to.deep.equal({ total: 0, hasMore: false, items: [] })
+      expect(executionResult.data.byId).to.equal(null)
+      expect(executionResult.data.bySlug).to.equal(null)
+      expect(JSON.stringify(executionResult)).to.not.contain('member@example.com')
     })
 
-    it('only shows who wrote public posts and comments, not their profile', async () => {
+    it('returns no posts, and no post or its author, even when the post is public', async () => {
       const author = await factories.user({
         name: 'Public Author',
-        tagline: 'hello',
         contact_email: 'author@example.com',
-        contact_phone: '5551212',
-        location: 'Barcelona, Spain',
-        bio: 'secret bio',
-        facebook_url: 'https://facebook.com/author',
-        linkedin_url: 'https://linkedin.com/in/author',
-        twitter_name: 'author',
-        url: 'https://author.example.com',
-        last_active_at: new Date()
+        bio: 'secret bio'
       }).save()
-      const authorGroup = await factories.group().save()
+      const authorGroup = await factories.group({ visibility: Group.Visibility.PUBLIC }).save()
       await authorGroup.addMembers([author.id])
-      const publicPost = await factories.post({ user_id: author.id, is_public: true }).save()
+      const publicPost = await factories.post({ user_id: author.id, is_public: true, name: 'Open post' }).save()
       await authorGroup.posts().attach(publicPost)
       await factories.comment({ post_id: publicPost.id, user_id: author.id }).save()
 
-      const profileFields = `id name tagline contactEmail contactPhone location bio facebookUrl linkedinUrl twitterName url lastActiveAt
-        locationObject { id } memberships { id } membershipsTotal groupRoles { items { id } } skills { items { name } } posts { items { id } }`
       const { executionResult } = await handler.inject({
         document: `{
           post(id: "${publicPost.id}") {
-            creator { ${profileFields} }
-            comments { items { creator { ${profileFields} } } }
+            id
+            title
+            creator { id name bio contactEmail }
+            comments { items { id creator { id name } } }
+          }
+          posts(first: 10) {
+            total
+            hasMore
+            items { id title creator { id name } }
           }
         }`,
         serverContext: { req, res }
       })
 
       expect(executionResult.errors).to.not.be.ok
-      const hiddenProfile = {
-        id: String(author.id),
-        name: 'Public Author',
-        tagline: 'hello',
-        contactEmail: null,
-        contactPhone: null,
-        location: null,
-        bio: null,
-        facebookUrl: null,
-        linkedinUrl: null,
-        twitterName: null,
-        url: null,
-        lastActiveAt: null,
-        locationObject: null,
-        memberships: [],
-        membershipsTotal: 0,
-        groupRoles: { items: [] },
-        skills: { items: [] },
-        posts: { items: [] }
-      }
-      expect(executionResult.data.post.creator).to.deep.equal(hiddenProfile)
-      expect(executionResult.data.post.comments.items[0].creator).to.deep.equal(hiddenProfile)
+      expect(executionResult.data.post).to.equal(null)
+      expect(executionResult.data.posts).to.deep.equal({ total: 0, hasMore: false, items: [] })
+      const everything = JSON.stringify(executionResult)
+      expect(everything).to.not.contain('Public Author')
+      expect(everything).to.not.contain('Open post')
     })
 
-    it('shows skills and public groups on an opted-in public profile', async () => {
-      const suffix = randomUUID().slice(0, 8)
+    it('returns no profile, also when the person opted in to a public profile', async () => {
       const person = await factories.user({
         name: 'Public Profile',
         tagline: 'hello there',
@@ -727,18 +702,15 @@ describe('graphql request handler', () => {
         facebook_url: 'https://facebook.com/public',
         is_profile_public: true
       }).save()
-      const skill = await factories.skill({ name: `dreaming-${suffix}` }).save()
-      await skill.users().attach({ user_id: person.id })
-      const publicGroup = await factories.group({
-        name: `Public Group ${suffix}`,
-        visibility: Group.Visibility.PUBLIC
-      }).save()
-      const privateGroup = await factories.group({
-        name: `Private Group ${suffix}`,
-        visibility: Group.Visibility.PROTECTED
-      }).save()
+      const publicGroup = await factories.group({ visibility: Group.Visibility.PUBLIC }).save()
       await publicGroup.addMembers([person.id])
-      await privateGroup.addMembers([person.id])
+      const publicPost = await factories.post({
+        user_id: person.id,
+        type: Post.Type.DISCUSSION,
+        is_public: true,
+        name: 'Visible post'
+      }).save()
+      await publicGroup.posts().attach(publicPost)
 
       const { executionResult } = await handler.inject({
         document: `{
@@ -751,52 +723,6 @@ describe('graphql request handler', () => {
             facebookUrl
             skills { items { name } }
             memberships { id group { name } }
-          }
-        }`,
-        serverContext: { req, res }
-      })
-
-      expect(executionResult.errors).to.not.be.ok
-      const profile = executionResult.data.person
-      expect(profile).to.include({
-        id: String(person.id),
-        name: 'Public Profile',
-        tagline: 'hello there',
-        bio: 'Visible bio',
-        contactEmail: null,
-        facebookUrl: 'https://facebook.com/public'
-      })
-      expect(profile.skills.items.map(item => item.name)).to.include(`dreaming-${suffix}`)
-      const groupNames = profile.memberships.map(membership => membership.group.name)
-      expect(groupNames).to.include(`Public Group ${suffix}`)
-      expect(groupNames).to.not.include(`Private Group ${suffix}`)
-    })
-
-    it('shows only public posts on an opted-in public profile', async () => {
-      const person = await factories.user({
-        name: 'Public Poster',
-        is_profile_public: true
-      }).save()
-      const group = await factories.group({ visibility: Group.Visibility.PUBLIC }).save()
-      await group.addMembers([person.id])
-      const publicPost = await factories.post({
-        user_id: person.id,
-        type: Post.Type.DISCUSSION,
-        is_public: true,
-        name: 'Visible post'
-      }).save()
-      const privatePost = await factories.post({
-        user_id: person.id,
-        type: Post.Type.DISCUSSION,
-        is_public: false,
-        name: 'Hidden post'
-      }).save()
-      await group.posts().attach(publicPost)
-      await group.posts().attach(privatePost)
-
-      const { executionResult } = await handler.inject({
-        document: `{
-          person(id: "${person.id}") {
             posts(first: 10, order: "desc", sortBy: "created") {
               items { id isPublic }
             }
@@ -806,10 +732,8 @@ describe('graphql request handler', () => {
       })
 
       expect(executionResult.errors).to.not.be.ok
-      const ids = executionResult.data.person.posts.items.map(post => post.id)
-      expect(ids).to.include(String(publicPost.id))
-      expect(ids).to.not.include(String(privatePost.id))
-      expect(executionResult.data.person.posts.items.every(post => post.isPublic)).to.equal(true)
+      expect(executionResult.data.person).to.equal(null)
+      expect(JSON.stringify(executionResult)).to.not.contain('Public Profile')
     })
 
     it('allows checkInvitation', async () => {
