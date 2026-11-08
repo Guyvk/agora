@@ -2,6 +2,7 @@
 import React from 'react'
 import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import CalendarPage, { itemsToPosts } from './CalendarPage'
+import { webcalUrl } from './CalendarLinkDialog'
 
 const soon = days => new Date(Date.now() + days * 86400000)
 const items = [
@@ -56,28 +57,80 @@ describe('CalendarPage', () => {
     expect(within(rows[1]).queryByRole('link', { name: /Video meeting in Agora/ })).toBeNull()
   })
 
-  it('makes a calendar link on request and explains how to add it', async () => {
+  const openPopup = async () => {
+    fireEvent.click((await screen.findAllByTestId('calendar-add-button'))[0])
+    return screen.findByTestId('calendar-dialog')
+  }
+
+  it('has an "Add to my calendar" button in the header, and no link on the page itself', async () => {
     fakeServer()
     renderPage()
-    fireEvent.click(await screen.findByTestId('calendar-make-link'))
-    const link = await screen.findByTestId('calendar-link')
+    expect((await screen.findAllByTestId('calendar-add-button')).length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('calendar-subscribe')).toBeNull()
+    expect(screen.queryByTestId('calendar-dialog')).toBeNull()
+    // The link is only asked for when the popup opens
+    expect(calls.some(c => c.path === '/noo/agora/calendar/api/feed')).toBe(false)
+  })
+
+  it('opens a popup that makes a calendar link and explains how to add it', async () => {
+    fakeServer()
+    renderPage()
+    const dialog = await openPopup()
+    expect(within(dialog).getByText('agoraCalendar.subscribeIntro')).toBeInTheDocument()
+    fireEvent.click(await within(dialog).findByTestId('calendar-make-link'))
+    const link = await within(dialog).findByTestId('calendar-link')
     expect(link.value).toMatch(/\/noo\/agora\/calendar\/x{43}\.ics$/)
     const renew = calls.find(c => c.path === '/noo/agora/calendar/api/feed/renew')
     expect(renew.options.method).toBe('POST')
     expect(renew.options.headers['X-Agora']).toBe('1')
-    expect(screen.getByText('agoraCalendar.howGoogle')).toBeInTheDocument()
-    expect(screen.getByText('agoraCalendar.howApple')).toBeInTheDocument()
-    expect(screen.getByText('agoraCalendar.howOutlook')).toBeInTheDocument()
-    expect(screen.getByText('agoraCalendar.refresh')).toBeInTheDocument()
+    expect(within(dialog).getByText('agoraCalendar.secret')).toBeInTheDocument()
+    expect(within(dialog).getByText('agoraCalendar.howApple')).toBeInTheDocument()
+    expect(within(dialog).getByText('agoraCalendar.howGoogle')).toBeInTheDocument()
+    expect(within(dialog).getByText('agoraCalendar.howOutlook')).toBeInTheDocument()
+    expect(within(dialog).getByText('agoraCalendar.refresh')).toBeInTheDocument()
+  })
+
+  it('offers the same link as webcal:// to open in Apple Calendar', async () => {
+    fakeServer({ feedUrl: 'https://agora.test/noo/agora/calendar/' + 'y'.repeat(43) + '.ics' })
+    renderPage()
+    const dialog = await openPopup()
+    const open = await within(dialog).findByTestId('calendar-open-apple')
+    expect(open).toHaveAttribute('href', 'webcal://agora.test/noo/agora/calendar/' + 'y'.repeat(43) + '.ics')
+    expect(open).not.toHaveAttribute('target')
+    expect(webcalUrl('http://x.test/a.ics')).toBe('webcal://x.test/a.ics')
+  })
+
+  it('closes the popup with Escape and with the X', async () => {
+    fakeServer()
+    renderPage()
+    await openPopup()
+    fireEvent.keyDown(screen.getByTestId('calendar-dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByTestId('calendar-dialog')).toBeNull())
+    await openPopup()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByTestId('calendar-dialog')).toBeNull())
   })
 
   it('switches the link off after asking', async () => {
     fakeServer({ feedUrl: 'https://agora.test/noo/agora/calendar/' + 'y'.repeat(43) + '.ics' })
     window.confirm = jest.fn(() => true)
     renderPage()
-    await screen.findByTestId('calendar-link')
-    fireEvent.click(screen.getByTestId('calendar-revoke'))
-    await waitFor(() => expect(screen.getByTestId('calendar-make-link')).toBeInTheDocument())
+    const dialog = await openPopup()
+    await within(dialog).findByTestId('calendar-link')
+    fireEvent.click(within(dialog).getByTestId('calendar-revoke'))
+    await waitFor(() => expect(within(dialog).getByTestId('calendar-make-link')).toBeInTheDocument())
+    expect(window.confirm).toHaveBeenCalled()
+    expect(calls.find(c => c.path === '/noo/agora/calendar/api/feed/revoke').options.headers['X-Agora']).toBe('1')
+  })
+
+  it('makes a new link after asking', async () => {
+    fakeServer({ feedUrl: 'https://agora.test/noo/agora/calendar/' + 'y'.repeat(43) + '.ics' })
+    window.confirm = jest.fn(() => true)
+    renderPage()
+    const dialog = await openPopup()
+    await within(dialog).findByTestId('calendar-link')
+    fireEvent.click(within(dialog).getByTestId('calendar-renew'))
+    await waitFor(() => expect(within(dialog).getByTestId('calendar-link').value).toMatch(/x{43}\.ics$/))
     expect(window.confirm).toHaveBeenCalled()
   })
 })

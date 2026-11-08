@@ -176,7 +176,8 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/components/PostCard/EventBody/EventBody.js` (meetings and events) | "Meeting ended" or "Event ended", and the guest link box only on a Meeting |
 | `apps/web/src/components/PostCard/EventBody/EventBody.test.js` | Checks that an Event never asks for a guest link |
 | `apps/web/src/routes/PostDetail/PostDetail.js` (meetings and events) | The page title says Meeting or Event; "Join online" only for a Meeting |
-| `apps/web/src/components/Calendar/calendar.tsx`, `calendar.module.scss` | Meetings have their own look (dashed) in every calendar view |
+| `apps/web/src/components/Calendar/calendar.tsx`, `calendar.module.scss` | Meetings have their own look (dashed) in every calendar view; `calendar.tsx` also takes a `headerExtra` button for the "Add to my calendar" button |
+| `apps/backend/config/routes.js` (`skipAssets`) | The calendar feed and library download routes say `skipAssets: false`, so addresses ending in `.ics` or a file name reach the controller |
 | `apps/web/src/graphql/fragments/postFieldsFragment.js`, `postCardFieldsFragment.js`, `apps/web/src/graphql/mutations/createPostMutation.js`, `updatePostMutation.js`, `apps/web/src/store/actions/createPost.js`, `updatePost.js`, `apps/web/src/store/models/Post.js` | Carry the kind and "for all of 7BP" to and from the server |
 | `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (calendar) | The calendar page at `/calendar` |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (calendar) | A Calendar button in the left bar |

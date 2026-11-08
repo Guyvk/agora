@@ -137,7 +137,8 @@ module.exports.routes = {
   'POST   /noo/agora/library/uploads/:fileId/part-urls':  'AgoraLibraryController.partUrls',
   'POST   /noo/agora/library/uploads/:fileId/relay':      'AgoraLibraryController.relay',
   'POST   /noo/agora/library/uploads/:fileId/finish':     'AgoraLibraryController.finish',
-  'GET    /noo/agora/library/file/:fileId/:name':         'AgoraLibraryController.download',
+  // Agora: skipAssets is false, or Sails never reaches the controller for a name like Call.m4a
+  'GET    /noo/agora/library/file/:fileId/:name':         { action: 'agoralibrary/download', skipAssets: false },
   'GET    /noo/agora/library/file/:fileId':               'AgoraLibraryController.download',
 
   // Agora contacts: one shared list of people and organisations outside Agora
@@ -172,7 +173,8 @@ module.exports.routes = {
   'GET    /noo/agora/calendar/api/feed':                  'AgoraCalendarController.myFeed',
   'POST   /noo/agora/calendar/api/feed/renew':            'AgoraCalendarController.renewFeed',
   'POST   /noo/agora/calendar/api/feed/revoke':           'AgoraCalendarController.revokeFeed',
-  'GET    /noo/agora/calendar/:file':                     'AgoraCalendarController.feed',
+  // Agora: skipAssets is false, or Sails treats <secret>.ics as a file name and never reaches the controller
+  'GET    /noo/agora/calendar/:file':                     { action: 'agoracalendar/feed', skipAssets: false },
 
   // Agora sign-up: whether new accounts need an invitation
   'GET    /noo/agora/signup':                             'AgoraSignupController.policy',

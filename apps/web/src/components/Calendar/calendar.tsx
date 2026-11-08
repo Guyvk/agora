@@ -24,7 +24,8 @@ export default function Calendar ({
   setDate,
   mode,
   setMode,
-  updateCalendarView
+  updateCalendarView,
+  headerExtra // Agora: an extra button in the header row, left of the view switcher
 }) {
   // map posts objects to calendar "event" objects
   const events = posts.map((post) => {
@@ -54,6 +55,7 @@ export default function Calendar ({
       calendarIconIsToday={calendarIconIsToday}
     >
       <div className='lg:hidden'>
+        {headerExtra && <div className='flex justify-end px-4 pt-4'>{headerExtra}</div>}
         <CalendarBodyDayCalendar />
         <CalendarBodyDay />
       </div>
@@ -61,6 +63,7 @@ export default function Calendar ({
         <CalendarHeader>
           <CalendarHeaderDateChevrons />
           <CalendarHeaderActions>
+            {headerExtra}
             <CalendarHeaderActionsMode />
           </CalendarHeaderActions>
         </CalendarHeader>
