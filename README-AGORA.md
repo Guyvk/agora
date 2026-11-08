@@ -175,22 +175,22 @@ Guest links are for Meetings only: an Event has no meeting room, so it has no gu
 
 Everyone has one calendar in Agora: the **Calendar** button in the left bar, at `/calendar`. It shows every Meeting and Event of every circle you are an active member of (spaces too), and everything marked for all of 7BP. Meetings have a dashed outline, Events a solid one, and items for all of 7BP say "All of 7BP". Below the month there is a list of what is coming up in the next 60 days, with the meeting room of each Meeting and the place of each Event. Click an item to open it.
 
-**In your own calendar app.** Under the list, **Make my calendar link** gives you a private link (an iCalendar feed). Your calendar app fetches it by itself and shows exactly what your Agora calendar shows: Meetings with their meeting room, Events with their place. It updates when something changes in Agora.
+**In your own calendar app.** The **Add to my calendar** button sits in the header row of the calendar, on the line with the month arrows, just left of the List / Split / Month switcher (on a phone it is above the day view). It opens a popup (closes with Esc, the X or a click outside; full width and scrollable on a phone) with a short line about it, then **Make my calendar link**. That gives you a private link (an iCalendar feed). Your calendar app fetches it by itself and shows exactly what your Agora calendar shows: Meetings with their meeting room, Events with their place. It updates when something changes in Agora. Once there is a link, the popup shows it with **Copy**, an **Open in Apple Calendar** button (the same link as `webcal://`, which makes a Mac or iPhone ask at once whether to subscribe), the steps for each calendar app below, **Make a new link** and **Switch the link off**.
 
 - **Google Calendar:** on a computer, click **+** next to "Other calendars", choose **From URL**, paste the link and click **Add calendar**. Google can take up to a day to show changes.
-- **Apple Calendar:** on a Mac choose **File**, then **New Calendar Subscription**, and paste the link. On an iPhone: Settings, Calendar, Accounts, Add Account, Other, Add Subscribed Calendar.
+- **Apple Calendar:** press **Open in Apple Calendar**, or on a Mac choose **File**, then **New Calendar Subscription**, and paste the link. On an iPhone: Settings, Calendar, Accounts, Add Account, Other, Add Subscribed Calendar.
 - **Outlook:** in Outlook on the web, choose **Add calendar**, then **Subscribe from web**, paste the link and click **Import**.
 
-Keep the link to yourself: whoever has it can read your calendar without logging in. **Make a new link** replaces it (the old one stops working at once), and **Switch the link off** stops it altogether. A link also stops working when its account is deactivated.
+Keep the link to yourself (the popup says so too): whoever has it can read your calendar without logging in. **Make a new link** replaces it (the old one stops working at once), and **Switch the link off** stops it altogether. A link also stops working when its account is deactivated.
 
 How it works, for whoever looks after Agora:
 
-- The feed is made live by the server at `/noo/agora/calendar/<secret>.ics` each time a calendar app asks, so it is never out of date and no file is written. (Hylo's own calendar files per circle and for your replies, made by the worker, still exist next to it.)
+- The feed is made live by the server at `/noo/agora/calendar/<secret>.ics` each time a calendar app asks, so it is never out of date and no file is written. Sails skips a route that ends in a `:param` when the last part looks like a file name (`skipAssets`, on by default), which once made every `.ics` address a 404 before it reached the controller; the route in `config/routes.js` therefore says `skipAssets: false`, and `test/unit/agora/calendarRoute.test.js` asks the real router for the address. The same was done for the library download route `/noo/agora/library/file/<file>/<name>`, whose last part is a file name. (Hylo's own calendar files per circle and for your replies, made by the worker, still exist next to it.)
 - The secret is 32 random bytes (43 letters and digits), one per person, kept in the table `agora_calendar_feeds`. Only an address that ends in `.ics` works. The server's request log and its error reports hide whatever follows `/noo/agora/calendar/`.
 - It holds what ended up to 90 days ago and what starts up to two years ahead. Calendar apps are asked to fetch it every hour; Google decides for itself.
 - Nothing from a circle you are not in goes into your calendar or feed, unless it is for all of 7BP. Being public does not put an Event in anyone's calendar.
 
-The code is in `apps/backend/lib/agora/calendar.js`, `api/controllers/AgoraCalendarController.js` and `apps/web/src/agora/calendar/`.
+The code is in `apps/backend/lib/agora/calendar.js`, `api/controllers/AgoraCalendarController.js` and `apps/web/src/agora/calendar/` (the popup is `CalendarLinkDialog.jsx`).
 
 ## Files in kDrive
 

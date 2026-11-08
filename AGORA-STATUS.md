@@ -4,6 +4,10 @@ This is the handover note. Whoever works on Agora, a person or Claude, reads it 
 
 **Last updated:** 4 November 2026, by the Agora coordinator session on the Mac. "3-4 November" is current; older sections below are partly out of date.
 
+## 8 November 2026
+
+Calendar feed fixed: `.ics` addresses reached no controller (Sails `skipAssets`), so Apple Calendar said "A calendar wasn't found"; route fixed, plus the library file download route, with a router test. The calendar link now lives behind an "Add to my calendar" button in the calendar header (popup, with an Open in Apple Calendar button). PR `agora-calendar-button`, awaits merge and deploy.
+
 ## 3-4 November 2026
 
 - **Live on aad374c0d3** (deployed 3 Nov 22:37 UTC, unit agora-update-1103c). No open pull requests.
