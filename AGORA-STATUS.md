@@ -2,7 +2,11 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 4 November 2026, by the Agora coordinator session on the Mac. "3-4 November" is current; older sections below are partly out of date.
+**Last updated:** 8 November 2026 (small clean-up PR, branch agora-cleanup-1108). "8 November" and "3-4 November" are current; older sections below are partly out of date.
+
+## 8 November 2026
+
+- Clean-up PR (branch `agora-cleanup-1108`, not merged or deployed): the 3 logged-out reading tests in `api/graphql/index.test.js` (4 before, two profile tests joined) now check that logged-out `groups`, `group`, `post`, `posts` and `person` return nothing; the email-change code mail has its own text (`agora_email_change_code`) in the Agora mailer, English only like all Agora mail texts; `test/setup/index.js` is back on Hylo's 50000 timeout and `index.js.bak` is gone; the space and group URL previews show the real host of the site instead of hylo.com. The Terms and Privacy links on the login, sign-up, footer and menus already point to Agora's own /terms and /privacy pages (nothing pointed to Hylo), so they were left alone.
 
 ## 8 November 2026
 

@@ -875,7 +875,7 @@ const CreateGroupForm = forwardRef(function CreateGroupForm ({ onClose, bodyClas
             </div>
             {slugError
               ? <span className='text-error text-xs'>{slugError}</span>
-              : <span className='text-xs text-foreground/50 truncate'>hylo.com/groups/{slug || '…'}</span>}
+              : <span className='text-xs text-foreground/50 truncate'>{window.location.host}/groups/{slug || '…'}</span>}
           </div>
         </div>
 

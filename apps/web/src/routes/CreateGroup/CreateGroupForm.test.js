@@ -67,6 +67,14 @@ describe('CreateGroupForm "Who can add new members?"', () => {
     trackAnalyticsEvent.mockClear()
   })
 
+  it('shows the address of the running site in the group URL preview, never hylo.com', () => {
+    mockGraphql()
+    render(<CreateGroupForm />)
+
+    expect(screen.getByText(new RegExp(`^${window.location.host}/groups/`))).toBeInTheDocument()
+    expect(screen.queryByText(/hylo\.com/)).not.toBeInTheDocument()
+  })
+
   it('starts on stewards and offers everyone', () => {
     mockGraphql()
     render(<CreateGroupForm />)

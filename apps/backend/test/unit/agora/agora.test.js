@@ -97,6 +97,18 @@ describe('Agora mailer', () => {
     expect(email.html).to.contain('href="https://agora.test/v?a=1&amp;b=&lt;2&gt;"')
   })
 
+  it('has its own text for the code that confirms a changed email address', () => {
+    const email = mailer.TEMPLATES.agora_email_change_code({ code: '482913', verify_url: 'https://agora.test/my/account?emailChangeToken=a&b=2' })
+    expect(email.subject).to.equal('Confirm your new email address for Agora')
+    expect(email.text).to.contain('482913')
+    expect(email.text).to.contain('change the email address')
+    expect(email.text).to.not.contain('sign-up')
+    expect(email.text).to.not.contain('Welcome')
+    expect(email.html).to.contain('emailChangeToken=a&amp;b=2')
+    const noLink = mailer.TEMPLATES.agora_email_change_code({ code: '482913' })
+    expect(noLink.text).to.contain('482913')
+  })
+
   it('has a text for event, post and digest emails', () => {
     const needed = [
       'tem_8pt9FjFkxRGQ7XYhRRW3BBrK', // event invitation

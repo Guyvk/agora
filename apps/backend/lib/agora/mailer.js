@@ -230,6 +230,17 @@ const TEMPLATES = {
     footer: `If you did not try to sign up for ${APP_NAME}, you can ignore this email.`
   }),
 
+  // The code that goes to the NEW address when someone changes the email of their account (not a sign-up)
+  agora_email_change_code: data => compose({
+    subject: `Confirm your new email address for ${APP_NAME}`,
+    lines: [
+      `Someone asked to change the email address of an ${APP_NAME} account to this address.`,
+      `Your code is ${data.code}. Type it into your account settings, or use the button below, to confirm the change.`
+    ],
+    button: data.verify_url ? { label: 'Confirm my new email address', url: data.verify_url } : null,
+    footer: `If you did not ask for this, you can ignore this email. Your ${APP_NAME} account stays as it is.`
+  }),
+
   // Sent to the current address when someone asks to change the account email (Hylo's "verify a new email" change).
   // It never holds the code or link: they go to the new address only.
   tem_gfCWyJRpp6Q996d6ykVgJKCW: data => compose({
