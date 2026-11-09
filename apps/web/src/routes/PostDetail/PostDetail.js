@@ -506,6 +506,8 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
 
   const isProject = useMemo(() => get('type', post) === 'project', [post])
   const isProjectMember = useMemo(() => isProject && find(({ id }) => id === get('id', currentUser), get('members', post)), [currentUser, post])
+  // Agora: only a member of a project gets "Leave Project" in the post's ... menu
+  const leaveProjectFromMenu = isProjectMember ? () => dispatch(leaveProject(postId)) : undefined
   const isEvent = useMemo(() => get('type', post) === 'event', [post])
 
   // TODO: if not in a group should show as flagged if flagged in any of my groups
@@ -570,7 +572,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
         pullTouchRef.current = node
       }}
       id={`post-detail-container-${post.id}`}
-      className={cn('PostDetail w-full max-w-[960px] mx-auto min-w-[290px] sm:min-w-[350px] relative', { [classes.noUser]: !currentUser, [classes.headerPad]: state.atHeader })}
+      className={cn('PostDetail w-full max-w-[960px] mx-auto min-w-[290px] sm:min-w-[350px] relative', { [classes.noUser]: !currentUser, [classes.headerPad]: state.atHeader, 'max-w-[1280px]': isProject && !inPostDialog })} // Agora: a project on its own page is wider, for the Tasks board
     >
       <Helmet>
         <title>
@@ -594,6 +596,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
           post={post}
           routeParams={routeParams}
           close={isIsolatedPostView ? undefined : attemptClose}
+          onLeaveProject={leaveProjectFromMenu} // Agora: Leave project lives in the ... menu
           expanded
           isFlagged={isFlagged}
           hasImage={hasImage}
@@ -612,6 +615,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
               post={post}
               routeParams={routeParams}
               close={isIsolatedPostView ? undefined : attemptClose}
+              onLeaveProject={leaveProjectFromMenu} // Agora: Leave project lives in the ... menu
               isFlagged={isFlagged}
             />
           </div>
@@ -670,7 +674,6 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
                 <JoinProjectSection
                   currentUser={currentUser}
                   joinProject={() => dispatch(joinProject(postId))}
-                  leaveProject={() => dispatch(leaveProject(postId))}
                   leaving={isProjectMember}
                   members={post.members}
                   togglePeopleDialog={handleTogglePeopleDialog}
@@ -771,10 +774,10 @@ PostDetail.propTypes = {
   onDismissEmbeddedDialog: PropTypes.func
 }
 
-export function JoinProjectSection ({ currentUser, members, leaving, joinProject, leaveProject, togglePeopleDialog }) {
+export function JoinProjectSection ({ currentUser, members, leaving, joinProject, togglePeopleDialog }) {
   const { t } = useTranslation()
-  const buttonText = leaving ? t('Leave Project') : t('Join Project')
-  const onClick = () => leaving ? leaveProject() : joinProject()
+  const buttonText = t('Join Project')
+  const onClick = () => joinProject()
 
   return (
     <div className='flex flex-row gap-2 items-center border-2 border-foreground/20 rounded-lg p-2 w-full justify-between border-dashed'>
@@ -790,13 +793,16 @@ export function JoinProjectSection ({ currentUser, members, leaving, joinProject
           pluralPhrase: t('are members')
         }}
       />
-      <Button
-        key='join-project-button'
-        onClick={onClick}
-        variant='outline'
-      >
-        {buttonText}
-      </Button>
+      {/* Agora: members leave from the post's ... menu, so only "Join Project" is a visible button */}
+      {!leaving && (
+        <Button
+          key='join-project-button'
+          onClick={onClick}
+          variant='outline'
+        >
+          {buttonText}
+        </Button>
+      )}
     </div>
   )
 }
