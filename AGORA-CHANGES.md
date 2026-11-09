@@ -206,6 +206,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/public/locales/*.json (kDrive)` | Two new texts in the admin area's System tab, "kDrive (circle files)" and "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing", in every language |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
+| `apps/web/src/agora/tasks/` (new), `apps/web/src/routes/PostDetail/PostDetail.js` (tasks) | A Tasks part on a project's page (project posts only): a board (To do, Doing, Done, drag to move) and a list, a side panel for one task with comments, and Undo after delete. It talks to the tasks addresses above, so it needs them to be merged too; for someone who is not a member of the circle it shows a quiet line. In `PostDetail.js` only an import and one line that mounts it |
 
 ## Files that are new
 
