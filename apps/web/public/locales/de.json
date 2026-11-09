@@ -3604,5 +3604,7 @@
   "Write a comment": "Kommentar schreiben",
   "Write a comment…": "Kommentar schreiben …",
   "Your tasks here": "Deine Aufgaben hier",
-  "the meeting": "der Sitzung"
+  "the meeting": "der Sitzung",
+  "Moved back to To do.": "Zurück zu „Zu erledigen“ verschoben.",
+  "Undo moving {{title}} back to To do": "Verschieben von {{title}} zurück zu „Zu erledigen“ rückgängig machen"
 }

@@ -3604,5 +3604,7 @@
   "Write a comment": "टिप्पणी लिखें",
   "Write a comment…": "टिप्पणी लिखें…",
   "Your tasks here": "यहाँ तुम्हारे कार्य",
-  "the meeting": "बैठक"
+  "the meeting": "बैठक",
+  "Moved back to To do.": "वापस 'करना है' में ले जाया गया।",
+  "Undo moving {{title}} back to To do": "{{title}} को वापस 'करना है' में ले जाना पूर्ववत करें"
 }

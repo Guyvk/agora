@@ -4041,5 +4041,7 @@
   "Write a comment": "Write a comment",
   "Write a comment…": "Write a comment…",
   "Your tasks here": "Your tasks here",
-  "the meeting": "the meeting"
+  "the meeting": "the meeting",
+  "Moved back to To do.": "Moved back to To do.",
+  "Undo moving {{title}} back to To do": "Undo moving {{title}} back to To do"
 }

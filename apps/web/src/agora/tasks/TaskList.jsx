@@ -77,7 +77,7 @@ export default function TaskList ({ tasks, today = todayFn(), currentUserId, sel
                     <button type='button' className='text-left font-semibold text-foreground break-words' onClick={e => { e.stopPropagation(); onOpen(task.id) }}>{task.title}</button>
                   </td>
                   <td className='px-3 py-2'><Avatars people={task.assignees} /></td>
-                  <td className={cn('px-3 py-2', overdue ? 'font-semibold text-destructive' : 'text-foreground')} data-overdue={overdue ? 'true' : undefined}>{task.dueDate ? formatDay(task.dueDate) : '—'}</td>
+                  <td className={cn('px-3 py-2', overdue ? 'font-semibold text-destructive' : 'text-foreground')} data-overdue={overdue ? 'true' : undefined}>{task.dueDate ? formatDay(task.dueDate) : '–'}</td>
                   <td className='px-3 py-2 text-foreground'>{labels[task.status]}</td>
                 </tr>
               )

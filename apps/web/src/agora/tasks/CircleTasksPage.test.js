@@ -1,6 +1,6 @@
 // Agora: the circle's Tasks page, with a pretend server and a pretend group.
 import React from 'react'
-import { AllTheProviders, render, screen, fireEvent, within } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
 import CircleTasksPage from './CircleTasksPage'
 
 jest.setTimeout(30000)
@@ -112,6 +112,23 @@ describe('CircleTasksPage', () => {
     renderPage('/groups/g/tasks?task=12')
     expect(await screen.findByLabelText('Task')).toBeInTheDocument()
     expect(await screen.findByDisplayValue('Bake bread')).toBeInTheDocument()
+  })
+
+  it('highlights the task from the address when the server sends number ids', async () => {
+    const numbered = [dig, bake, loose].map(x => ({ ...x, id: Number(x.id) }))
+    global.fetch = jest.fn(async (url) => {
+      const path = url.replace('/noo/agora/tasks/api', '')
+      if (path.startsWith('/list')) return { ok: true, status: 200, json: async () => ({ tasks: numbered }) }
+      if (path.startsWith('/meta')) return { ok: true, status: 200, json: async () => meta }
+      if (/^\/\d+$/.test(path)) return { ok: true, status: 200, json: async () => ({ task: numbered.find(x => x.id === Number(path.slice(1))), comments: [] }) }
+      return { ok: false, status: 404, json: async () => ({}) }
+    })
+    renderPage('/groups/g/tasks?task=12')
+    await screen.findByDisplayValue('Bake bread')
+    await waitFor(() => {
+      const card = document.querySelector('[data-testid="task-card"][data-task-id="12"]')
+      expect(card.className).toContain('border-accent')
+    }, { timeout: 10000 })
   })
 
   it('shows a quiet line, no red alert, when the viewer is not a member', async () => {

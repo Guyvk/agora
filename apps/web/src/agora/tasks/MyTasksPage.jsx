@@ -68,7 +68,7 @@ export default function MyTasksPage () {
   const [error, setError] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [metas, setMetas] = useState({})
-  const [undos, setUndos] = useState([]) // [{ kind: 'done' | 'delete', task: the task as it was before }]
+  const [undos, setUndos] = useState([]) // [{ kind: 'done' | 'reopen' | 'delete', task: the task as it was before }]
   const timers = useRef({})
   const errorTimer = useRef(null)
   const todayString = today()
@@ -121,7 +121,11 @@ export default function MyTasksPage () {
   }
 
   const tick = async task => {
-    if (task.status === 'done') { move(task, 'todo', 0); return }
+    if (task.status === 'done') {
+      const reopened = await move(task, 'todo', 0)
+      if (reopened) addUndo('reopen', task)
+      return
+    }
     const ok = await move(task, 'done', doneEnd(task))
     if (ok) addUndo('done', task)
   }
@@ -129,7 +133,7 @@ export default function MyTasksPage () {
   const undo = async ({ kind, task }) => {
     clearTimeout(timers.current[task.id])
     setUndos(list => list.filter(u => u.task.id !== task.id))
-    if (kind === 'done') {
+    if (kind === 'done' || kind === 'reopen') {
       await move(task, task.status, task.position)
     } else {
       try {
@@ -192,7 +196,9 @@ export default function MyTasksPage () {
       )}
       <UndoToasts items={undos.map(u => u.kind === 'done'
         ? { key: u.task.id, message: t('Marked as done.'), ariaLabel: t('Undo marking {{title}} as done', { title: u.task.title }), onUndo: () => undo(u) }
-        : { key: u.task.id, message: t('Task deleted.'), ariaLabel: t('Undo delete of {{title}}', { title: u.task.title }), onUndo: () => undo(u) })} />
+        : u.kind === 'reopen'
+          ? { key: u.task.id, message: t('Moved back to To do.'), ariaLabel: t('Undo moving {{title}} back to To do', { title: u.task.title }), onUndo: () => undo(u) }
+          : { key: u.task.id, message: t('Task deleted.'), ariaLabel: t('Undo delete of {{title}}', { title: u.task.title }), onUndo: () => undo(u) })} />
     </div>
   )
 }

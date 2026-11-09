@@ -3611,5 +3611,7 @@
   "Write a comment": "Escribir un comentario",
   "Write a comment…": "Escribe un comentario…",
   "Your tasks here": "Tus tareas aquí",
-  "the meeting": "la reunión"
+  "the meeting": "la reunión",
+  "Moved back to To do.": "Devuelta a «Por hacer».",
+  "Undo moving {{title}} back to To do": "Deshacer devolver {{title}} a «Por hacer»"
 }

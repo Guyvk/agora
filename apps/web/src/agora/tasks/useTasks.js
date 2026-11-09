@@ -95,5 +95,12 @@ export default function useTasks ({ scope, keepTask, initialSelectedId = null })
 
   const setCommentCount = (id, n) => setTasks(list => list.map(x => x.id === id ? { ...x, commentCount: n } : x))
 
+  // Agora: an id from the address bar is text ("12"), the server's ids are numbers (12): use the task's own id.
+  useEffect(() => {
+    if (selectedId == null || !tasks) return
+    const match = tasks.find(x => String(x.id) === String(selectedId))
+    if (match && match.id !== selectedId) setSelectedId(match.id)
+  }, [tasks, selectedId])
+
   return { tasks, meta, loadError, notMember, error, includeDone, setIncludeDone, selectedId, setSelectedId, undos, addTask, moveTask, changeStatus, onChanged, onDeleted, restore, setCommentCount }
 }

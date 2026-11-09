@@ -145,7 +145,7 @@ export default function TaskSidePanel ({ taskId, listTask, meta, onClose, onChan
                   ))}
                 </ul>
                 )
-              : (task.assignees.length ? <div className='flex items-center gap-2 text-sm text-foreground'><Avatars people={task.assignees} /> {task.assignees.map(a => a.name).join(', ')}</div> : <span className='text-sm text-muted-foreground'>—</span>)}
+              : (task.assignees.length ? <div className='flex items-center gap-2 text-sm text-foreground'><Avatars people={task.assignees} /> {task.assignees.map(a => a.name).join(', ')}</div> : <span className='text-sm text-muted-foreground'>–</span>)}
           </Field>
           <Field label={t('Due date')} htmlFor='task-due'>
             <div className='flex gap-2'>

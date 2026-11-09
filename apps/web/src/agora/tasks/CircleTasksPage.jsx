@@ -22,11 +22,24 @@ const selectClasses = 'h-8 rounded-md border border-input bg-background px-2 tex
 function CircleTasks ({ group }) {
   const { t } = useTranslation()
   const me = useSelector(getMe)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const taskParam = searchParams.get('task')
   const [project, setProject] = useState('all') // 'all', 'none' or a project id
   const [onlyMine, setOnlyMine] = useState(false)
   const scope = useMemo(() => ({ groupId: group.id }), [group.id])
-  const state = useTasks({ scope, initialSelectedId: searchParams.get('task') })
+  const state = useTasks({ scope, initialSelectedId: taskParam })
+
+  // Agora: the address follows the open task, so closing it clears ?task= and a new ?task= opens that task.
+  useEffect(() => {
+    if (taskParam && String(taskParam) !== String(state.selectedId)) state.setSelectedId(taskParam)
+  }, [taskParam]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const want = state.selectedId == null ? null : String(state.selectedId)
+    if (want === (taskParam || null)) return
+    const next = new URLSearchParams(searchParams)
+    if (want) next.set('task', want); else next.delete('task')
+    setSearchParams(next, { replace: true })
+  }, [state.selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = useMemo(() => (state.tasks || []).filter(task => {
     if (project === 'none' && task.projectId) return false
