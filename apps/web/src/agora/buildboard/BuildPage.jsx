@@ -156,7 +156,8 @@ export default function BuildPage () {
             <ul className='m-0 pl-4 text-sm'>
               {board.helpDesk.map(r => (
                 <li key={r.id}>
-                  {r.type}: {r.text} ({r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}) <Link to={`/admin/help-desk/${r.id}`}>{t('Open the Help desk')}</Link>
+                  #{r.id} {r.type} ({r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''})
+                  {board.canOpenHelpDesk && <> <Link to={`/admin/help-desk/${r.id}`}>{t('Open the Help desk')}</Link></>}
                 </li>
               ))}
             </ul>)}

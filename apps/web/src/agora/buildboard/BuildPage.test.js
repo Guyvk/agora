@@ -23,7 +23,8 @@ const boardData = (extra = {}) => ({
     { name: 'Live', cards: [] }
   ],
   wentLive: [{ number: 9, title: 'Shipped thing', url: 'u', date: '2026-11-05T10:00:00Z' }],
-  helpDesk: [{ id: '4', type: 'fault', text: 'Login is slow', createdAt: '2026-11-06T10:00:00Z' }],
+  helpDesk: [{ id: '4', type: 'fault', createdAt: '2026-11-06T10:00:00Z' }],
+  canOpenHelpDesk: false,
   fetchedAt: new Date(Date.now() - 3 * 60000).toISOString(),
   ageSeconds: 180,
   warning: null,
@@ -69,10 +70,19 @@ describe('BuildPage', () => {
     fakeServer()
     renderPage()
     expect(await screen.findByText('#9 Shipped thing', { exact: false }, WAIT)).toBeInTheDocument()
-    expect(within(screen.getByTestId('build-help-desk')).getByText('fault: Login is slow', { exact: false })).toBeInTheDocument()
+    const desk = within(screen.getByTestId('build-help-desk'))
+    expect(desk.getByText('#4 fault', { exact: false })).toBeInTheDocument()
+    expect(desk.queryByText('Open the Help desk')).toBeNull() // not a Help desk admin: no link
     const footer = within(screen.getByTestId('build-footer'))
     expect(footer.getByText('Updated 3 minutes ago')).toBeInTheDocument()
     expect(footer.getByText('Open the board on GitHub').getAttribute('href')).toEqual('https://github.com/users/Guyvk/projects/1')
+  })
+
+  it('links a Help desk request to the Help desk only for people who can open it', async () => {
+    fakeServer({ board: boardData({ canOpenHelpDesk: true }) })
+    renderPage()
+    const link = await screen.findByText('Open the Help desk', {}, WAIT)
+    expect(link.getAttribute('href')).toEqual('/admin/help-desk/4')
   })
 
   it('says the board is not connected, with the GitHub link', async () => {

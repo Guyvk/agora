@@ -15,6 +15,8 @@
  * fails, the last copy is shown with its age and a short warning.
  * The token is never logged and never sent to the browser.
  */
+// Agora: Help desk requests are private to their sender and the Help desk admins, so the board shows only number, type and date
+const Admins = require('./admins')
 const GRAPHQL_URL = 'https://api.github.com/graphql'
 const OWNER = 'Guyvk'
 const PROJECT_NUMBER = 1
@@ -23,7 +25,6 @@ const COLUMNS = ['To do', 'Doing', 'In review', 'Live']
 const CACHE_MS = 5 * 60 * 1000
 const FORCE_MS = 60 * 1000
 const WENT_LIVE_DAYS = 14
-const HELP_LINE = 80
 
 class BuildError extends Error {
   constructor (status, message) {
@@ -216,19 +217,18 @@ async function helpDeskNew (cards) {
     .whereIn('status', ['new', 'looking'])
     .orderBy('created_at', 'desc')
     .limit(100)
-    .select('id', 'type', 'title', 'created_at')
+    .select('id', 'type', 'created_at')
   return rows
     .filter(r => !mentioned.has(String(r.id)))
     .slice(0, 20)
     .map(r => ({
       id: String(r.id),
       type: r.type,
-      text: String(r.title || '').slice(0, HELP_LINE),
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : null
     }))
 }
 
-async function present ({ copy, warning }) {
+async function present ({ copy, warning }, userId) {
   const cards = copy.project.cards
   return {
     configured: true,
@@ -236,6 +236,7 @@ async function present ({ copy, warning }) {
     columns: COLUMNS.map(name => ({ name, cards: cards.filter(c => c.status === name).sort((a, b) => a.number - b.number) })),
     wentLive: wentLive(cards),
     helpDesk: await helpDeskNew(cards),
+    canOpenHelpDesk: await Admins.isHelpDeskAdmin(userId),
     fetchedAt: new Date(copy.at).toISOString(),
     ageSeconds: Math.round((Date.now() - copy.at) / 1000),
     warning
@@ -246,7 +247,7 @@ async function present ({ copy, warning }) {
 async function board (userId, { force = false } = {}) {
   await requireAccess(userId)
   if (!token()) return { configured: false, boardUrl: BOARD_URL, columns: [], wentLive: [], helpDesk: [] }
-  return present(await currentCopy({ force }))
+  return present(await currentCopy({ force }), userId)
 }
 
 /** Moves a card (by its item id on the board) to a column, then reads the board again. */
@@ -270,7 +271,7 @@ async function move (userId, { itemId, status: target } = {}) {
     cache = null // the copy is now wrong: the next look reads again
     throw new BuildError(502, 'The card was moved, but the board could not be read again. Press Refresh.')
   }
-  return present({ copy: cache, warning: null })
+  return present({ copy: cache, warning: null }, userId)
 }
 
 module.exports = { BuildError, COLUMNS, BOARD_URL, status, access, board, move, wentLive, resetCache }

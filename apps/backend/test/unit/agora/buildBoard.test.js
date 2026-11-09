@@ -19,6 +19,7 @@ const ago = days => new Date(Date.now() - days * DAY).toISOString()
 describe('Agora Build page', () => {
   let amara, dan, admin, circle, other
   let realFetch, calls, github, savedEnv
+  const helpIds = {}
 
   const knex = () => bookshelf.knex
 
@@ -46,7 +47,7 @@ describe('Agora Build page', () => {
             field: { id: 'F1', options: [{ id: 'o1', name: 'To do' }, { id: 'o2', name: 'Doing' }, { id: 'o3', name: 'In review' }, { id: 'o4', name: 'Live' }] },
             items: {
               nodes: [
-                item('I1', 1, 'To do', { body: 'Help desk #5 is about this' }),
+                item('I1', 1, 'To do', { body: `Help desk #${helpIds['Mentioned one']} is about this` }),
                 item('I2', 2, 'Doing'),
                 item('I3', 3, 'In review', { prs: [{ number: 30, state: 'MERGED', isDraft: false, url: 'x' }] }),
                 item('I4', 4, 'Live', { updatedAt: ago(2) }),
@@ -83,7 +84,8 @@ describe('Agora Build page', () => {
     await dan.joinGroup(other)
     await admin.joinGroup(other)
     for (const [title, status, type] of [['Login is slow', 'new', 'fault'], ['Wish for dark mode', 'looking', 'wish'], ['Mentioned one', 'new', 'fault'], ['Done one', 'fixed', 'fault']]) {
-      await knex()('agora_help_requests').insert({ user_id: amara.id, title, status, type })
+      const [row] = await knex()('agora_help_requests').insert({ user_id: amara.id, title, status, type }).returning('id')
+      helpIds[title] = String(row.id !== undefined ? row.id : row)
     }
   })
 
@@ -139,8 +141,25 @@ describe('Agora Build page', () => {
 
   it('lists new Help desk requests that no card mentions', async () => {
     const res = await call('board', { userId: amara.id })
-    const titles = res.body.helpDesk.map(r => r.text).sort()
-    titles.should.deepEqual(['Login is slow', 'Wish for dark mode', 'Mentioned one'].sort().filter(x => true))
+    res.body.helpDesk.map(r => r.id).sort().should.deepEqual([helpIds['Login is slow'], helpIds['Wish for dark mode']].sort())
+  })
+
+  it('shows only number, type and date of a Help desk request, never its text', async () => {
+    const res = await call('board', { userId: amara.id })
+    res.body.helpDesk.forEach(r => Object.keys(r).sort().should.deepEqual(['createdAt', 'id', 'type']))
+    JSON.stringify(res.body.helpDesk).should.not.containEql('Login is slow')
+  })
+
+  it('tells the page whether the person may open the Help desk', async () => {
+    let res = await call('board', { userId: amara.id })
+    res.body.canOpenHelpDesk.should.equal(false)
+    process.env.AGORA_HELPDESK_ADMINS = String(amara.id)
+    try {
+      res = await call('board', { userId: amara.id })
+      res.body.canOpenHelpDesk.should.equal(true)
+    } finally {
+      delete process.env.AGORA_HELPDESK_ADMINS
+    }
   })
 
   it('keeps one copy for 5 minutes and limits forced refreshes to one a minute', async () => {
