@@ -4,6 +4,7 @@ import emitter from 'socket.io-emitter'
 
 const validMessageTypes = [
   'commentAdded',
+  'chatThreadUpdated', // Agora: live reply counter under a chat message
   'groupUpdated',
   'messageAdded',
   'messageUpdated',

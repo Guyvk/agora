@@ -611,6 +611,7 @@ async function system (userId) {
       kdrive: kdrive.isConfigured(),
       kdriveMissingTopFolder: kdrive.missingTopFolder(),
       meetDomain: meetDomain || null,
+      buildPage: require('./buildBoard').status(),
       inviteOnly: isInviteOnly()
     },
     backups: backups()

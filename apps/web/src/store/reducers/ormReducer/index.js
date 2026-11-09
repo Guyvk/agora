@@ -113,6 +113,7 @@ import {
   RECEIVE_POST
 } from 'components/SocketListener/SocketListener.store'
 
+import { RECEIVE_CHAT_THREAD_UPDATE } from '@/agora/chat/chatThreads.store' // Agora: live reply counters in chat
 import orm from 'store/models'
 import { DEFAULT_AVATAR } from 'store/models/Group'
 import clearCacheFor from './clearCacheFor'
@@ -1041,6 +1042,21 @@ export default function ormReducer (state = orm.getEmptyState(), action) {
       post.update({
         totalContributions
       })
+      break
+    }
+
+    // Agora: a chat message got a reply, so its counter, repliers and last reply time change
+    case RECEIVE_CHAT_THREAD_UPDATE: {
+      const threadPost = payload?.postId != null && Post.idExists(payload.postId) ? Post.withId(payload.postId) : null
+      if (threadPost) {
+        threadPost.update({
+          commentsTotal: payload.commentsTotal,
+          commentersTotal: payload.commentersTotal,
+          lastCommentAt: payload.lastCommentAt,
+          chatThreadRepliers: payload.commenters || []
+        })
+        clearCacheFor(Post, payload.postId)
+      }
       break
     }
 

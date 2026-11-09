@@ -162,6 +162,51 @@ describe('ChatPost', () => {
     })
   })
 
+  // Agora: Reply and the reply counter open the thread panel beside the chat
+  describe('threads', () => {
+    const withReplies = {
+      ...defaultProps.post,
+      commentsTotal: 3,
+      commenters: [{ id: '2', name: 'Ann', avatarUrl: 'ann.png' }],
+      lastCommentAt: new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    }
+
+    beforeEach(() => mockViewPostDetails.mockClear())
+
+    it('opens the thread panel from Reply, not the pop-up', () => {
+      const onOpenThread = jest.fn()
+      renderComponent({ onOpenThread })
+      fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
+      expect(onOpenThread).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
+      expect(mockViewPostDetails).not.toHaveBeenCalled()
+    })
+
+    it('opens the thread panel from the reply counter', () => {
+      const onOpenThread = jest.fn()
+      renderComponent({ onOpenThread, post: withReplies })
+      const counter = screen.getByTestId('thread-summary')
+      // The test i18n stub returns the key; the English plural texts are checked in chatThreads.test.js
+      expect(counter).toHaveTextContent(/^agoraChat\.threadSummary$/)
+      fireEvent.click(counter)
+      expect(onOpenThread).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
+    })
+
+    it('says "1 reply" for a single reply and shows nothing when there are none', () => {
+      const { unmount } = renderComponent({ onOpenThread: jest.fn(), post: { ...withReplies, commentsTotal: 1, lastCommentAt: null } })
+      // no last-reply time, so the short variant is used
+      expect(screen.getByTestId('thread-summary')).toHaveTextContent(/^agoraChat\.threadSummaryNoTime$/)
+      unmount()
+      renderComponent({ onOpenThread: jest.fn() })
+      expect(screen.queryByTestId('thread-summary')).not.toBeInTheDocument()
+    })
+
+    it('falls back to the post pop-up where no thread panel exists', () => {
+      renderComponent()
+      fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
+      expect(mockViewPostDetails).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), { focusComment: true })
+    })
+  })
+
   it('does not crash when a hover action that expects the click event is used', () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
     renderComponent()

@@ -19,6 +19,7 @@ import Highlight from 'components/Highlight'
 import HyloEditor from 'components/HyloEditor'
 import HyloHTML from 'components/HyloHTML'
 import Feature from 'components/PostCard/Feature'
+import ThreadSummary from '@/agora/chat/ThreadSummary' // Agora: "3 replies, last 10 minutes ago"
 import { savePost, unsavePost } from 'components/PostCard/PostHeader/PostHeader.store'
 import LinkPreview from 'components/LinkPreview'
 import Tooltip from 'components/Tooltip'
@@ -71,6 +72,7 @@ export default function ChatPost ({
   post,
   showHeader = true,
   onAddReaction = () => {},
+  onOpenThread, // Agora: opens the thread panel beside the chat
   onFlagPost = () => {},
   onRemoveReaction = () => {},
   onRemovePost = () => {}
@@ -201,6 +203,14 @@ export default function ChatPost ({
     setIsLongPress(false)
   }, [post, viewPostDetails])
 
+  // Agora: Reply and the reply counter open the thread panel beside the chat.
+  // Without a panel (anywhere else this row is shown) they open the post pop-up as before.
+  const openThread = useCallback(() => {
+    if (onOpenThread) onOpenThread(post)
+    else viewPostDetails(post, { focusComment: true })
+    setIsLongPress(false)
+  }, [onOpenThread, post, viewPostDetails])
+
   const showCreator = useCallback((event) => {
     event.stopPropagation()
     navigate(personUrl(creator.id, group.slug))
@@ -315,7 +325,7 @@ export default function ChatPost ({
 
   const actionItems = filter(item => isFunction(item.onClick) || item.disabled, [
     // { icon: 'Copy', label: 'Copy Link', onClick: copyLink },
-    { icon: <MessageCircle className='w-4 h-4 text-foreground' />, label: 'Reply', onClick: showPost, tooltip: 'Reply to post' },
+    { icon: <MessageCircle className='w-4 h-4 text-foreground' />, label: 'Reply', onClick: openThread, tooltip: 'Reply to post' },
     // Long press only happens on touch devices, where Edit opens the post editor route instead of editing inline
     { icon: <Pencil className='w-4 h-4 text-foreground' />, label: 'Edit', onClick: isCreator ? editPost : null, tooltip: 'Edit post' },
     { icon: savedAt ? <BookmarkCheck className='w-4 h-4 text-foreground' /> : <Bookmark className='w-4 h-4 text-foreground' />, label: savedAt ? t('Unsave Post') : t('Save Post'), onClick: handleSavePost, tooltip: savedAt ? 'Unsave post' : 'Save post' },
@@ -551,16 +561,8 @@ export default function ChatPost ({
                 />
               </div>
             )}
-            {commentsTotal > 0 && (
-              <div onClick={handleClick}>
-                <span className='ChatPost_commenters inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full bg-foreground/5 border border-foreground/10 cursor-pointer hover:bg-foreground/10 transition-colors'>
-                  <MessageCircle className='w-3 h-3 text-foreground/60 shrink-0' />
-                  <span className='text-xs font-semibold text-foreground/70 leading-none' onClick={handleClick}>
-                    {commentsTotal} {commentsTotal === 1 ? t('reply') : t('replies')}
-                  </span>
-                </span>
-              </div>
-            )}
+            {/* Agora: counter with avatars and last reply time; opens the thread panel */}
+            {commentsTotal > 0 && <ThreadSummary post={post} onOpen={openThread} />}
           </div>
         )}
       </div>

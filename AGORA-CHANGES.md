@@ -28,6 +28,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/agora/guide/guideParts.json`, `apps/backend/lib/agora/helpGuide.md` | One sentence on the 7BP Home and its "This week" block in the guide (and so for Claude in Help) |
 | `apps/backend/migrations/schema.sql` | Added the three meeting tables (a piece of speech can be by a guest; "still here" and "left" times per person), the meeting chat table, the two tables for guests in a meeting, the three contact tables, the table that links circles to their Drive folders and the playbook table and the table of Google document links in the kDrive Files page, with their links deferrable like Hylo's own |
 | `apps/backend/.env.example` | Added Agora's settings (including where uploads are kept). `AGORA_MEET_DOMAIN` says calls always run there |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (build) | Build page: three routes under `/noo/agora/build/api/` (access, board, move). The policy is `sessionAuth` like the other Agora controllers; the controller also answers 401 when logged out and 403 when not a member of `AGORA_BUILD_CIRCLE` |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (build) | One route, `build`, inside a circle: the Build page |
+| `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` (build) | The Build line in a circle menu (`BuildMenuLink`, shows only for members of the Build circle) |
+| `apps/web/public/locales/*.json` (build) | The words of the Build page and its admin line, in every language file |
+| `apps/backend/.env.example` (build) | `AGORA_BUILD_CIRCLE` and `AGORA_GITHUB_BOARD_TOKEN`, empty |
 | `apps/backend/package.json` | Told the style checker about the new model and service names |
 | `apps/backend/api/graphql/makeSchema.js` | Adds the playbook's GraphQL types (from `api/graphql/agora/`) to the schema for everyone, and their answers only for logged-in people; for anyone else they answer nothing |
 | `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` | A Playbook line in a group's menu, above More Spaces. The separate Files line is gone: files and folders are part of Resources. |
@@ -318,6 +323,19 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
 - `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).
 - `apps/backend/api/models/post/createPost.js`: a post in a private room (hidden or invite only) is no longer pushed to the parent circle's socket room; only the room's own members get it, each in their own user room (so their menu still badges). Open rooms and all other posts behave as in Hylo. `upsertChatActivityNotice.js` (the chat notice with the last chats' text) and `GroupController.js` (typing signs) follow the same rule: a private room is anything not simply open to its circle (invite only, request to join, hidden, paywalled, role-gated).
+
+
+## Chat threads and room comforts (9 November 2026)
+
+New files: `apps/backend/lib/agora/chatThreads.js` and its test `apps/backend/test/unit/agora/chatThreads.test.js`; `apps/web/src/agora/chat/` `ThreadPanel.jsx`, `ThreadSummary.jsx`, `RoomSearchPanel.jsx`, `chatThreads.store.js`, `relativeTime.js`, `chatThreads.test.js`.
+
+- `apps/backend/api/models/Post.js`: after a reply is counted, `pushThreadSummary` tells the circle's chat the new count (live reply counter).
+- `apps/backend/api/services/Websockets.js`: new message type `chatThreadUpdated`.
+- `apps/backend/api/graphql/schema.graphql`, `makeModels.js`: new Post field `lastCommentAt`; the `posts` query always reads your own saved list when `savedBy` is given (before, naming another person's id showed that person's saved posts).
+- `apps/web/src/routes/ChatRoom/ChatRoom.js`, `ChatPost/ChatPost.js`, `chatRoomUtils.js` (+ `ChatPost.test.js`): Reply and the reply counter open the thread panel beside the chat; room search button and panel; "New messages" line wording and the "Jump to first unread" button.
+- `apps/web/src/graphql/fragments/chatRoomPostFieldsFragment.js`: asks for `lastCommentAt`.
+- `apps/web/src/components/SocketListener/SocketListener.js`, `store/reducers/ormReducer/index.js`, `store/models/Post.js`: the `chatThreadUpdated` event updates the message's counter, repliers and last reply time.
+- `apps/web/public/locales/*.json`: new `agoraChat.*` texts (German, Spanish, French, Portuguese and Hindi written by Claude, to be checked by a native speaker).
 
 ## Room makers add circle members (November 2026)
 
