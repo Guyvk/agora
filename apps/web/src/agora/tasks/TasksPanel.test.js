@@ -99,6 +99,35 @@ describe('TasksPanel', () => {
     expect(within(screen.getByTestId('column-todo')).getByText('Dig beds')).toBeInTheDocument()
   })
 
+  it('puts the status select back when a status change from the panel fails', async () => {
+    fakeServer({ failMove: true })
+    renderPanel()
+    fireEvent.click(await screen.findByText('Dig beds'))
+    const select = await screen.findByLabelText('Status')
+    fireEvent.change(select, { target: { value: 'done' } })
+    expect(await screen.findByText('Could not move it.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Status')).toHaveValue('todo'))
+  })
+
+  it('keeps an Undo for each deleted task', async () => {
+    fakeServer()
+    renderPanel()
+    fireEvent.click(await screen.findByText('Dig beds'))
+    fireEvent.click(await screen.findByRole('button', { name: /Delete task/ }))
+    await screen.findByRole('button', { name: 'Undo delete of Dig beds' })
+    fireEvent.click(await screen.findByText('Plant seeds'))
+    fireEvent.click(await screen.findByRole('button', { name: /Delete task/ }))
+    expect(await screen.findByRole('button', { name: 'Undo delete of Plant seeds' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo delete of Dig beds' })).toBeInTheDocument()
+  })
+
+  it('shows a quiet line, no red alert, when the viewer is not a member', async () => {
+    global.fetch = jest.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: 'Join this group first.' }) }))
+    renderPanel()
+    expect(await screen.findByText('Tasks are for members of this circle.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('is read-only when the task cannot be edited, except for the status', async () => {
     fakeServer()
     renderPanel()
@@ -115,7 +144,7 @@ describe('TasksPanel', () => {
     fireEvent.click(await screen.findByText('Dig beds'))
     expect(await screen.findByText('Bring gloves')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Delete task/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Undo delete of Dig beds/ }))
     await waitFor(() => expect(calls.some(c => c.url.endsWith('/11/restore'))).toBe(true))
     expect(await within(screen.getByTestId('column-todo')).findByText('Dig beds')).toBeInTheDocument()
   })
@@ -144,7 +173,7 @@ describe('TasksPanel', () => {
   })
 
   it('shows the server error when loading fails', async () => {
-    global.fetch = jest.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: 'Join this group first.' }) }))
+    global.fetch = jest.fn(async () => ({ ok: false, status: 500, json: async () => ({ error: 'Join this group first.' }) }))
     renderPanel()
     expect(await screen.findByText('Join this group first.')).toBeInTheDocument()
   })

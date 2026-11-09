@@ -22,12 +22,13 @@ export default function TasksPanel ({ projectId }) {
   const [tasks, setTasks] = useState(null)
   const [meta, setMeta] = useState(null)
   const [loadError, setLoadError] = useState(null)
+  const [notMember, setNotMember] = useState(false)
   const [error, setError] = useState(null)
   const [view, setView] = useState('board')
   const [includeDone, setIncludeDone] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
-  const [undo, setUndo] = useState(null)
-  const undoTimer = useRef(null)
+  const [undos, setUndos] = useState([])
+  const undoTimers = useRef({})
   const errorTimer = useRef(null)
 
   const flash = useCallback(message => {
@@ -36,15 +37,15 @@ export default function TasksPanel ({ projectId }) {
     errorTimer.current = setTimeout(() => setError(null), 5000)
   }, [])
 
-  useEffect(() => () => { clearTimeout(undoTimer.current); clearTimeout(errorTimer.current) }, [])
+  useEffect(() => () => { Object.values(undoTimers.current).forEach(clearTimeout); clearTimeout(errorTimer.current) }, [])
 
   useEffect(() => {
     let cancelled = false
-    setLoadError(null)
+    setLoadError(null); setNotMember(false)
     const query = `?projectId=${encodeURIComponent(projectId)}` + (includeDone ? '&includeDone=1' : '')
     Promise.all([tasksApi('/list' + query), tasksApi(`/meta?projectId=${encodeURIComponent(projectId)}`)])
       .then(([list, m]) => { if (!cancelled) { setTasks(list.tasks); setMeta(m) } })
-      .catch(e => { if (!cancelled) setLoadError(e.message) })
+      .catch(e => { if (!cancelled) { if (e.status === 403 || e.status === 404) setNotMember(true); else setLoadError(e.message) } })
     return () => { cancelled = true }
   }, [projectId, includeDone])
 
@@ -58,7 +59,7 @@ export default function TasksPanel ({ projectId }) {
   }
 
   const moveTask = async (task, status, position) => {
-    const before = task
+    const before = tasks.find(x => x.id === task.id) || task
     replace({ ...task, status, position })
     try {
       const data = await tasksApi(`/${task.id}/move`, { status, position })
@@ -82,15 +83,14 @@ export default function TasksPanel ({ projectId }) {
   const onDeleted = task => {
     setTasks(list => list.filter(x => x.id !== task.id))
     setSelectedId(null)
-    setUndo(task)
-    clearTimeout(undoTimer.current)
-    undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS)
+    setUndos(list => [...list.filter(x => x.id !== task.id), task])
+    clearTimeout(undoTimers.current[task.id])
+    undoTimers.current[task.id] = setTimeout(() => setUndos(list => list.filter(x => x.id !== task.id)), UNDO_MS)
   }
 
-  const restore = async () => {
-    const task = undo
-    clearTimeout(undoTimer.current)
-    setUndo(null)
+  const restore = async task => {
+    clearTimeout(undoTimers.current[task.id])
+    setUndos(list => list.filter(x => x.id !== task.id))
     try {
       const data = await tasksApi(`/${task.id}/restore`, {})
       setTasks(list => [...list.filter(x => x.id !== task.id), data.task])
@@ -113,7 +113,8 @@ export default function TasksPanel ({ projectId }) {
       </div>
       {error && <p role='alert' className='m-0 text-sm text-destructive'>{error}</p>}
       {loadError && <p role='alert' className='m-0 text-destructive'>{loadError}</p>}
-      {!tasks && !loadError && <p className='m-0 text-muted-foreground'>{t('Loading…')}</p>}
+      {notMember && <p className='m-0 text-sm text-muted-foreground'>{t('Tasks are for members of this circle.')}</p>}
+      {!tasks && !loadError && !notMember && <p className='m-0 text-muted-foreground'>{t('Loading…')}</p>}
       {tasks && (
         <div className={cn('grid gap-4 items-start', selectedId ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : 'grid-cols-1')}>
           <div className='min-w-0 flex flex-col gap-3'>
@@ -125,6 +126,7 @@ export default function TasksPanel ({ projectId }) {
             <TaskSidePanel
               key={selectedId}
               taskId={selectedId}
+              listTask={tasks.find(x => x.id === selectedId)}
               meta={meta}
               onClose={() => setSelectedId(null)}
               onChanged={onChanged}
@@ -135,10 +137,14 @@ export default function TasksPanel ({ projectId }) {
           )}
         </div>
       )}
-      {undo && (
-        <div role='status' className='fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-md bg-foreground text-background px-4 py-2 text-sm shadow-lg'>
-          {t('Task deleted.')}
-          <Button type='button' size='sm' variant='secondary' onClick={restore}>{t('Undo')}</Button>
+      {undos.length > 0 && (
+        <div className='fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2'>
+          {undos.map(task => (
+            <div key={task.id} role='status' className='flex items-center gap-3 rounded-md bg-foreground text-background px-4 py-2 text-sm shadow-lg'>
+              {t('Task deleted.')}
+              <Button type='button' size='sm' variant='secondary' onClick={() => restore(task)} aria-label={t('Undo delete of {{title}}', { title: task.title })}>{t('Undo')}</Button>
+            </div>
+          ))}
         </div>
       )}
     </section>

@@ -7,19 +7,23 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCorners, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
 import { cn } from 'util/index'
 import { STATUSES, column, formatDay, isOverdue, positionAt, today as todayFn } from './api'
 import Avatars from './Avatars'
 import AddTask from './AddTask'
 
-export function Card ({ task, today, selected, onOpen, dragging }) {
+export function Card ({ task, today, selected, onOpen, dragging, handle }) {
   const { t } = useTranslation()
   const overdue = isOverdue(task, today)
   return (
-    <div className={cn('rounded-md border bg-card p-2 text-sm shadow-sm cursor-grab', selected ? 'border-accent' : 'border-border', { 'opacity-40': dragging })} data-testid='task-card' data-task-id={task.id}>
-      <button type='button' className='block w-full text-left font-semibold text-foreground break-words' onClick={() => onOpen(task.id)}>{task.title}</button>
+    <div className={cn('rounded-md border bg-card p-2 text-sm shadow-sm ', selected ? 'border-accent' : 'border-border', { 'opacity-40': dragging })} data-testid='task-card' data-task-id={task.id}>
+      <div className='flex items-start gap-1'>
+        {handle}
+        <button type='button' className='block flex-1 min-w-0 text-left font-semibold text-foreground break-words' onClick={() => onOpen(task.id)}>{task.title}</button>
+      </div>
       {(task.assignees.length > 0 || task.dueDate) && (
         <div className='flex items-center justify-between gap-2 mt-2'>
           <Avatars people={task.assignees} />
@@ -35,10 +39,14 @@ export function Card ({ task, today, selected, onOpen, dragging }) {
 }
 
 function SortableCard ({ task, selectedId, ...rest }) {
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { status: task.status } })
   return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners} className='list-none'>
-      <Card task={task} selected={selectedId === task.id} dragging={isDragging} {...rest} />
+    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className='list-none'>
+      <Card
+        task={task} selected={selectedId === task.id} dragging={isDragging} {...rest}
+        handle={<button type='button' className='shrink-0 cursor-grab touch-none px-0.5 text-muted-foreground' aria-label={t('Drag {{title}}', { title: task.title })} {...attributes} {...listeners}><GripVertical className='w-4 h-4' /></button>}
+      />
     </li>
   )
 }
@@ -61,7 +69,7 @@ function Column ({ status, label, tasks, onAdd, ...rest }) {
 export default function TaskBoard ({ tasks, today = todayFn(), selectedId, onAdd, onMove, onOpen }) {
   const { t } = useTranslation()
   const [activeId, setActiveId] = useState(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   const labels = { todo: t('To do'), doing: t('Doing'), done: t('Done') }
   const active = tasks.find(x => x.id === activeId)
 

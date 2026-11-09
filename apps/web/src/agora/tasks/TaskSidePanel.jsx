@@ -27,7 +27,7 @@ function Field ({ label, htmlFor, children }) {
   )
 }
 
-export default function TaskSidePanel ({ taskId, meta, onClose, onChanged, onStatus, onDeleted, onCommentCount }) {
+export default function TaskSidePanel ({ taskId, listTask, meta, onClose, onChanged, onStatus, onDeleted, onCommentCount }) {
   const { t } = useTranslation()
   const [task, setTask] = useState(null)
   const [comments, setComments] = useState([])
@@ -61,13 +61,11 @@ export default function TaskSidePanel ({ taskId, meta, onClose, onChanged, onSta
   }
 
   const changeStatus = status => {
-    if (status === task.status) return
-    setTask({ ...task, status })
-    onStatus(task, status)
+    if (status !== current.status) onStatus(current, status)
   }
 
   const toggleAssignee = id => {
-    const ids = task.assignees.map(a => String(a.id))
+    const ids = current.assignees.map(a => String(a.id))
     const next = ids.includes(String(id)) ? ids.filter(x => x !== String(id)) : [...ids, String(id)]
     save({ assigneeIds: next })
   }
@@ -104,6 +102,10 @@ export default function TaskSidePanel ({ taskId, meta, onClose, onChanged, onSta
     } catch (err) { setError(err.message); setBusy(false) }
   }
 
+  // the list is the truth for status and the other list fields (it follows drags, and rolls back failed moves)
+  const current = task && listTask
+    ? { ...task, status: listTask.status, position: listTask.position, assignees: listTask.assignees, dueDate: listTask.dueDate, projectId: listTask.projectId }
+    : task
   const editable = !!task?.canEdit
   const members = meta?.members || []
   const projects = meta?.projects || []
@@ -121,7 +123,7 @@ export default function TaskSidePanel ({ taskId, meta, onClose, onChanged, onSta
             <Input id='task-title' value={title} disabled={!editable} onChange={e => setTitle(e.target.value)} onBlur={() => { if (title.trim() && title.trim() !== task.title) save({ title: title.trim() }); else setTitle(task.title) }} maxLength={200} />
           </Field>
           <Field label={t('Status')} htmlFor='task-status'>
-            <select id='task-status' className={fieldClasses} value={task.status} onChange={e => changeStatus(e.target.value)}>
+            <select id='task-status' className={fieldClasses} value={current.status} onChange={e => changeStatus(e.target.value)}>
               <option value='todo'>{t('To do')}</option>
               <option value='doing'>{t('Doing')}</option>
               <option value='done'>{t('Done')}</option>
