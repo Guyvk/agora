@@ -1,11 +1,11 @@
 import React from 'react'
-import { AllTheProviders, render, screen, waitFor } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, fireEvent, render, screen, waitFor } from 'util/testing/reactTestingLibraryExtended'
 import { graphql, HttpResponse, delay } from 'msw'
 import orm from 'store/models'
 import mockGraphqlServer from 'util/testing/mockGraphqlServer'
 import extractModelsForTest from 'util/testing/extractModelsForTest'
 import { DETAIL_COLUMN_ID } from 'util/scrolling'
-import PostDetail from './PostDetail'
+import PostDetail, { JoinProjectSection } from './PostDetail'
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -142,5 +142,22 @@ describe('PostDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('404 Not Found')).toBeInTheDocument()
     })
+  })
+})
+
+// Agora: members leave a project from the post's ... menu, so the visible button only says Join
+describe('JoinProjectSection (Agora)', () => {
+  const props = { currentUser: { id: '5' }, members: [], joinProject: jest.fn(), leaveProject: jest.fn(), togglePeopleDialog: jest.fn() }
+
+  it('shows Join Project to someone who is not a member', () => {
+    render(<JoinProjectSection {...props} leaving={false} />, { wrapper: AllTheProviders() })
+    fireEvent.click(screen.getByText('Join Project'))
+    expect(props.joinProject).toHaveBeenCalled()
+  })
+
+  it('shows no Join or Leave button to a member', () => {
+    render(<JoinProjectSection {...props} leaving />, { wrapper: AllTheProviders() })
+    expect(screen.queryByText('Join Project')).not.toBeInTheDocument()
+    expect(screen.queryByText('Leave Project')).not.toBeInTheDocument()
   })
 })

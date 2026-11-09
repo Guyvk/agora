@@ -73,7 +73,6 @@ import { spaceRowBadgeCount, viewShowsUnreadDot, viewUnreadBadgeCount } from 'ut
 import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
 import AskMenuLink from '@/agora/ask/AskMenuLink' // Agora: the Ask tab of a circle
-import FilesMenuLink from '@/agora/files/FilesMenuLink' // Agora: the Files page of a circle or space
 import TasksMenuLink from '@/agora/tasks/TasksMenuLink' // Agora: the Tasks page of a circle
 
 /** Small orange unread dot shown when a typed view has new posts. */
@@ -753,8 +752,6 @@ export default function ContextMenu (props) {
     if (spaceMenuViewsFromStore.length > 0) return spaceMenuViewsFromStore
     return activeSpaceGroup?.groupViews?.items || []
   }, [showingSpaceMenu, spaceMenuViewsFromStore, activeSpaceGroup])
-  // Agora: the group whose Files page the menu links to
-  const filesGroup = showingSpaceMenu ? activeSpaceGroup : group
   const spaceViewsLoading = viewsPending && spaceMenuViews.length === 0
   const spaceDisplayName = (activeSpaceView ? displayNameForView(GroupViewPresenter(activeSpaceView), t) : null) ||
     activeSpaceGroup?.name ||
@@ -958,14 +955,6 @@ export default function ContextMenu (props) {
         {/* Agora: the Tasks page of the circle (not of a space). Members only. */}
         {isGroupContext && !isEditing && !showingSpaceMenu && group?.slug && (
           <TasksMenuLink groupSlug={group.slug} isMember={myMemberships.some(m => String(m.group?.id) === String(group.id))} />
-        )}
-        {/* Agora: the Files page of the circle, or of the space when its menu is open. Members only. */}
-        {isGroupContext && !isEditing && filesGroup?.slug && (
-          <FilesMenuLink
-            groupSlug={filesGroup.slug}
-            to={showingSpaceMenu ? spaceUrl(groupSlug, localSpaceSlug(groupSlug, filesGroup.slug), '/files') : `/groups/${filesGroup.slug}/files`}
-            isMember={myMemberships.some(m => String(m.group?.id) === String(filesGroup.id))}
-          />
         )}
         {/* Agora: the playbook page of a group */}
         {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
