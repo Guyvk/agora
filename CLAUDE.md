@@ -1,6 +1,10 @@
-> Agora: this copy is Agora, not Hylo. In the cloud, read `AGORA-CLOUD.md` first; its rules win over the GitHub and ticket parts below.
+# Agora (read first)
 
-# Hylo - Claude Code Project Guide
+This copy is Agora, not Hylo. The rules for every AI working here are in `AGENTS.md`, loaded below. They win over anything else in this file.
+
+@AGENTS.md
+
+# Hylo - Claude Code Project Guide (commands and conventions still apply)
 
 ## Project Structure
 
@@ -38,34 +42,11 @@ cd apps/web && yarn build
 
 ## GitHub
 
-- Repo: `Hylozoic/hylo`
-- Main branch: `dev`
-- Issues: `gh issue list --repo Hylozoic/hylo`
-- PRs target `dev` branch
+- Repo: `Guyvk/agora`, main branch `agora`. Draft pull requests only, base `agora`. See `AGENTS.md`.
+- Never use `Hylozoic/hylo` (no issues, pull requests, comments or release uploads).
 
-## Workflow: Ticket to PR
+## Testing and screenshots
 
-When picking up and completing work autonomously, follow this process:
-
-### 1. Find a ticket
-```bash
-gh issue list --repo Hylozoic/hylo --label "agent-ready" --limit 10
-gh issue view <number> --repo Hylozoic/hylo
-```
-
-### 2. Create a branch
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b <issue-number>-short-description
-```
-
-### 3. Implement the changes
-- Read relevant code before modifying
-- Follow existing patterns and conventions
-- Keep changes focused on the ticket scope
-
-### 4. Test your work
 
 **Unit tests:**
 ```bash
@@ -80,7 +61,7 @@ cd apps/web && yarn test --watchAll=false --testPathPattern=<relevant-pattern>
 
 **Take a screenshot of any authenticated page:**
 ```bash
-cd apps/web && E2E_PATH=/groups/building-hylo yarn screenshot
+cd apps/web && E2E_PATH=/groups/<a demo circle> yarn screenshot
 ```
 
 **Interactive screenshots (click, then capture):** Write a spec in `apps/web/e2e/` that interacts with the page and screenshots the result. See `apps/web/e2e/invite-copy.spec.js` for an example.
@@ -89,45 +70,6 @@ cd apps/web && E2E_PATH=/groups/building-hylo yarn screenshot
 ```bash
 cd apps/web && yarn build
 ```
-
-### 5. Create the PR
-- PRs target `dev` branch
-- Link the issue in the PR body (`Closes #NUMBER`)
-- Include Playwright screenshots for visual/UI changes
-- Include a test plan describing what was verified
-
-**Uploading screenshots to PRs:**
-```bash
-# Upload to the persistent draft release
-gh release upload "untagged-5c3bf358d6724b65a174" screenshot.png --repo Hylozoic/hylo --clobber
-# Embed in PR body
-# ![description](https://github.com/Hylozoic/hylo/releases/download/untagged-5c3bf358d6724b65a174/screenshot.png)
-```
-
-## Autonomous Agent Workflow
-
-For working through the backlog autonomously (investigate → fix → PR):
-
-### For each issue:
-1. **Read the ticket** — understand what's reported
-2. **Explore the code** — find the relevant component/logic
-3. **Can you identify the problem?**
-   - **YES** → Fix it, take Playwright screenshots, open a PR
-   - **NO** → Comment on the issue with what you found and what info is missing
-4. **Is this a duplicate or already fixed?**
-   - **YES** → Comment with evidence and close
-
-### Triage criteria for `agent-ready` label:
-- Clear bug with screenshot or repro steps
-- Expected vs actual behavior described
-- Scoped to a single component/area
-- Fix is deterministic (broken → correct)
-- Does NOT require: design mockups, product decisions, mobile-native debugging, or multi-system coordination
-
-### Confidence levels:
-- **High** — clear bug, can fix and verify with screenshots
-- **Medium** — understand the problem, may need a design decision mid-way
-- **Low** — under-specified, needs human input before starting
 
 ### Running Playwright (important):
 Use this from `apps/web/` — `npx playwright` picks up a wrong global version:

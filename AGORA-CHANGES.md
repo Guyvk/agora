@@ -8,7 +8,9 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 | File | What changed |
 | --- | --- |
-| `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
+| `CLAUDE.md` | Loads Agora's `AGENTS.md` at the top (its rules win). Hylo's GitHub, ticket-to-PR and autonomous issue workflow sections are replaced by a short Agora note; commands, testing and screenshot tips and conventions are kept |
+| `.cursorrules` | One line at the top: read `AGENTS.md` first |
+| `.claude/agents/hylo-worker.md` | Removed: it picked up issues on Hylo's GitHub and opened pull requests there |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set (kept next to Hylo's rule that tests never send email) |
 | `apps/backend/api/models/post/createPost.js` | A new event always gets its meeting room as its video call link, whatever was sent, and a link to another video call platform is refused as its location. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice. `addFollowers` compares user ids as strings, so someone who already follows a post (passed as a number, e.g. from a script or an email reply) is no longer added twice, which made their comment fail halfway |
