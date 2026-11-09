@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 
+import { projectFullPageUrl } from '@/agora/projectFullPage' // Agora: a project opens on its own page
+import getPost from 'store/selectors/getPost'
 import getPreviousLocation from 'store/selectors/getPreviousLocation'
 import { useRegisterHardwareBackHandler } from 'util/hardwareBackHandler'
 import { canNavigateBack } from 'util/mobileNavBack'
@@ -36,6 +38,14 @@ const PostDialog = ({
   const location = useLocation()
   const { postId } = useParams()
   const previousLocation = useSelector(getPreviousLocation)
+
+  // Agora: a project has a Tasks board and needs room, so it never opens in the pop-up.
+  // Once we know the post is a project, swap this entry (replace, so Back goes to the list) for its own page.
+  const isProject = useSelector(state => getPost(state, postId)?.type === 'project')
+  const fullPageUrl = isProject ? projectFullPageUrl({ pathname: location.pathname, search: location.search, hash: location.hash }, postId) : null
+  useEffect(() => {
+    if (fullPageUrl) navigate(fullPageUrl, { replace: true })
+  }, [fullPageUrl, navigate])
 
   const postDetailRef = useRef(null)
   const [dialogOpen, setDialogOpen] = useState(true)
@@ -105,6 +115,8 @@ const PostDialog = ({
     handleOpenChange(false)
     return true
   }, [handleOpenChange]))
+
+  if (fullPageUrl) return null // Agora: redirecting to the project's own page
 
   return (
     <Dialog.Root open={dialogOpen} onOpenChange={handleOpenChange} modal={false}>

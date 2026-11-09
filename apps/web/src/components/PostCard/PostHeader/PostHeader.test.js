@@ -1,5 +1,7 @@
 import React from 'react'
-import { render, screen } from 'util/testing/reactTestingLibraryExtended'
+import { AllTheProviders, fireEvent, render, screen } from 'util/testing/reactTestingLibraryExtended'
+import orm from 'store/models'
+import extractModelsForTest from 'util/testing/extractModelsForTest'
 import PostHeader, { TopicsLine } from './PostHeader'
 
 jest.mock('luxon', () => ({
@@ -121,5 +123,38 @@ describe('TopicsLine', () => {
 
     expect(screen.getByText('#one')).toHaveAttribute('href', '/search?t=%23one&groupSlug=hay')
     expect(screen.getByText('#two')).toHaveAttribute('href', '/search?t=%23two&groupSlug=hay')
+  })
+})
+
+// Agora: "Leave Project" is in the ... menu, for a member of a project only
+describe('PostHeader leave project (Agora)', () => {
+  const loggedIn = () => {
+    const ormSession = orm.session(orm.getEmptyState())
+    extractModelsForTest({ me: { id: '5', name: 'Me' } }, 'Me', ormSession)
+    return AllTheProviders({ orm: ormSession.state, pending: {} })
+  }
+
+  const openMenu = async (props) => {
+    render(<PostHeader {...defaultProps} {...props} />, { wrapper: loggedIn() })
+    fireEvent.click(screen.getByTestId('post-header-more-icon'))
+  }
+
+  it('shows it on a project when the viewer is a member, and runs it on click', async () => {
+    const onLeaveProject = jest.fn()
+    await openMenu({ post: buildPost({ type: 'project' }), onLeaveProject })
+    fireEvent.click(await screen.findByText('Leave Project'))
+    expect(onLeaveProject).toHaveBeenCalled()
+  })
+
+  it('hides it when the viewer is not a member', async () => {
+    await openMenu({ post: buildPost({ type: 'project' }) })
+    expect(await screen.findByText('Copy Link')).toBeInTheDocument()
+    expect(screen.queryByText('Leave Project')).not.toBeInTheDocument()
+  })
+
+  it('hides it on other kinds of post', async () => {
+    await openMenu({ post: buildPost({ type: 'discussion' }), onLeaveProject: () => {} })
+    expect(await screen.findByText('Copy Link')).toBeInTheDocument()
+    expect(screen.queryByText('Leave Project')).not.toBeInTheDocument()
   })
 })

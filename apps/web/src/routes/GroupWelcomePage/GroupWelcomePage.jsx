@@ -15,6 +15,7 @@ import useGroupViews from 'hooks/useGroupViews'
 import MainCircleCards from '@/agora/mainCircle/MainCircleCards' // Agora: 7BP Home look
 import { spaceHomeRoutePath, spaceHomeUrl } from '@hylo/navigation'
 import ThisWeek from '@/agora/thisWeek/ThisWeek' // Agora: "This week in 7BP", shown on the main circle only
+import YourTasksHere from '@/agora/tasks/YourTasksHere' // Agora: my open tasks in this circle
 
 /** True when welcome HTML has visible text or embedded media. */
 function welcomeHtmlHasContent (html) {
@@ -73,6 +74,8 @@ function GroupWelcomePage () {
     <div className='p-4 global-postContent hylo-page-html w-full max-w-[750px] mx-auto'>
       {/* Agora: the block shows nothing unless this is the main circle (the server decides) */}
       <ThisWeek groupSlug={group.slug} />
+      {/* Agora: my open tasks in this circle; shows nothing when there are none */}
+      <YourTasksHere groupId={group.id} groupSlug={group.slug} />
       {!hasWelcomeContent && (
         <h1 className='text-2xl font-bold mb-4'>
           {t('Welcome to {{group.name}}!', { group })}
