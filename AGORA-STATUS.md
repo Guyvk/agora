@@ -2,7 +2,13 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 9 November 2026 (tasks in projects live). "9 November", "8 November" and "3-4 November" are current; older sections below are partly out of date.
+**Last updated:** 9 November 2026 (build board set up; tasks in projects live). The two "9 November" sections, "8 November" and "3-4 November" are current; older sections below are partly out of date.
+
+## 9 November 2026: build board
+
+- **Board:** GitHub Project "Agora build", https://github.com/users/Guyvk/projects/1, linked to Guyvk/agora. Columns (Status field) To do, Doing, In review, Live; fields Owner (Guy, Nana, David, Claude builders) and Circle (Tech Support, Governance, Communication, 7BP). Issues switched on for Guyvk/agora (Guy, 9 November). Cards #79 to #92 = the open rows of the early access plan, in plain words, nothing private. Help desk requests never go on the board by themselves (Guy): Guy or Nana writes a short card without names.
+- **Moves:** GitHub's built-in "Item closed" and "Pull request merged" automations stay OFF, because a merge closes the issue before the server is updated. After every deploy run `node agora/board-sync.mjs --apply <deployed commit>` on the Mac (dry run without `--apply`): linked pull request -> In review, merge inside the deployed commit -> Live plus a comment on the issue. Script and the board rules for AIs (`AGENTS.md`, `docs/CODING-WITH-AI.md`) are in PR #93.
+- **Build page in Agora:** plan doc https://claude.ai/artifact/TnhCzmuKBFrFcAGh4Cqhaf, card #79. Guy decided: Tech Support circle only, its members can move cards, a classic token with only the `project` scope (Guy puts it in the server .env as `AGORA_GITHUB_BOARD_TOKEN`). Not built yet.
 
 ## 9 November 2026: tasks in projects
 
