@@ -88,6 +88,8 @@ import ContactsPage from '@/agora/contacts/ContactsPage' // Agora: the shared Co
 import PlaybookPage from '@/agora/playbook/PlaybookPage' // Agora: the playbook page of a group
 import ResourcesPage from '@/agora/resources/ResourcesPage' // Agora: the Resources tab holds the circle's folders, files and library
 import AskPage from '@/agora/ask/AskPage' // Agora: the Ask tab of a circle
+import CircleTasksPage from '@/agora/tasks/CircleTasksPage' // Agora: the Tasks page of a circle, inside the app
+import MyTasksPage from '@/agora/tasks/MyTasksPage' // Agora: My tasks, across all my circles
 import FilesRedirect from '@/agora/resources/FilesRedirect' // Agora: the old Files address leads to Resources
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import CalendarPage from '@/agora/calendar/CalendarPage' // Agora: my calendar of Meetings and Events
@@ -1164,6 +1166,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='members/*' element={<Members context='groups' />} />
                             <Route path='playbook' element={<PlaybookPage />} /> {/* Agora: the playbook page of a group */}
                             <Route path='ask' element={<AskPage />} /> {/* Agora: the Ask tab of a circle */}
+                            <Route path='tasks' element={<CircleTasksPage />} /> {/* Agora: the Tasks page of a circle, inside the app */}
                             <Route path='files' element={<FilesRedirect />} /> {/* Agora: the old Files address leads to Resources */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />
@@ -1228,6 +1231,7 @@ export default function AuthLayoutRouter (props) {
                 <Route path='contacts' element={<ContactsPage />} />
                 <Route path='guide' element={<GuidePage />} /> {/* Agora: the guide */}
                 <Route path='calendar' element={<CalendarPage />} /> {/* Agora: my calendar */}
+                <Route path='my-tasks' element={<MyTasksPage />} /> {/* Agora: my tasks across all circles */}
                 {/* Agora: the admin area, with the Help desk as a tab. The old Help desk addresses send people there */}
                 <Route path='admin/help-desk/:requestId' element={<AdminPage tab='help-desk' />} />
                 <Route path='admin/help-desk' element={<AdminPage tab='help-desk' />} />
