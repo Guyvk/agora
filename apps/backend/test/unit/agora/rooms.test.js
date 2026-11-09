@@ -9,11 +9,12 @@
  * "A muted room sends no notifications" is covered where it is enforced:
  * test/unit/models/Activity.test.js (postNotifications = none for a chat).
  */
-import { archiveSpace, createSpace, deleteSpace, updateSpace } from '../../../api/graphql/mutations/spaces'
-import { assignAdministrator } from '../../setup/roleHelpers'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
+const { assignAdministrator } = require(rootPath('test/setup/roleHelpers'))
+// Required inside before(): loading the mutations before the app has started stalls the run
+let archiveSpace, createSpace, deleteSpace, updateSpace
 
 describe('Agora rooms made by members', () => {
   let steward, member, otherMember, outsider, circle
@@ -21,6 +22,7 @@ describe('Agora rooms made by members', () => {
   const openRoom = { visibility: 2, accessibility: 2 } // Public + Open
 
   before(async () => {
+    ({ archiveSpace, createSpace, deleteSpace, updateSpace } = require(rootPath('api/graphql/mutations/spaces')))
     await setup.clearDb()
     steward = await factories.user().save()
     member = await factories.user().save()
