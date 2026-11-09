@@ -25,6 +25,9 @@ const COLUMNS = ['To do', 'Doing', 'In review', 'Live']
 const CACHE_MS = 5 * 60 * 1000
 const FORCE_MS = 60 * 1000
 const WENT_LIVE_DAYS = 14
+const TIMEOUT_MS = 10000
+const BACKOFF_MS = 30 * 1000
+const MAX_PAGES = 10
 
 class BuildError extends Error {
   constructor (status, message) {
@@ -36,13 +39,14 @@ class BuildError extends Error {
 const knex = () => bookshelf.knex
 
 const QUERY = `
-query ($owner: String!, $number: Int!) {
+query ($owner: String!, $number: Int!, $after: String) {
   user(login: $owner) {
     projectV2(number: $number) {
       id
       url
       field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } }
-      items(first: 100) {
+      items(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           updatedAt
@@ -105,7 +109,8 @@ async function graphql (query, variables) {
   const res = await fetch(GRAPHQL_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', 'User-Agent': 'agora-build-page' },
-    body: JSON.stringify({ query, variables })
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(TIMEOUT_MS)
   })
   const data = await res.json().catch(() => ({}))
   // The messages only say what went wrong in general: never the answer, never the token
@@ -140,7 +145,7 @@ function normalize (data) {
       url: issue.url,
       issueState: issue.state,
       closedAt: issue.closedAt || null,
-      updatedAt: node.updatedAt,
+      statusUpdatedAt: node.status && node.status.updatedAt ? node.status.updatedAt : null,
       status: column,
       owner: node.owner ? node.owner.name : null,
       circle: node.circle ? node.circle.name : null,
@@ -157,17 +162,49 @@ function normalize (data) {
 
 let cache = null // { project, at }
 let lastForced = 0
+let lastFailedAt = 0 // after a failed read, GitHub is left alone for 30 seconds
+let inFlight = null // one read at a time, shared by everybody who asks meanwhile
 
 function resetCache () {
   cache = null
   lastForced = 0
+  lastFailedAt = 0
+  inFlight = null
 }
 
-/** Reads the board from GitHub into the copy. Throws when GitHub fails. */
-async function readFromGitHub () {
-  const project = normalize(await graphql(QUERY, { owner: OWNER, number: PROJECT_NUMBER }))
-  cache = { project, at: Date.now() }
-  return cache
+/** Reads the whole board (all pages, at most 10) from GitHub. Throws when GitHub fails. */
+async function readPages () {
+  let data = null
+  let after = null
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const answer = await graphql(QUERY, { owner: OWNER, number: PROJECT_NUMBER, after })
+    const items = answer && answer.user && answer.user.projectV2 && answer.user.projectV2.items
+    if (!items) throw new Error('The board was not found')
+    if (!data) data = answer
+    else data.user.projectV2.items.nodes = data.user.projectV2.items.nodes.concat(items.nodes)
+    const info = items.pageInfo || {}
+    if (!info.hasNextPage || !info.endCursor) break
+    after = info.endCursor
+  }
+  return data
+}
+
+/** Reads the board from GitHub into the copy. Throws when GitHub fails. Parallel callers share one read. */
+function readFromGitHub () {
+  if (!inFlight) {
+    inFlight = readPages()
+      .then(data => {
+        cache = { project: normalize(data), at: Date.now() }
+        lastFailedAt = 0
+        return cache
+      })
+      .catch(err => {
+        lastFailedAt = Date.now()
+        throw err
+      })
+      .finally(() => { inFlight = null })
+  }
+  return inFlight
 }
 
 /**
@@ -178,12 +215,17 @@ async function currentCopy ({ force = false } = {}) {
   const now = Date.now()
   const fresh = cache && now - cache.at < CACHE_MS
   const mayForce = force && now - lastForced >= FORCE_MS
+  const STALE = 'GitHub could not be reached, so this may be out of date.'
   if (fresh && !mayForce) return { copy: cache, warning: null }
+  if (lastFailedAt && now - lastFailedAt < BACKOFF_MS) {
+    if (cache) return { copy: cache, warning: STALE }
+    throw new BuildError(502, 'GitHub could not be reached. Try again in a minute.')
+  }
   if (mayForce) lastForced = now
   try {
     return { copy: await readFromGitHub(), warning: null }
   } catch (err) {
-    if (cache) return { copy: cache, warning: 'GitHub could not be reached, so this may be out of date.' }
+    if (cache) return { copy: cache, warning: STALE }
     throw new BuildError(502, 'GitHub could not be reached. Try again in a minute.')
   }
 }
@@ -194,14 +236,14 @@ async function currentCopy ({ force = false } = {}) {
 
 /**
  * Cards in Live that went live in the last 14 days, newest first. The date is
- * the card's updatedAt on the board (it changes when the card is moved to Live),
+ * the time the card's Status value last changed (when it was moved to Live),
  * or else the issue's closedAt.
  */
 function wentLive (cards, now = Date.now()) {
   const since = now - WENT_LIVE_DAYS * 24 * 3600 * 1000
   return cards
     .filter(c => c.status === 'Live')
-    .map(c => ({ number: c.number, title: c.title, url: c.url, date: c.updatedAt || c.closedAt }))
+    .map(c => ({ number: c.number, title: c.title, url: c.url, date: c.statusUpdatedAt || c.closedAt }))
     .filter(c => c.date && new Date(c.date).getTime() >= since)
     .sort((a, b) => new Date(b.date) - new Date(a.date))
 }

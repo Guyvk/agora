@@ -91,10 +91,9 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
-  // Agora build: open at the door on purpose, so a logged-out person gets a 401 from the
-  // controller. Every action checks the login and membership of AGORA_BUILD_CIRCLE itself.
+  // Agora build: for anyone logged in. Every action also checks login and membership of AGORA_BUILD_CIRCLE itself.
   AgoraBuildController: {
-    '*': true
+    '*': 'sessionAuth'
   },
 
   // Agora: claiming a profile. Reading it needs only the claim link's secret (the person

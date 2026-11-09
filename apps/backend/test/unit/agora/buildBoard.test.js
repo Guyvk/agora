@@ -27,7 +27,7 @@ describe('Agora Build page', () => {
     return {
       id,
       updatedAt: extra.updatedAt || ago(1),
-      status: status ? { name: status } : null,
+      status: status ? { name: status, updatedAt: extra.statusAt || ago(1) } : null,
       owner: { name: 'Nana' },
       circle: { name: 'Tech Support' },
       content: {
@@ -37,7 +37,14 @@ describe('Agora Build page', () => {
     }
   }
 
-  function projectData () {
+  function projectData (after) {
+    const all = projectNodes()
+    const nodes = github.twoPages ? (after ? all.slice(4) : all.slice(0, 4)) : all
+    const pageInfo = { hasNextPage: Boolean(github.twoPages && !after), endCursor: github.twoPages && !after ? 'C1' : null }
+    return projectPage(nodes, pageInfo)
+  }
+
+  function projectPage (nodes, pageInfo) {
     return {
       data: {
         user: {
@@ -45,21 +52,23 @@ describe('Agora Build page', () => {
             id: 'P1',
             url: 'u',
             field: { id: 'F1', options: [{ id: 'o1', name: 'To do' }, { id: 'o2', name: 'Doing' }, { id: 'o3', name: 'In review' }, { id: 'o4', name: 'Live' }] },
-            items: {
-              nodes: [
-                item('I1', 1, 'To do', { body: `Help desk #${helpIds['Mentioned one']} is about this` }),
-                item('I2', 2, 'Doing'),
-                item('I3', 3, 'In review', { prs: [{ number: 30, state: 'MERGED', isDraft: false, url: 'x' }] }),
-                item('I4', 4, 'Live', { updatedAt: ago(2) }),
-                item('I5', 5, 'Live', { updatedAt: ago(1) }),
-                item('I6', 6, 'Live', { updatedAt: ago(20) }),
-                item('I7', 7, 'Doing', { prs: [{ number: 31, state: 'OPEN', isDraft: true, url: 'y' }] })
-              ]
-            }
+            items: { nodes, pageInfo }
           }
         }
       }
     }
+  }
+
+  function projectNodes () {
+    return [
+      item('I1', 1, 'To do', { body: `Help desk #${helpIds['Mentioned one']} is about this` }),
+      item('I2', 2, 'Doing'),
+      item('I3', 3, 'In review', { prs: [{ number: 30, state: 'MERGED', isDraft: false, url: 'x' }] }),
+      item('I4', 4, 'Live', { statusAt: ago(2) }),
+      item('I5', 5, 'Live', { statusAt: ago(1) }),
+      item('I6', 6, 'Live', { statusAt: ago(20), updatedAt: ago(1) }),
+      item('I7', 7, 'Doing', { prs: [{ number: 31, state: 'OPEN', isDraft: true, url: 'y' }] })
+    ]
   }
 
   function call (action, { userId, query = {}, body, fromPage = true } = {}) {
@@ -99,13 +108,13 @@ describe('Agora Build page', () => {
     realFetch = global.fetch
     global.fetch = async (url, options) => {
       const body = JSON.parse(options.body)
-      calls.push({ url, headers: options.headers, body })
+      calls.push({ url, headers: options.headers, body, signal: options.signal })
       if (github.down) return { ok: false, status: 502, json: async () => ({}) }
       if (body.query.includes('updateProjectV2ItemFieldValue')) {
         if (github.moveFails) return { ok: true, status: 200, json: async () => ({ errors: [{ message: 'no' }] }) }
         return { ok: true, status: 200, json: async () => ({ data: {} }) }
       }
-      return { ok: true, status: 200, json: async () => projectData() }
+      return { ok: true, status: 200, json: async () => projectData(body.variables.after) }
     }
   })
 
@@ -185,6 +194,52 @@ describe('Agora Build page', () => {
     github.down = true
     const res = await call('board', { userId: amara.id })
     expect(res.statusCode).to.equal(502)
+    expect(JSON.stringify(res.body)).to.not.include('pretend-token')
+  })
+
+  it('reads every page of the board', async () => {
+    github.twoPages = true
+    const res = await call('board', { userId: amara.id })
+    expect(reads().length).to.equal(2)
+    expect(reads()[1].body.variables.after).to.equal('C1')
+    expect(res.body.columns.reduce((n, c) => n + c.cards.length, 0)).to.equal(7)
+  })
+
+  it('gives every GitHub call a time limit', async () => {
+    await call('board', { userId: amara.id })
+    expect(calls[0].signal).to.not.equal(undefined)
+  })
+
+  it('leaves GitHub alone for 30 seconds after a failed read', async () => {
+    github.down = true
+    await call('board', { userId: amara.id })
+    expect(calls.length).to.equal(1)
+    const again = await call('board', { userId: amara.id })
+    expect(again.statusCode).to.equal(502)
+    expect(calls.length).to.equal(1)
+    // with a copy: the old copy and the warning, still no new call
+    Build.resetCache()
+    github.down = false
+    await call('board', { userId: amara.id })
+    github.down = true
+    await call('board', { userId: amara.id, query: { refresh: '1' } })
+    const callsBefore = calls.length
+    const res = await call('board', { userId: amara.id, query: { refresh: '1' } })
+    expect(calls.length).to.equal(callsBefore)
+    // the copy is under 5 minutes old, so it is shown as it is
+    expect(res.body.columns[0].cards.length).to.equal(1)
+  })
+
+  it('shares one read between parallel page loads', async () => {
+    await Promise.all([call('board', { userId: amara.id }), call('board', { userId: amara.id }), call('board', { userId: amara.id })])
+    expect(reads().length).to.equal(1)
+  })
+
+  it('dates what went live by when the Status changed, not by the card\'s own updatedAt', async () => {
+    const res = await call('board', { userId: amara.id })
+    // card 6 was touched yesterday but moved to Live 20 days ago
+    expect(res.body.wentLive.map(c => c.number)).to.not.include(6)
+    expect(res.body.wentLive[0].date).to.be.a('string')
   })
 
   it('shows the last copy with a warning when GitHub goes down', async () => {

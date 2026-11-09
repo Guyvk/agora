@@ -85,6 +85,13 @@ describe('BuildPage', () => {
     expect(link.getAttribute('href')).toEqual('/admin/help-desk/4')
   })
 
+  it('shows a warning when the board is an old copy because GitHub could not be reached', async () => {
+    fakeServer({ board: boardData({ warning: 'GitHub could not be reached, so this may be out of date.' }) })
+    renderPage()
+    expect(await screen.findByTestId('build-warning', {}, WAIT)).toHaveTextContent('GitHub could not be reached, so this may be out of date.')
+    expect(screen.getByTestId('build-column-Doing')).toBeInTheDocument()
+  })
+
   it('says the board is not connected, with the GitHub link', async () => {
     fakeServer({ board: { configured: false, boardUrl: 'https://github.com/users/Guyvk/projects/1', columns: [], wentLive: [], helpDesk: [] } })
     renderPage()
