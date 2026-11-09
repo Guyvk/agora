@@ -25,7 +25,8 @@ function taskAction (fn, { change = false } = {}) {
       return await fn(req, res, userId)
     } catch (err) {
       if (err instanceof Tasks.TaskError) return res.status(err.status).send({ error: err.message })
-      throw err
+      // Anything else is a bug: answer with a 500 instead of leaving the request hanging
+      return res.serverError(err)
     }
   }
 }

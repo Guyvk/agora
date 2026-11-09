@@ -9,6 +9,7 @@
  *   DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/tasks.test.js
  */
 import AgoraTasksController from '../../../api/controllers/AgoraTasksController'
+import Tasks from '../../../lib/agora/tasks'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
@@ -244,6 +245,68 @@ describe('Agora tasks', () => {
       const viaProject = await call('meta', { query: { projectId: project.id }, userId: amara.id })
       expect(viaProject.body.project).to.deep.equal({ id: Number(project.id), name: 'Website' })
       expect(viaProject.body.canManage).to.equal(true)
+    })
+  })
+
+  describe('a project posted in two circles', () => {
+    let shared, third
+
+    before(async () => {
+      third = await new Group({ slug: 'finance', name: 'Finance' }).save()
+      await bea.joinGroup(third)
+      await cora.joinGroup(third)
+      shared = await factories.post({ name: 'Shared project', type: 'project', user_id: amara.id }).save()
+      for (const g of [third, circle]) await knex()('groups_posts').insert({ post_id: shared.id, group_id: g.id })
+    })
+
+    it('adds to the circle with the lowest id, every time, unless one is named', async () => {
+      const lowest = String(Math.min(Number(circle.id), Number(third.id)))
+      for (let i = 0; i < 3; i++) {
+        const res = await call('create', { body: { projectId: shared.id, title: `Shared ${i}` }, userId: bea.id })
+        expect(String(res.body.task.groupId)).to.equal(lowest)
+      }
+      const named = await call('create', { body: { projectId: shared.id, groupId: third.id, title: 'In Finance' }, userId: bea.id })
+      expect(named.body.task.groupId).to.equal(Number(third.id))
+      const wrong = await call('create', { body: { projectId: shared.id, groupId: other.id, title: 'Nope' }, userId: bea.id })
+      expect(wrong.statusCode).to.equal(404)
+    })
+
+    it('lists the tasks of all its circles the person is in, and only those', async () => {
+      const both = (await list({ projectId: shared.id }, bea.id)).body.tasks.map(t => t.title)
+      expect(both).to.include.members(['Shared 0', 'In Finance'])
+      const onlyThird = (await list({ projectId: shared.id, groupId: third.id }, bea.id)).body.tasks.map(t => t.title)
+      expect(onlyThird).to.deep.equal(['In Finance'])
+      // Amara is in the first circle only, so she does not see Finance's task
+      const amaraSees = (await list({ projectId: shared.id }, amara.id)).body.tasks.map(t => t.title)
+      expect(amaraSees).to.include('Shared 0')
+      expect(amaraSees).to.not.include('In Finance')
+      expect((await list({ projectId: shared.id }, dan.id)).statusCode).to.equal(404)
+    })
+
+    it('gives the meta with the members of those circles once each', async () => {
+      const res = await call('meta', { query: { projectId: shared.id }, userId: bea.id })
+      expect(res.body.members.map(m => m.name)).to.deep.equal(['Amara', 'Bea', 'Cora'])
+      expect(res.body.project).to.deep.equal({ id: Number(shared.id), name: 'Shared project' })
+    })
+  })
+
+  describe('an unexpected failure', () => {
+    it('gives a server error and does not hang', async () => {
+      const original = Tasks.mine
+      Tasks.mine = async () => { throw new Error('boom') }
+      try {
+        const req = factories.mock.request()
+        req.params = {}; req.query = {}; req.headers = {}
+        req.login(bea.id)
+        const res = factories.mock.response()
+        res.set = () => {}
+        let got = null
+        res.serverError = err => { got = err }
+        await AgoraTasksController.mine(req, res)
+        expect(got).to.be.an('error')
+      } finally {
+        Tasks.mine = original
+      }
     })
   })
 

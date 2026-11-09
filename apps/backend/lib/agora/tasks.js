@@ -212,35 +212,40 @@ async function present (rows, userId) {
   return out
 }
 
-/** The circle a project post is in, among those the person belongs to. */
-async function groupOfProject (projectId, userId, preferredGroupId = null) {
-  const id = cleanId(projectId, 'The project')
+/** The circles a project post is in that the person is an active member of, lowest id first. */
+async function memberGroupsOfProject (projectId, userId) {
   const rows = await knex()('posts')
     .join('groups_posts', 'groups_posts.post_id', 'posts.id')
     .join('groups', 'groups.id', 'groups_posts.group_id')
-    .where({ 'posts.id': id, 'posts.type': 'project', 'posts.active': true, 'groups.active': true })
+    .where({ 'posts.id': projectId, 'posts.type': 'project', 'posts.active': true, 'groups.active': true })
     .pluck('groups_posts.group_id')
-  const wanted = preferredGroupId ? rows.filter(g => String(g) === String(preferredGroupId)) : rows
-  for (const g of wanted) {
-    if (await isGroupMember(userId, g)) return String(g)
-  }
-  throw new TaskError(404, 'This project does not exist.')
+  const mine = new Set(await memberGroupIds(userId))
+  return [...new Set(rows.map(String))].filter(g => mine.has(g)).sort((x, y) => Number(x) - Number(y))
 }
 
-/** Works out the circle (and project) a request is about, and checks the person is a member. */
+/**
+ * Works out what a request is about and checks the person is a member.
+ * groupIds: the circles to read (a project posted in several circles covers all
+ * of those the person is in, unless a circle is named). groupId: the circle to
+ * add to (the named one, else the lowest id, so it never changes between calls).
+ */
 async function resolveScope (userId, { groupId, projectId }) {
   const gid = cleanId(groupId, 'The circle')
   const pid = cleanId(projectId, 'The project')
   if (!gid && !pid) throw new TaskError(400, 'A circle or a project is needed.')
-  let group = gid
-  if (pid) group = await groupOfProject(pid, userId, gid)
-  if (!(await isGroupMember(userId, group))) throw new TaskError(403, 'Tasks are for members of the circle.')
-  return { groupId: group, projectId: pid }
+  if (pid) {
+    const groups = await memberGroupsOfProject(pid, userId)
+    if (gid && !groups.includes(gid)) throw new TaskError(404, 'This project does not exist.')
+    if (!groups.length) throw new TaskError(404, 'This project does not exist.')
+    return { groupId: gid || groups[0], groupIds: gid ? [gid] : groups, projectId: pid }
+  }
+  if (!(await isGroupMember(userId, gid))) throw new TaskError(403, 'Tasks are for members of the circle.')
+  return { groupId: gid, groupIds: [gid], projectId: null }
 }
 
 async function list (userId, { groupId, projectId, mine, includeDone } = {}) {
   const scope = await resolveScope(userId, { groupId, projectId })
-  const query = baseQuery().where('t.group_id', scope.groupId)
+  const query = baseQuery().whereIn('t.group_id', scope.groupIds)
   if (scope.projectId) query.where('t.project_post_id', scope.projectId)
   if (mine) query.whereExists(knex().select(knex().raw('1')).from('agora_task_assignees as a').whereRaw('a.task_id = t.id').where('a.user_id', userId))
   hideOldDone(query, includeDone)
@@ -270,9 +275,10 @@ async function meta (userId, { groupId, projectId } = {}) {
   }
   const members = await knex()('group_memberships as m')
     .join('users as u', 'u.id', 'm.user_id')
-    .where({ 'm.group_id': scope.groupId, 'm.active': true, 'u.active': true })
-    .orderByRaw('lower(u.name) asc')
+    .whereIn('m.group_id', scope.groupIds).where({ 'm.active': true, 'u.active': true })
+    .orderByRaw('lower(u.name) asc').orderBy('u.id', 'asc')
     .select('u.id', 'u.name', 'u.avatar_url')
+    .groupBy('u.id')
   const projects = await knex()('posts')
     .join('groups_posts', 'groups_posts.post_id', 'posts.id')
     .where({ 'groups_posts.group_id': scope.groupId, 'posts.type': 'project', 'posts.active': true })
@@ -389,14 +395,14 @@ async function update (userId, taskId, input = {}) {
     changes.status = cleanStatus(input.status)
     if (changes.status === 'done' && row.status !== 'done') changes.completed_at = new Date()
     if (changes.status !== 'done') changes.completed_at = null
-    if (changes.status !== row.status && input.position === undefined) {
-      changes.position = await endOfColumn(knex(), row.group_id, changes.status)
-    }
   }
   if (input.position !== undefined) changes.position = cleanPosition(input.position)
   if (input.projectId !== undefined) changes.project_post_id = await cleanProject(input.projectId, row.group_id)
   const assignees = input.assigneeIds !== undefined ? await cleanAssignees(input.assigneeIds, row.group_id) : null
   await knex().transaction(async trx => {
+    if (changes.status && changes.status !== row.status && input.position === undefined) {
+      changes.position = await endOfColumn(trx, row.group_id, changes.status)
+    }
     await trx('agora_tasks').where({ id: row.id }).update({ ...changes, updated_at: new Date() })
     if (assignees) await setAssignees(trx, row.id, assignees)
   })
