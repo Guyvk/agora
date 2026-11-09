@@ -8,7 +8,9 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 
 | File | What changed |
 | --- | --- |
-| `CLAUDE.md` | One line at the top: in the cloud, read `AGORA-CLOUD.md` first |
+| `CLAUDE.md` | Loads Agora's `AGENTS.md` at the top (its rules win). Hylo's GitHub, ticket-to-PR and autonomous issue workflow sections are replaced by a short Agora note; commands, testing and screenshot tips and conventions are kept |
+| `.cursorrules` | One line at the top: read `AGENTS.md` first |
+| `.claude/agents/hylo-worker.md` | Removed: it picked up issues on Hylo's GitHub and opened pull requests there |
 | `apps/backend/api/services/Email.js` | Uses Agora's own email sender when no SendWithUs key is set (kept next to Hylo's rule that tests never send email) |
 | `apps/backend/api/models/post/createPost.js` | A new event always gets its meeting room as its video call link, whatever was sent, and a link to another video call platform is refused as its location. For an event, the step that decides who is told is no longer queued here (see `Post.js`) |
 | `apps/backend/api/models/Post.js` | `processEventCreated` queues the step that decides who is told after the invitations exist, so invitees get an invitation and not only a new post notice. `addFollowers` compares user ids as strings, so someone who already follows a post (passed as a number, e.g. from a script or an email reply) is no longer added twice, which made their comment fail halfway |
@@ -198,10 +200,13 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/ChatRoom/ChatRoom.js`, `Members/Members.js`, `Groups/Groups.jsx`, `MapExplorer/MapExplorer.js`, `OAuth/OAuthLayoutRouter.js`, `NonAuthLayoutRouter/NonAuthLayoutRouter.js`, `PostDetail/PostDetail.js`, `AuthLayoutRouter/AuthLayoutRouter.js`, `apps/web/src/router/index.js`, `apps/web/src/server/postMetaTags.js` (with its test), `apps/web/public/manifest.json`, `apps/web/index.html`, `apps/web/public/locales/*.json` (tab titles) | The browser tab says Agora on every page and while a page loads (for example "Chat \| Governance \| Agora"), shared links name Agora as the site, the home screen name is Agora, and the sign-in, sign-up and password reset tab titles say Agora in every language. The name comes from `apps/web/src/agora/appName.js` |
 | `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (kDrive) | The addresses of the circle Files pages when the files are in Infomaniak kDrive (list, download, add, new folder, rename, delete), for anyone logged in; each one checks that the person is a member of the circle |
 | `apps/backend/migrations/schema.sql` (kDrive) | The two kDrive tables: which folder belongs to which circle, and who added which file |
+| `apps/backend/config/routes.js`, `apps/backend/config/policies.js` (tasks) | The addresses of tasks in a circle (list, my tasks, meta, show, add, change, move, delete, restore, comments), for anyone logged in; each one checks that the person is a member of the circle |
+| `apps/backend/migrations/schema.sql` (tasks) | The three task tables: `agora_tasks`, `agora_task_assignees` and `agora_task_comments` |
 | `apps/backend/.env.example` (kDrive) | The four kDrive settings (`AGORA_KDRIVE_TOKEN`, `AGORA_KDRIVE_DRIVE_ID`, `AGORA_KDRIVE_ROOT_FOLDER_ID`, `AGORA_KDRIVE_MAX_UPLOAD_MB`), empty |
 | `apps/web/public/locales/*.json (kDrive)` | Two new texts in the admin area's System tab, "kDrive (circle files)" and "No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing", in every language |
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
+| `apps/web/src/agora/tasks/` (new), `apps/web/src/routes/PostDetail/PostDetail.js` (tasks) | A Tasks part on a project's page (project posts only): a board (To do, Doing, Done, drag to move) and a list, a side panel for one task with comments, and Undo after delete. It talks to the tasks addresses above, so it needs them to be merged too; for someone who is not a member of the circle it shows a quiet line. In `PostDetail.js` only an import and one line that mounts it |
 
 ## Files that are new
 
@@ -262,6 +267,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/web/src/agora/files/FolderPicker.jsx`, `FileViewer.jsx`, `api.js`, `helpers.js` (the kDrive side of the Resources page: folders with a clickable path, a pop-up viewer for PDF, pictures, text, sound and video (`AgoraKdriveController.js` shows only those, with `?view=1`), download, add files, new folder, Google document links, rename, delete, move by dragging or with a folder picker, select several, sort by column; `apps/web/src/routes/SpaceContent/SpaceContent.js` has the one new route `files` for a space; the old `kdrive-files.html` is gone, `AgoraFilesController.js` sends the old address to the new page; `config/routes.js` has the new address `/kd/move`; `kdrive.js` has the move call; `kdriveCircles.js` has `moveItem`, the path of a folder and who added what when)
 - `apps/backend/lib/agora/mainCircle.js`, `apps/backend/api/graphql/agora/mainCircle.js` and `.graphql`, `apps/backend/test/unit/agora/mainCircle.test.js`, `apps/web/src/agora/mainCircle/` (the 7BP Home look: which circle is the main one and its active children, the left bar order, the header pill and "Part of 7BP" link, the "Every circle in 7BP" cards, with tests)
 - `apps/backend/migrations/20261029120000_add_agora_claim_proposals.js`, `apps/web/src/agora/claim/ProposedProfileBanner.jsx`, `apps/web/src/agora/claim/ProposedProfileBanner.test.js` (propose a profile to a member)
+- `apps/backend/migrations/20261109120000_add_agora_tasks.js`, `apps/backend/lib/agora/tasks.js`, `apps/backend/api/controllers/AgoraTasksController.js`, `apps/backend/test/unit/agora/tasks.test.js` (tasks in a circle, optionally in a project: status columns, assignees, due date, comments; server only, no screen yet)
 
 ## Hylo sync of 3 November 2026
 

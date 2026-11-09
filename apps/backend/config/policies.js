@@ -86,6 +86,11 @@ module.exports.policies = {
     '*': 'sessionAuth'
   },
 
+  // Agora tasks: for anyone logged in. Every action checks membership of the circle.
+  AgoraTasksController: {
+    '*': 'sessionAuth'
+  },
+
   // Agora: claiming a profile. Reading it needs only the claim link's secret (the person
   // may have no account yet); claiming it needs a login (lib/agora/claims.js).
   AgoraClaimController: {
