@@ -120,43 +120,43 @@ describe('Agora Build page', () => {
 
   it('shows the four columns with owner, circle and pull request badges', async () => {
     const res = await call('board', { userId: amara.id })
-    res.statusCode.should.equal(200)
+    expect(res.statusCode).to.equal(undefined) // res.ok does not set a status in the mock
     const board = res.body
-    board.configured.should.equal(true)
-    board.columns.map(c => c.name).should.deepEqual(['To do', 'Doing', 'In review', 'Live'])
-    board.columns[0].cards.map(c => c.number).should.deepEqual([1])
-    board.columns[1].cards.map(c => c.number).should.deepEqual([2, 7])
-    board.columns[1].cards[1].prs[0].state.should.equal('draft')
-    board.columns[0].cards[0].owner.should.equal('Nana')
-    board.columns[0].cards[0].circle.should.equal('Tech Support')
+    expect(board.configured).to.equal(true)
+    expect(board.columns.map(c => c.name)).to.deep.equal(['To do', 'Doing', 'In review', 'Live'])
+    expect(board.columns[0].cards.map(c => c.number)).to.deep.equal([1])
+    expect(board.columns[1].cards.map(c => c.number)).to.deep.equal([2, 7])
+    expect(board.columns[1].cards[1].prs[0].state).to.equal('draft')
+    expect(board.columns[0].cards[0].owner).to.equal('Nana')
+    expect(board.columns[0].cards[0].circle).to.equal('Tech Support')
     const review = board.columns[2].cards[0]
-    review.prs[0].state.should.equal('merged')
-    review.mergedGoesLive.should.equal(true)
+    expect(review.prs[0].state).to.equal('merged')
+    expect(review.mergedGoesLive).to.equal(true)
   })
 
   it('lists what went live in the last 14 days, newest first', async () => {
     const res = await call('board', { userId: amara.id })
-    res.body.wentLive.map(c => c.number).should.deepEqual([5, 4])
+    expect(res.body.wentLive.map(c => c.number)).to.deep.equal([5, 4])
   })
 
   it('lists new Help desk requests that no card mentions', async () => {
     const res = await call('board', { userId: amara.id })
-    res.body.helpDesk.map(r => r.id).sort().should.deepEqual([helpIds['Login is slow'], helpIds['Wish for dark mode']].sort())
+    expect(res.body.helpDesk.map(r => r.id).sort()).to.deep.equal([helpIds['Login is slow'], helpIds['Wish for dark mode']].sort())
   })
 
   it('shows only number, type and date of a Help desk request, never its text', async () => {
     const res = await call('board', { userId: amara.id })
-    res.body.helpDesk.forEach(r => Object.keys(r).sort().should.deepEqual(['createdAt', 'id', 'type']))
-    JSON.stringify(res.body.helpDesk).should.not.containEql('Login is slow')
+    res.body.helpDesk.forEach(r => expect(Object.keys(r).sort()).to.deep.equal(['createdAt', 'id', 'type']))
+    expect(JSON.stringify(res.body.helpDesk)).to.not.include('Login is slow')
   })
 
   it('tells the page whether the person may open the Help desk', async () => {
     let res = await call('board', { userId: amara.id })
-    res.body.canOpenHelpDesk.should.equal(false)
+    expect(res.body.canOpenHelpDesk).to.equal(false)
     process.env.AGORA_HELPDESK_ADMINS = String(amara.id)
     try {
       res = await call('board', { userId: amara.id })
-      res.body.canOpenHelpDesk.should.equal(true)
+      expect(res.body.canOpenHelpDesk).to.equal(true)
     } finally {
       delete process.env.AGORA_HELPDESK_ADMINS
     }
@@ -165,62 +165,62 @@ describe('Agora Build page', () => {
   it('keeps one copy for 5 minutes and limits forced refreshes to one a minute', async () => {
     await call('board', { userId: amara.id })
     await call('board', { userId: amara.id })
-    reads().length.should.equal(1)
+    expect(reads().length).to.equal(1)
     await call('board', { userId: amara.id, query: { refresh: '1' } })
-    reads().length.should.equal(2)
+    expect(reads().length).to.equal(2)
     await call('board', { userId: amara.id, query: { refresh: '1' } })
-    reads().length.should.equal(2)
+    expect(reads().length).to.equal(2)
   })
 
   it('says the board is not connected without a token, and never calls GitHub', async () => {
     delete process.env.AGORA_GITHUB_BOARD_TOKEN
     const res = await call('board', { userId: amara.id })
-    res.statusCode.should.equal(200)
-    res.body.configured.should.equal(false)
-    res.body.boardUrl.should.match(/github\.com/)
-    calls.length.should.equal(0)
+    expect(res.statusCode).to.equal(undefined) // res.ok does not set a status in the mock
+    expect(res.body.configured).to.equal(false)
+    expect(res.body.boardUrl).to.match(/github\.com/)
+    expect(calls.length).to.equal(0)
   })
 
   it('answers 502 when GitHub is down and there is no copy', async () => {
     github.down = true
     const res = await call('board', { userId: amara.id })
-    res.statusCode.should.equal(502)
+    expect(res.statusCode).to.equal(502)
   })
 
   it('shows the last copy with a warning when GitHub goes down', async () => {
     await call('board', { userId: amara.id })
     github.down = true
     const res = await call('board', { userId: amara.id, query: { refresh: '1' } })
-    res.statusCode.should.equal(200)
-    res.body.warning.should.match(/GitHub/)
-    res.body.columns[0].cards.length.should.equal(1)
+    expect(res.statusCode).to.equal(undefined) // res.ok does not set a status in the mock
+    expect(res.body.warning).to.match(/GitHub/)
+    expect(res.body.columns[0].cards.length).to.equal(1)
   })
 
   it('never puts the token in an answer', async () => {
     const res = await call('board', { userId: amara.id })
-    JSON.stringify(res.body).should.not.containEql('pretend-token')
+    expect(JSON.stringify(res.body)).to.not.include('pretend-token')
   })
 
   it('answers 401 when logged out', async () => {
     for (const action of ['board', 'access']) {
-      (await call(action)).statusCode.should.equal(401)
+      expect((await call(action)).statusCode).to.equal(401)
     }
-    ;(await call('move', { body: { itemId: 'I1', status: 'Doing' } })).statusCode.should.equal(401)
+    expect((await call('move', { body: { itemId: 'I1', status: 'Doing' } })).statusCode).to.equal(401)
   })
 
   it('answers 403 to someone who is not in the Build circle, and to nobody when no circle is set', async () => {
-    ;(await call('board', { userId: dan.id })).statusCode.should.equal(403)
-    ;(await call('move', { userId: dan.id, body: { itemId: 'I1', status: 'Doing' } })).statusCode.should.equal(403)
+    expect((await call('board', { userId: dan.id })).statusCode).to.equal(403)
+    expect((await call('move', { userId: dan.id, body: { itemId: 'I1', status: 'Doing' } })).statusCode).to.equal(403)
     delete process.env.AGORA_BUILD_CIRCLE
-    ;(await call('board', { userId: amara.id })).statusCode.should.equal(403)
+    expect((await call('board', { userId: amara.id })).statusCode).to.equal(403)
     const access = await call('access', { userId: amara.id })
-    access.body.allowed.should.equal(false)
+    expect(access.body.allowed).to.equal(false)
   })
 
   it('does not let Agora admins in unless they are in the circle', async () => {
     process.env.AGORA_ADMINS = String(admin.id)
     try {
-      ;(await call('board', { userId: admin.id })).statusCode.should.equal(403)
+      expect((await call('board', { userId: admin.id })).statusCode).to.equal(403)
     } finally {
       delete process.env.AGORA_ADMINS
     }
@@ -228,30 +228,30 @@ describe('Agora Build page', () => {
 
   it('tells members whether they may see the page', async () => {
     const res = await call('access', { userId: amara.id })
-    res.body.should.deepEqual({ allowed: true, circle: 'tech-support' })
+    expect(res.body).to.deep.equal({ allowed: true, circle: 'tech-support' })
   })
 
   it('moves a card with the right mutation, then reads the board again', async () => {
     await call('board', { userId: amara.id })
     const res = await call('move', { userId: amara.id, body: { itemId: 'I2', status: 'In review' } })
-    res.statusCode.should.equal(200)
+    expect(res.statusCode).to.equal(undefined) // res.ok does not set a status in the mock
     const mutation = calls.find(c => c.body.query.includes('updateProjectV2ItemFieldValue'))
-    mutation.body.variables.should.deepEqual({ project: 'P1', item: 'I2', field: 'F1', option: 'o3' })
-    mutation.headers.Authorization.should.equal('Bearer pretend-token')
-    reads().length.should.equal(2)
+    expect(mutation.body.variables).to.deep.equal({ project: 'P1', item: 'I2', field: 'F1', option: 'o3' })
+    expect(mutation.headers.Authorization).to.equal('Bearer pretend-token')
+    expect(reads().length).to.equal(2)
   })
 
   it('refuses a move from outside the page, an unknown column and an unknown card', async () => {
-    ;(await call('move', { userId: amara.id, fromPage: false, body: { itemId: 'I2', status: 'Doing' } })).statusCode.should.equal(400)
-    ;(await call('move', { userId: amara.id, body: { itemId: 'I2', status: 'Nowhere' } })).statusCode.should.equal(400)
-    ;(await call('move', { userId: amara.id, body: { itemId: 'NOPE', status: 'Doing' } })).statusCode.should.equal(404)
-    calls.filter(c => c.body.query.includes('updateProjectV2ItemFieldValue')).length.should.equal(0)
+    expect((await call('move', { userId: amara.id, fromPage: false, body: { itemId: 'I2', status: 'Doing' } })).statusCode).to.equal(400)
+    expect((await call('move', { userId: amara.id, body: { itemId: 'I2', status: 'Nowhere' } })).statusCode).to.equal(400)
+    expect((await call('move', { userId: amara.id, body: { itemId: 'NOPE', status: 'Doing' } })).statusCode).to.equal(404)
+    expect(calls.filter(c => c.body.query.includes('updateProjectV2ItemFieldValue')).length).to.equal(0)
   })
 
   it('answers 502 when GitHub refuses the move', async () => {
     github.moveFails = true
     const res = await call('move', { userId: amara.id, body: { itemId: 'I2', status: 'Doing' } })
-    res.statusCode.should.equal(502)
+    expect(res.statusCode).to.equal(502)
   })
 
   it('tells Agora admins in the admin area when the page is off', async () => {
@@ -259,10 +259,10 @@ describe('Agora Build page', () => {
     try {
       delete process.env.AGORA_BUILD_CIRCLE
       let system = await AdminDashboard.system(admin.id)
-      system.services.buildPage.should.deepEqual({ circle: null, connected: true })
+      expect(system.services.buildPage).to.deep.equal({ circle: null, connected: true })
       process.env.AGORA_BUILD_CIRCLE = 'tech-support'
       system = await AdminDashboard.system(admin.id)
-      system.services.buildPage.circle.should.equal('tech-support')
+      expect(system.services.buildPage.circle).to.equal('tech-support')
     } finally {
       delete process.env.AGORA_ADMINS
     }
