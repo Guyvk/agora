@@ -4,7 +4,7 @@
  * old and new shapes, matching names to members, reading an Actions list from a post.
  * No database needed for these checks.
  */
-import { whoList, whoText, normalizeAction, matchName, matchNames, parseActionsHtml } from '../../../lib/agora/minutesActions'
+import { whoList, whoText, normalizeAction, matchName, matchNames, isGuestName, parseActionsHtml } from '../../../lib/agora/minutesActions'
 import MeetingMinutes from '../../../api/services/MeetingMinutes'
 
 describe('Agora minutes actions', () => {
@@ -23,7 +23,14 @@ describe('Agora minutes actions', () => {
       expect(whoList('Mariam and Zenab')).to.deep.equal(['Mariam', 'Zenab'])
       expect(whoList('Mariam, Zenab')).to.deep.equal(['Mariam', 'Zenab'])
       expect(whoList(undefined)).to.deep.equal([])
-      expect(whoList(['Mariam and Zenab'])).to.deep.equal(['Mariam and Zenab'])
+      expect(whoList(['Mariam and Zenab'])).to.deep.equal(['Mariam', 'Zenab'])
+      expect(whoList(['Mariam & Zenab', 'Lars'])).to.deep.equal(['Mariam', 'Zenab', 'Lars'])
+      expect(whoList(['Mariam, Zenab'])).to.deep.equal(['Mariam', 'Zenab'])
+    })
+
+    it('keeps initials whole', () => {
+      expect(whoList(['E. Smith'])).to.deep.equal(['E. Smith'])
+      expect(whoList('E. Smith and J. Doe')).to.deep.equal(['E. Smith', 'J. Doe'])
     })
 
     it('joins names with " and " for the minutes post', () => {
@@ -76,13 +83,31 @@ describe('Agora minutes actions', () => {
     })
 
     it('understands "everyone"', () => {
-      for (const word of ['Everyone', 'all', 'We all', 'iedereen', 'Alle']) {
+      for (const word of ['Everyone', 'all', 'We all', 'iedereen', 'Alle', 'wir alle']) {
         expect(matchNames([word], members).everyone, word).to.equal(true)
       }
     })
 
     it('never matches a guest: guests are not in the list of members', () => {
       expect(matchName('Gina (guest)', members)).to.equal(null)
+    })
+
+    it('never matches a member to a guest, by the (guest) mark or by the guest names of the session', () => {
+      expect(isGuestName('Gina (guest)')).to.equal(true)
+      expect(isGuestName('Gina ( Guest )')).to.equal(true)
+      expect(isGuestName('Lars', ['Lars (guest)'])).to.equal(true)
+      expect(isGuestName('Mariam', ['Gina'])).to.equal(false)
+      // a guest called Lars is not the member Lars Peters, and "Mariam (guest)" is not Mariam
+      expect(matchNames(['Lars Peters'], members, ['Lars Peters']).people).to.deep.equal([])
+      expect(matchNames(['Mariam (guest)'], members).people).to.deep.equal([])
+      expect(matchNames(['Mariam'], members, ['Gina']).people.map(p => p.id)).to.deep.equal(['1'])
+    })
+
+    it('tries a member first and only then the everyone words', () => {
+      const withAll = [...members, { id: '9', name: 'All' }, { id: '10', name: 'Everyone Smith' }]
+      expect(matchNames(['All'], withAll)).to.deep.equal({ everyone: false, people: [withAll[5]] })
+      expect(matchNames(['Everyone'], withAll)).to.deep.equal({ everyone: false, people: [withAll[6]] })
+      expect(matchNames(['Everyone'], members)).to.deep.equal({ everyone: true, people: [] })
     })
   })
 

@@ -468,11 +468,11 @@ const TEMPLATES = {
 
   // Someone put you on a task (lib/agora/taskNotify.js)
   agora_task_assigned: data => compose({
-    subject: `You are on a task: ${data.title}`,
-    lines: [
-      `${data.by || 'Someone'} put you on the task "${data.title}"${data.group ? ` in ${data.group}` : ''}.`
-    ],
-    button: data.url ? { label: 'Open the task', url: data.url } : null,
+    subject: data.items ? `You are on ${data.items.length} tasks` : `You are on a task: ${data.title}`,
+    lines: data.items
+      ? [`${data.by || 'Someone'} put you on these tasks:`, data.items.map(i => `- ${i}`).join('\n')]
+      : [`${data.by || 'Someone'} put you on the task "${data.title}"${data.group ? ` in ${data.group}` : ''}.`],
+    button: data.url ? { label: data.items ? 'Open My tasks' : 'Open the task', url: data.url } : null,
     footer: `You get this email because you are a member of the circle. You can switch email off for the circle in your ${APP_NAME} settings.`
   }),
 

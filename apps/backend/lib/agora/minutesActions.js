@@ -9,7 +9,7 @@
 
 const EVERYONE = new Set([
   'everyone', 'everybody', 'all', 'we all', 'all of us', 'the group', 'the whole group', 'everyone present', 'all present', 'all members',
-  'iedereen', 'allemaal', 'wij allemaal', 'allen', 'alle aanwezigen',
+  'iedereen', 'allemaal', 'wij allemaal', 'alle aanwezigen',
   'alle', 'alle anwesenden', 'wir alle', 'jeder', 'alle zusammen',
   'todos', 'todo el mundo', 'todas',
   'tous', 'tout le monde', 'nous tous', 'toutes',
@@ -24,8 +24,9 @@ function whoList (who) {
     if (part == null) continue
     const text = String(part).trim()
     if (!text) continue
-    // A single text can name two people: "Mariam and Zenab", "Mariam, Zenab", "Mariam & Zenab"
-    for (const piece of Array.isArray(who) ? [text] : text.split(/\s*(?:,|;|&|\/|\band\b|\ben\b|\bund\b|\by\b|\bet\b|\be\b)\s*/i)) {
+    // One entry can name two people: "Mariam and Zenab", "Mariam, Zenab", "Mariam & Zenab".
+    // The word must stand alone, so initials such as "E. Smith" stay whole.
+    for (const piece of text.split(/\s*[,;&/]\s*|\s+(?:and|en|und|y|et|e)\s+/i)) {
       const name = piece.trim()
       if (name) out.push(name)
     }
@@ -65,6 +66,14 @@ function fold (value) {
     .trim()
 }
 
+/** A name that is a guest's: it ends in "(guest)", or it is one of the session's guest names. */
+function isGuestName (name, guestNames = []) {
+  const raw = String(name == null ? '' : name).trim()
+  if (/\(\s*guest\s*\)\s*$/i.test(raw)) return true
+  const n = fold(raw)
+  return Boolean(n) && guestNames.some(g => fold(String(g).replace(/\(\s*guest\s*\)\s*$/i, '')) === n)
+}
+
 function isEveryone (name) {
   return EVERYONE.has(fold(name))
 }
@@ -94,18 +103,26 @@ function matchName (name, members) {
 }
 
 /**
- * The people of one action point.
+ * The people of one action point. A member who fits wins; the "everyone" words only count for
+ * a name that fits no member. A guest's name never matches a member.
+ * @param {string|string[]} names
+ * @param {Array<{id, name}>} members  only people who were in the meeting
+ * @param {string[]} [guestNames]  the guests of that meeting
  * @returns {{ everyone: boolean, people: Array<{id, name}> }}  everyone: it was for all present
  */
-function matchNames (names, members) {
-  const list = whoList(names)
-  if (list.some(isEveryone)) return { everyone: true, people: [] }
+function matchNames (names, members, guestNames = []) {
   const people = []
-  for (const name of list) {
+  let everyone = false
+  for (const name of whoList(names)) {
+    if (isGuestName(name, guestNames)) continue
     const found = matchName(name, members)
-    if (found && !people.some(p => String(p.id) === String(found.id))) people.push(found)
+    if (found) {
+      if (!people.some(p => String(p.id) === String(found.id))) people.push(found)
+    } else if (isEveryone(name)) {
+      everyone = true
+    }
   }
-  return { everyone: false, people }
+  return everyone ? { everyone: true, people: [] } : { everyone: false, people }
 }
 
 function decodeEntities (html) {
@@ -144,4 +161,4 @@ function parseActionsHtml (html) {
   return out
 }
 
-module.exports = { whoList, whoText, normalizeAction, matchName, matchNames, isEveryone, parseActionsHtml, cleanDue }
+module.exports = { whoList, whoText, normalizeAction, matchName, matchNames, isEveryone, isGuestName, parseActionsHtml, cleanDue }

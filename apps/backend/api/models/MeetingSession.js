@@ -241,7 +241,7 @@ module.exports = bookshelf.Model.extend({
         // Agora: the circle's open projects, so an action can name its project
         let projects = []
         try {
-          projects = await TaskSuggestions.openProjects(String(Math.min(...groups.map(g => Number(g.id)))))
+          projects = await TaskSuggestions.openProjects(await TaskSuggestions.groupOfPost(event.id))
         } catch (err) {
           sails.log.error(`MeetingSession.finalize: could not list projects for session ${sessionId}: ${err.message}`)
         }

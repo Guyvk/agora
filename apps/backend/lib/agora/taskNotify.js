@@ -98,4 +98,26 @@ async function assigned ({ task, userIds, byUserId }) {
   }
 }
 
-module.exports = { suggested, assigned, mailable, setSender }
+/**
+ * Several tasks at once (add all): one email per person listing their tasks, not to the person
+ * who did it. byPerson: { userId: [task titles] }.
+ */
+async function assignedMany ({ groupId, byUserId, byPerson }) {
+  try {
+    const ids = Object.keys(byPerson).filter(id => String(id) !== String(byUserId))
+    const people = await mailable(ids, groupId)
+    if (!people.length) return
+    const by = byUserId ? await knex()('users').where({ id: byUserId }).first('name') : null
+    for (const person of people) {
+      try {
+        await send(person, 'agora_task_assigned', { items: byPerson[String(person.id)] || [], by: by ? by.name : null, url: appUrl('/my-tasks') })
+      } catch (err) {
+        console.error('Agora tasks: an assignment email could not be sent:', err && err.message)
+      }
+    }
+  } catch (err) {
+    console.error('Agora tasks: assignment emails stopped:', err && err.message)
+  }
+}
+
+module.exports = { suggested, assigned, assignedMany, mailable, setSender }

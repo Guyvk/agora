@@ -6,7 +6,7 @@
  * Posts that already have suggestions are skipped. Nobody is emailed about old meetings.
  */
 const TaskSuggestions = require('./taskSuggestions')
-const { parseActionsHtml, whoList, matchName, isEveryone } = require('./minutesActions')
+const { parseActionsHtml, whoList, matchName, isEveryone, isGuestName } = require('./minutesActions')
 
 const knex = () => bookshelf.knex
 
@@ -23,16 +23,18 @@ async function backfill ({ apply = false, log = () => {} } = {}) {
     const actions = parseActionsHtml(s.description)
     if (!actions.length) continue
     result.posts++
-    const groupRow = await knex()('groups_posts').where({ post_id: s.minutes_post_id }).min('group_id as id').first()
-    const members = groupRow && groupRow.id ? await TaskSuggestions.presentMembers(s.session_id, String(groupRow.id)) : []
+    const groupId = await TaskSuggestions.groupOfPost(s.minutes_post_id)
+    const members = groupId ? await TaskSuggestions.presentMembers(s.session_id, groupId) : []
+    const guestNames = await TaskSuggestions.guestNamesOf(s.session_id)
     log(`Post ${s.minutes_post_id} (${s.post_name}): ${actions.length} action point(s), ${members.length} member(s) present.`)
     for (const a of actions) {
       result.actions++
       const names = whoList(a.who)
       const shown = names.map(n => {
-        if (isEveryone(n)) return `${n} -> everyone present (${members.length} suggestion(s))`
+        if (isGuestName(n, guestNames)) return `${n} -> no match (guest)`
         const m = matchName(n, members)
-        return `${n} -> ${m ? `${m.id} ${m.name}` : 'no match'}`
+        if (m) return `${n} -> ${m.id} ${m.name}`
+        return isEveryone(n) ? `${n} -> everyone present (${members.length} suggestion(s))` : `${n} -> no match`
       })
       log(`  ${shown.join('; ') || '(no name)'} | ${a.what}${a.due ? ` | due ${a.due}` : ''}`)
     }

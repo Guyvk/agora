@@ -348,7 +348,7 @@ async function setAssignees (trx, taskId, ids) {
 }
 
 /** source: { meetingSessionId, minutesPostId } when the task comes from meeting minutes (taskSuggestions.js). */
-async function create (userId, input = {}, source = {}) {
+async function create (userId, input = {}, source = {}, options = {}) {
   const scope = await resolveScope(userId, input)
   const title = cleanTitle(input.title)
   const description = cleanDescription(input.description)
@@ -380,7 +380,7 @@ async function create (userId, input = {}, source = {}) {
   })
   const task = await presentOne(userId, taskId)
   // Agora: tell the people put on it (in the background; never stops the request)
-  TaskNotify.assigned({ task, userIds: assignees, byUserId: userId })
+  if (options.notify !== false) TaskNotify.assigned({ task, userIds: assignees, byUserId: userId })
   return task
 }
 

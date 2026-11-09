@@ -347,6 +347,63 @@ describe('Agora task suggestions', () => {
     })
   })
 
+  describe('which circle the suggestions go to', () => {
+    it('uses the main circle when the post is in it, else the circle the post was made in first (not the lowest id)', async () => {
+      const first = await new Group({ slug: 'zeta', name: 'Zeta' }).save() // made later, so a higher id...
+      const second = await new Group({ slug: 'alpha', name: 'Alpha' }).save()
+      const post = await factories.post({ name: 'Two circles', type: 'discussion', user_id: amara.id }).save()
+      // ...but the post was made in zeta first, then also put in alpha, then in the circle with the lowest id
+      for (const g of [first, second, circle]) await knex()('groups_posts').insert({ post_id: post.id, group_id: g.id })
+      expect(await Suggestions.groupOfPost(post.id)).to.equal(String(first.id))
+      const main = await new Group({ slug: '7bp', name: '7 Billion Presidents' }).save()
+      await knex()('groups_posts').insert({ post_id: post.id, group_id: main.id })
+      expect(await Suggestions.groupOfPost(post.id)).to.equal(String(main.id))
+      expect(await Suggestions.groupOfPost('99999999')).to.equal(null)
+    })
+
+    it('uses that circle for the people who count and for the suggestions', async () => {
+      const m = await makeMinutes({ name: 'Joint', participants: [hana, bea] })
+      const quiet = await new Group({ slug: 'quiet', name: 'Quiet' }).save()
+      await bea.joinGroup(quiet)
+      // the minutes post is also in a second circle added later: the first one stays
+      await knex()('groups_posts').insert({ post_id: m.minutesPost.id, group_id: quiet.id })
+      await Suggestions.createFromMinutes({ sessionId: m.sessionId, minutesPostId: m.minutesPost.id, actions: [{ who: ['Hana', 'Bea'], what: 'Joint job' }], notify: false })
+      const rows = await knex()('agora_task_suggestions').where({ minutes_post_id: m.minutesPost.id })
+      expect(String(rows[0].group_id)).to.equal(String(circle.id))
+    })
+  })
+
+  describe('guests and add all emails', () => {
+    it('does not match a member to a guest of the same name', async () => {
+      const m = await makeMinutes({ name: 'Guest match', participants: [hana, bea], guests: ['Bea'] })
+      const { created } = await Suggestions.createFromMinutes({ sessionId: m.sessionId, minutesPostId: m.minutesPost.id, actions: [{ who: ['Bea'], what: 'Guest named Bea' }, { who: ['Bea (guest)'], what: 'Marked guest' }], notify: false })
+      expect(created.map(c => c.people.length)).to.deep.equal([0, 0])
+    })
+
+    it('sends one email per person for add all, not one per task, and none to the person who pressed it', async () => {
+      const m = await makeMinutes({ name: 'Batch', participants: [hana, mariam, zenab] })
+      await Suggestions.createFromMinutes({ sessionId: m.sessionId, minutesPostId: m.minutesPost.id, notify: false, actions: [
+        { who: ['Mariam'], what: 'B1' }, { who: ['Mariam', 'Zenab'], what: 'B2' }, { who: ['Amara'], what: 'B3 nobody' }, { who: ['Zenab'], what: 'B4' }
+      ] })
+      const before = sent.length
+      const res = await acceptAll(m.minutesPost.id, hana.id)
+      expect(res.body.tasks).to.have.length(3)
+      await new Promise(resolve => setTimeout(resolve, 400))
+      const mails = sent.slice(before).filter(x => x.email_id === 'agora_task_assigned')
+      expect(mails.map(x => x.recipient.address).sort()).to.deep.equal(['mariam@sugg.test', 'zenab@sugg.test'])
+      expect(mails.find(x => x.recipient.address === 'mariam@sugg.test').email_data.items).to.have.members(['B1', 'B2'])
+      expect(mails.find(x => x.recipient.address === 'zenab@sugg.test').email_data.items).to.have.members(['B2', 'B4'])
+    })
+
+    it('keeps everyone who is named when a task is added with no people given', async () => {
+      const m = await makeMinutes({ name: 'Default people', participants: [hana, mariam, zenab] })
+      await Suggestions.createFromMinutes({ sessionId: m.sessionId, minutesPostId: m.minutesPost.id, notify: false, actions: [{ who: ['Mariam', 'Zenab'], what: 'Both of us' }] })
+      const s = (await listFor(m.minutesPost.id)).body.suggestions[0]
+      const res = await accept(s.id, {}, mariam.id)
+      expect(res.body.task.assignees.map(a => a.name).sort()).to.deep.equal(['Mariam:)', 'zenab suleiman'])
+    })
+  })
+
   describe('the backfill', () => {
     it('prints what it would do and writes nothing without --apply, then writes once with it', async () => {
       const html = '<h3>Actions</h3><ul><li><strong>Mariam</strong>: Old job (by 2026-10-30)</li><li><strong>Everyone</strong>: Read it</li><li><strong>Nobody</strong>: Lost job</li></ul>'

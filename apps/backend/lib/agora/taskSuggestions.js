@@ -19,6 +19,7 @@
 const Tasks = require('./tasks')
 const TaskNotify = require('./taskNotify')
 const { normalizeAction, matchNames, whoText } = require('./minutesActions')
+const { findMainGroup } = require('./mainGroup')
 
 const { TaskError } = Tasks
 const knex = () => bookshelf.knex
@@ -42,10 +43,26 @@ async function presentMembers (sessionId, groupId) {
   return rows.filter(r => !seen.has(String(r.id)) && seen.add(String(r.id))).map(r => ({ id: String(r.id), name: r.name }))
 }
 
-/** The circle the suggestions belong to: the lowest id of the circles the minutes post is in. */
+/**
+ * The circle the suggestions of a post belong to when the post is in several circles: the 7BP
+ * main circle if it is one of them, else the circle the post was made in first (the earliest
+ * groups_posts row). One circle is used for the people who count, the projects, the picker
+ * and who may decide.
+ */
 async function groupOfPost (postId) {
-  const row = await knex()('groups_posts').where({ post_id: postId }).min('group_id as id').first()
-  return row && row.id ? String(row.id) : null
+  const rows = await knex()('groups_posts').where({ post_id: postId }).orderBy('id', 'asc').pluck('group_id')
+  if (!rows.length) return null
+  if (rows.length > 1) {
+    const main = await findMainGroup()
+    if (main && rows.map(String).includes(String(main.id))) return String(main.id)
+  }
+  return String(rows[0])
+}
+
+/** The names of the guests of a meeting (they are never matched to members). */
+async function guestNamesOf (sessionId) {
+  if (!sessionId) return []
+  return knex()('meeting_guests').where({ session_id: sessionId }).pluck('name')
 }
 
 /** The open projects of a circle, as { id, name } (for the assistant and for checking its answer). */
@@ -74,6 +91,7 @@ async function createFromMinutes ({ sessionId, minutesPostId, actions, title, da
       if (existing) return { created: [] }
     }
     const members = await presentMembers(sessionId, groupId)
+    const guestNames = await guestNamesOf(sessionId)
     const projectIds = new Set((await openProjects(groupId, 500)).map(p => p.id))
     const planned = []
     let actionIndex = -1
@@ -82,7 +100,7 @@ async function createFromMinutes ({ sessionId, minutesPostId, actions, title, da
       if (!a.what) continue
       actionIndex++
       const projectId = a.project && projectIds.has(a.project) ? a.project : null
-      const matched = matchNames(a.who, members)
+      const matched = matchNames(a.who, members, guestNames)
       const text = whoText(a.who).slice(0, 500) || null
       if (matched.everyone) {
         for (const m of members) planned.push({ actionIndex, whoText: text, what: a.what, due: a.due || null, projectId, people: [m] })
@@ -263,7 +281,8 @@ async function assertMayDecide (userId, row) {
   }
 }
 
-async function accept (userId, id, input = {}) {
+/** options.notify: false leaves out the "you are on a task" email (add all sends one email per person instead). */
+async function accept (userId, id, input = {}, options = {}) {
   const row = await visibleRow(userId, id)
   await assertMayDecide(userId, row)
   if (row.status !== 'open') throw new TaskError(409, 'This action point was already decided.')
@@ -289,7 +308,7 @@ async function accept (userId, id, input = {}) {
   let task
   try {
     task = await Tasks.create(userId, { groupId: row.group_id, title, dueDate, projectId, assigneeIds },
-      { meetingSessionId: row.meeting_session_id, minutesPostId: row.minutes_post_id })
+      { meetingSessionId: row.meeting_session_id, minutesPostId: row.minutes_post_id }, { notify: options.notify !== false })
   } catch (err) {
     await knex()('agora_task_suggestions').where({ id: row.id }).update({ status: 'open', decided_by_id: null, decided_at: null, updated_at: new Date() })
     throw err
@@ -337,7 +356,7 @@ async function acceptAll (userId, { minutesPostId } = {}) {
     const left = (await peopleOf(row.id)).filter(p => p.status !== 'declined')
     if (!left.length) continue
     try {
-      const done = await accept(userId, row.id)
+      const done = await accept(userId, row.id, {}, { notify: false })
       suggestions.push(done.suggestion)
       tasks.push(done.task)
     } catch (err) {
@@ -345,6 +364,10 @@ async function acceptAll (userId, { minutesPostId } = {}) {
       if (!(err instanceof TaskError)) throw err
     }
   }
+  // One email per person with all their tasks, never to the person who pressed the button
+  const byPerson = {}
+  for (const task of tasks) for (const a of task.assignees) (byPerson[a.id] = byPerson[a.id] || []).push(task.title)
+  if (Object.keys(byPerson).length) TaskNotify.assignedMany({ groupId, byUserId: userId, byPerson })
   return { suggestions, tasks }
 }
 
@@ -380,6 +403,8 @@ async function openFromLastTime (userId, eventPostId) {
 }
 
 module.exports = {
+  groupOfPost,
+  guestNamesOf,
   presentMembers,
   openProjects,
   createFromMinutes,

@@ -141,7 +141,7 @@ describe('From the minutes, for you', () => {
     expect(screen.queryByTestId('minutes-for-you')).toBeNull()
   })
 
-  it('adds a point to my tasks with me on it', async () => {
+  it('adds a point to my tasks and lets the server keep everyone who is named', async () => {
     const accepted = jest.fn()
     const onAdded = jest.fn()
     mockServer({
@@ -153,7 +153,7 @@ describe('From the minutes, for you', () => {
     expect(rows).toHaveLength(2)
     expect(within(rows[0]).getByRole('link', { name: 'Weekly' }).getAttribute('href')).toEqual('/post/9')
     await userEvent.click(within(rows[0]).getByRole('button', { name: 'Add to my tasks' }))
-    await waitFor(() => expect(accepted).toHaveBeenCalledWith({ assigneeIds: [7] }))
+    await waitFor(() => expect(accepted).toHaveBeenCalledWith({}))
     expect(onAdded).toHaveBeenCalledWith({ id: 60, title: 'Task 1' })
     await waitFor(() => expect(screen.getAllByTestId('minutes-for-you-row')).toHaveLength(1))
   })

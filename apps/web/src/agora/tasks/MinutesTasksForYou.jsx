@@ -30,10 +30,9 @@ export default function MinutesTasksForYou ({ onAdded }) {
     setBusyId(s.id); setError(null)
     try { await fn() } catch (e) { setError(e.message) } finally { setBusyId(null) }
   }
-  // Adding from here always puts me on the task (the server marks which person is me)
+  // No people sent: the server uses everyone named on the action point who has not said "not mine"
   const add = s => run(s, async () => {
-    const mine = s.people.find(p => p.me)
-    const res = await tasksApi(`/suggestions/${s.id}/accept`, { assigneeIds: [mine.id] })
+    const res = await tasksApi(`/suggestions/${s.id}/accept`, {})
     remove(s.id)
     if (onAdded) onAdded(res.task)
   })
