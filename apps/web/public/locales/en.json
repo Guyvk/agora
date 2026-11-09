@@ -4055,5 +4055,21 @@
   "Your tasks here": "Your tasks here",
   "the meeting": "the meeting",
   "Moved back to To do.": "Moved back to To do.",
-  "Undo moving {{title}} back to To do": "Undo moving {{title}} back to To do"
+  "Undo moving {{title}} back to To do": "Undo moving {{title}} back to To do",
+  "Action points": "Action points",
+  "Add a person to {{what}}": "Add a person to {{what}}",
+  "Add a person": "Add a person",
+  "Add all": "Add all",
+  "Add as task": "Add as task",
+  "Add to my tasks": "Add to my tasks",
+  "From the minutes, for you": "From the minutes, for you",
+  "Not a task": "Not a task",
+  "Not mine": "Not mine",
+  "Open tasks from last time": "Open tasks from last time",
+  "Open the task": "Open the task",
+  "Task added": "Task added",
+  "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.": "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.",
+  "Waiting for a decision": "Waiting for a decision",
+  "done": "done",
+  "not done yet": "not done yet"
 }

@@ -8,9 +8,10 @@
  *     (Administration or Manage Content, or an Agora admin): change, delete, restore
  *
  * A person who is not in the circle gets "not found", so the answer does not
- * show that the task exists. Notifications are not part of this file.
+ * show that the task exists. People put on a task get an email (taskNotify.js).
  */
 const Admins = require('./admins')
+const TaskNotify = require('./taskNotify')
 
 const STATUSES = ['todo', 'doing', 'done']
 const DONE_VISIBLE_DAYS = 14
@@ -346,7 +347,8 @@ async function setAssignees (trx, taskId, ids) {
   if (fresh.length) await trx('agora_task_assignees').insert(fresh)
 }
 
-async function create (userId, input = {}) {
+/** source: { meetingSessionId, minutesPostId } when the task comes from meeting minutes (taskSuggestions.js). */
+async function create (userId, input = {}, source = {}, options = {}) {
   const scope = await resolveScope(userId, input)
   const title = cleanTitle(input.title)
   const description = cleanDescription(input.description)
@@ -366,6 +368,8 @@ async function create (userId, input = {}) {
       position,
       due_date: dueDate,
       created_by_id: userId,
+      source_meeting_session_id: source.meetingSessionId || null,
+      source_minutes_post_id: source.minutesPostId || null,
       completed_at: status === 'done' ? now : null,
       created_at: now,
       updated_at: now
@@ -374,7 +378,10 @@ async function create (userId, input = {}) {
     await setAssignees(trx, id, assignees)
     return id
   })
-  return presentOne(userId, taskId)
+  const task = await presentOne(userId, taskId)
+  // Agora: tell the people put on it (in the background; never stops the request)
+  if (options.notify !== false) TaskNotify.assigned({ task, userIds: assignees, byUserId: userId })
+  return task
 }
 
 async function assertCanEdit (userId, row) {
@@ -399,6 +406,7 @@ async function update (userId, taskId, input = {}) {
   if (input.position !== undefined) changes.position = cleanPosition(input.position)
   if (input.projectId !== undefined) changes.project_post_id = await cleanProject(input.projectId, row.group_id)
   const assignees = input.assigneeIds !== undefined ? await cleanAssignees(input.assigneeIds, row.group_id) : null
+  const before = assignees ? (await knex()('agora_task_assignees').where({ task_id: row.id }).pluck('user_id')).map(String) : []
   await knex().transaction(async trx => {
     if (changes.status && changes.status !== row.status && input.position === undefined) {
       changes.position = await endOfColumn(trx, row.group_id, changes.status)
@@ -406,7 +414,9 @@ async function update (userId, taskId, input = {}) {
     await trx('agora_tasks').where({ id: row.id }).update({ ...changes, updated_at: new Date() })
     if (assignees) await setAssignees(trx, row.id, assignees)
   })
-  return presentOne(userId, row.id)
+  const task = await presentOne(userId, row.id)
+  if (assignees) TaskNotify.assigned({ task, userIds: assignees.filter(id => !before.includes(String(id))), byUserId: userId })
+  return task
 }
 
 /** Any member may move a task: a new status and a place in that column. */
@@ -477,6 +487,11 @@ module.exports = {
   TaskError,
   isGroupMember,
   isSteward,
+  memberGroupIds,
+  cleanAssignees,
+  cleanProject,
+  cleanDueDate,
+  presentOne,
   list,
   mine,
   meta,

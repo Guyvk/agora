@@ -162,7 +162,7 @@ export default function MyTasksPage () {
     <div className='w-full max-w-[1100px] mx-auto p-2 sm:p-4 flex flex-col gap-4'>
       <Helmet><title>{t('My tasks')}</title></Helmet>
       <h1 className='m-0 text-2xl font-semibold text-foreground'>{t('My tasks')}</h1>
-      <MinutesTasksForYou />
+      <MinutesTasksForYou onAdded={task => setTasks(list => (list ? [...list.filter(x => x.id !== task.id), task] : list))} />
       {error && <p role='alert' className='m-0 text-sm text-destructive'>{error}</p>}
       {loadError && <p role='alert' className='m-0 text-destructive'>{loadError}</p>}
       {!tasks && !loadError && <Loading />}

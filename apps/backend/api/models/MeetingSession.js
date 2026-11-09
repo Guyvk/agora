@@ -3,6 +3,7 @@ import createPost from './post/createPost'
 import { guestLabel } from '../../lib/agora/meetingGuests'
 import { reasonToEnd, listMessages, whoTookPart } from '../../lib/agora/meetingChat'
 import KdriveMinutes from '../../lib/agora/kdriveMinutes'
+import TaskSuggestions from '../../lib/agora/taskSuggestions' // Agora: action points become suggested tasks
 
 /**
  * Agora: one meeting held on an event.
@@ -237,7 +238,14 @@ module.exports = bookshelf.Model.extend({
     let error = null
     if (MeetingMinutes.isConfigured()) {
       try {
-        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, chat, startedAt })
+        // Agora: the circle's open projects, so an action can name its project
+        let projects = []
+        try {
+          projects = await TaskSuggestions.openProjects(await TaskSuggestions.groupOfPost(event.id))
+        } catch (err) {
+          sails.log.error(`MeetingSession.finalize: could not list projects for session ${sessionId}: ${err.message}`)
+        }
+        minutes = await MeetingMinutes.summarise({ title, date, attendees, guests, lines, chat, startedAt, projects })
       } catch (err) {
         error = err
         sails.log.error(`MeetingSession.finalize: could not write minutes for session ${sessionId}: ${err.message}`)
@@ -275,6 +283,12 @@ module.exports = bookshelf.Model.extend({
       status: MeetingSession.Status.CLOSED,
       minutes_post_id: minutesPost.id
     }, { patch: true })
+
+    // Agora: every action point becomes a suggested task. It never stops the minutes
+    // (createFromMinutes catches and logs its own errors).
+    if (minutes && minutes.actions && minutes.actions.length) {
+      await TaskSuggestions.createFromMinutes({ sessionId, minutesPostId: minutesPost.id, actions: minutes.actions, title, date })
+    }
 
     // The transcript and the minutes also go into each circle's library, with
     // their full text for search and AI. If that fails, the minutes still stand.

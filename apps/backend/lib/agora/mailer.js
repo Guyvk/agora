@@ -453,6 +453,29 @@ const TEMPLATES = {
     footer: `You get this email because you sent a request from the Help window of ${APP_NAME}.`
   }),
 
+  // The minutes of a meeting suggest tasks for someone (lib/agora/taskNotify.js)
+  agora_task_suggested: data => compose({
+    subject: `The minutes of ${data.meeting} suggest ${data.items.length === 1 ? 'a task' : 'tasks'} for you`,
+    lines: [
+      `Hi ${data.name || ''}`.trim() + ',',
+      `The minutes of "${data.meeting}"${data.date ? ` (${data.date})` : ''} name you for ${data.items.length === 1 ? 'this action point' : 'these action points'}:`,
+      data.items.map(i => `- ${i}`).join('\n'),
+      'Nothing is added to your list until you say yes. In My tasks you can add it, or say it is not yours.'
+    ],
+    button: data.url ? { label: 'Open My tasks', url: data.url } : null,
+    footer: `You get this email because you were in the meeting. You can switch email off for the circle in your ${APP_NAME} settings.`
+  }),
+
+  // Someone put you on a task (lib/agora/taskNotify.js)
+  agora_task_assigned: data => compose({
+    subject: data.items ? `You are on ${data.items.length} tasks` : `You are on a task: ${data.title}`,
+    lines: data.items
+      ? [`${data.by || 'Someone'} put you on these tasks:`, data.items.map(i => `- ${i}`).join('\n')]
+      : [`${data.by || 'Someone'} put you on the task "${data.title}"${data.group ? ` in ${data.group}` : ''}.`],
+    button: data.url ? { label: data.items ? 'Open My tasks' : 'Open the task', url: data.url } : null,
+    footer: `You get this email because you are a member of the circle. You can switch email off for the circle in your ${APP_NAME} settings.`
+  }),
+
   // An Agora admin gave someone a role on the Accounts tab (lib/agora/adminDashboard.js)
   agora_role_given: data => data.role === 'admin'
     ? compose({
