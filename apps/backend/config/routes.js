@@ -158,6 +158,19 @@ module.exports.routes = {
   'POST   /noo/agora/contacts/api/:contactId/propose':        'AgoraContactsController.propose',
   'POST   /noo/agora/contacts/api/:contactId/propose/clear':  'AgoraContactsController.clearProposal',
 
+  // Agora tasks: to-dos in a circle, optionally in a project (fixed addresses before :taskId)
+  'GET    /noo/agora/tasks/api/list':                     'AgoraTasksController.list',
+  'GET    /noo/agora/tasks/api/mine':                     'AgoraTasksController.mine',
+  'GET    /noo/agora/tasks/api/meta':                     'AgoraTasksController.meta',
+  'POST   /noo/agora/tasks/api/create':                   'AgoraTasksController.create',
+  'POST   /noo/agora/tasks/api/comments/:commentId/delete': 'AgoraTasksController.destroyComment',
+  'GET    /noo/agora/tasks/api/:taskId':                  'AgoraTasksController.show',
+  'POST   /noo/agora/tasks/api/:taskId/update':           'AgoraTasksController.update',
+  'POST   /noo/agora/tasks/api/:taskId/move':             'AgoraTasksController.move',
+  'POST   /noo/agora/tasks/api/:taskId/delete':           'AgoraTasksController.destroy',
+  'POST   /noo/agora/tasks/api/:taskId/restore':          'AgoraTasksController.restore',
+  'POST   /noo/agora/tasks/api/:taskId/comments':         'AgoraTasksController.addComment',
+
   // Agora: claiming a profile made from someone's sheet (lib/agora/claims.js)
   // (the fixed addresses come before :token)
   'GET    /noo/agora/claim/api/proposal':                 'AgoraClaimController.myProposal',
