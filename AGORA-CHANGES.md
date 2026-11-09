@@ -207,6 +207,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 | `apps/web/src/agora/tasks/` (new), `apps/web/src/routes/PostDetail/PostDetail.js` (tasks) | A Tasks part on a project's page (project posts only): a board (To do, Doing, Done, drag to move) and a list, a side panel for one task with comments, and Undo after delete. It talks to the tasks addresses above, so it needs them to be merged too; for someone who is not a member of the circle it shows a quiet line. In `PostDetail.js` only an import and one line that mounts it |
+| `apps/web/src/agora/tasks/` (circle page, My tasks, home block), `apps/web/public/locales/*.json` (tasks) | A Tasks page for every circle (`/groups/<circle>/tasks`), a My tasks page (`/my-tasks`), a "Your tasks here" block on a circle's home page, and all tasks texts in every language. The project page and the circle page share `useTasks` and `TasksBody` |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (tasks) | Two routes: `tasks` inside a circle and `my-tasks` next to `calendar` |
+| `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` (tasks) | The Tasks line in a circle's menu above the Files line (an import and one block) |
+| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (tasks) | A "My tasks" button in the left bar after Calendar |
+| `apps/web/src/routes/GroupWelcomePage/GroupWelcomePage.jsx` (tasks) | The "Your tasks here" block under "This week in 7BP" (an import and one line) |
 
 ## Files that are new
 

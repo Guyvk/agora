@@ -74,6 +74,7 @@ import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
 import AskMenuLink from '@/agora/ask/AskMenuLink' // Agora: the Ask tab of a circle
 import FilesMenuLink from '@/agora/files/FilesMenuLink' // Agora: the Files page of a circle or space
+import TasksMenuLink from '@/agora/tasks/TasksMenuLink' // Agora: the Tasks page of a circle
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -954,6 +955,10 @@ export default function ContextMenu (props) {
       {/* When the sticky alerts exist they carry the mt-auto (they must be a
           direct flex child for their sticky pinning to span the whole card) */}
       <div className={stickyAlertsSection ? undefined : 'mt-auto'}>
+        {/* Agora: the Tasks page of the circle (not of a space). Members only. */}
+        {isGroupContext && !isEditing && !showingSpaceMenu && group?.slug && (
+          <TasksMenuLink groupSlug={group.slug} isMember={myMemberships.some(m => String(m.group?.id) === String(group.id))} />
+        )}
         {/* Agora: the Files page of the circle, or of the space when its menu is open. Members only. */}
         {isGroupContext && !isEditing && filesGroup?.slug && (
           <FilesMenuLink

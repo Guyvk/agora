@@ -2,7 +2,8 @@
  * Agora: the Board view of tasks, three columns. Cards can be dragged between columns and up
  * and down (dnd-kit, already a Hylo dependency). The new position is the midpoint between the
  * neighbours; the parent does the saving (optimistic, with roll-back).
- * Props: tasks, today, selectedId, onAdd(title, status), onMove(task, status, position), onOpen(id)
+ * Props: tasks, today, selectedId, onAdd(title, status), onMove(task, status, position), onOpen(id),
+ * showProject (show each card's project name)
  */
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +16,7 @@ import { STATUSES, column, formatDay, isOverdue, positionAt, today as todayFn } 
 import Avatars from './Avatars'
 import AddTask from './AddTask'
 
-export function Card ({ task, today, selected, onOpen, dragging, handle }) {
+export function Card ({ task, today, selected, onOpen, dragging, handle, showProject }) {
   const { t } = useTranslation()
   const overdue = isOverdue(task, today)
   return (
@@ -24,6 +25,7 @@ export function Card ({ task, today, selected, onOpen, dragging, handle }) {
         {handle}
         <button type='button' className='block flex-1 min-w-0 text-left font-semibold text-foreground break-words' onClick={() => onOpen(task.id)}>{task.title}</button>
       </div>
+      {showProject && <p className='m-0 mt-1 text-xs text-muted-foreground break-words' data-testid='task-project'>{task.projectName || t('No project')}</p>}
       {(task.assignees.length > 0 || task.dueDate) && (
         <div className='flex items-center justify-between gap-2 mt-2'>
           <Avatars people={task.assignees} />
@@ -66,7 +68,7 @@ function Column ({ status, label, tasks, onAdd, ...rest }) {
   )
 }
 
-export default function TaskBoard ({ tasks, today = todayFn(), selectedId, onAdd, onMove, onOpen }) {
+export default function TaskBoard ({ tasks, today = todayFn(), selectedId, onAdd, onMove, onOpen, showProject }) {
   const { t } = useTranslation()
   const [activeId, setActiveId] = useState(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
@@ -95,10 +97,10 @@ export default function TaskBoard ({ tasks, today = todayFn(), selectedId, onAdd
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={e => setActiveId(e.active.id)} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
       <div className='grid grid-cols-1 md:grid-cols-3 gap-3 items-start'>
         {STATUSES.map(status => (
-          <Column key={status} status={status} label={labels[status]} tasks={column(tasks, status)} today={today} selectedId={selectedId} onOpen={onOpen} onAdd={onAdd} />
+          <Column key={status} status={status} label={labels[status]} tasks={column(tasks, status)} today={today} selectedId={selectedId} onOpen={onOpen} onAdd={onAdd} showProject={showProject} />
         ))}
       </div>
-      <DragOverlay>{active ? <Card task={active} today={today} onOpen={() => {}} /> : null}</DragOverlay>
+      <DragOverlay>{active ? <Card task={active} today={today} onOpen={() => {}} showProject={showProject} /> : null}</DragOverlay>
     </DndContext>
   )
 }

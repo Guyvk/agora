@@ -4,6 +4,11 @@
  */
 const BASE = '/noo/agora/tasks/api'
 
+export const MY_TASKS_URL = '/my-tasks'
+
+/** The circle's Tasks page, optionally with one task opened. */
+export const circleTasksUrl = (groupSlug, taskId) => `/groups/${encodeURIComponent(groupSlug)}/tasks` + (taskId ? `?task=${encodeURIComponent(taskId)}` : '')
+
 export const STATUSES = ['todo', 'doing', 'done']
 
 export async function tasksApi (path, body) {
@@ -52,4 +57,11 @@ export function positionAt (list, index) {
   if (index <= 0) return list[0].position - 1
   if (index >= list.length) return list[list.length - 1].position + 1
   return (list[index - 1].position + list[index].position) / 2
+}
+
+/** Adds days to a plain date 'YYYY-MM-DD'. */
+export function addDays (day, n) {
+  const d = new Date(day + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toLocaleDateString('sv-SE')
 }
