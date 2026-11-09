@@ -100,11 +100,12 @@ export function CalendarLinkButton ({ onClick }) {
   return (
     <Button
       variant='outline'
-      className='rounded-sm h-auto py-2 px-3 gap-2 text-base whitespace-nowrap shadow-sm'
+      size='sm'
+      className='rounded-sm h-8 px-2.5 gap-1.5 text-sm whitespace-nowrap'
       onClick={onClick}
       data-testid='calendar-add-button'
     >
-      <CalendarPlus className='w-4 h-4' />{t('agoraCalendar.addButton')}
+      <CalendarPlus className='w-3.5 h-3.5' />{t('agoraCalendar.addButton')}
     </Button>
   )
 }
