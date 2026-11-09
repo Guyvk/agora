@@ -3659,5 +3659,13 @@
   "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.": "ये सुझाव हैं। जब तक संबंधित व्यक्ति, बैठक का आयोजक या कोई स्टीवर्ड हाँ नहीं कहता, किसी की सूची में कुछ नहीं जुड़ता।",
   "Waiting for a decision": "निर्णय की प्रतीक्षा में",
   "done": "पूरा",
-  "not done yet": "अभी पूरा नहीं"
+  "not done yet": "अभी पूरा नहीं",
+  "agoraRooms.addPeople": "लोगों को जोड़ें",
+  "agoraRooms.addPeopleTitle": "{{name}} में लोगों को जोड़ें",
+  "agoraRooms.searchPeople": "इस मंडली में खोजें",
+  "agoraRooms.loadingPeople": "लोड हो रहा है…",
+  "agoraRooms.nobodyToAdd": "इस मंडली के सभी लोग पहले से कमरे में हैं।",
+  "agoraRooms.adding": "जोड़ा जा रहा है…",
+  "agoraRooms.addPeopleButton_one": "{{count}} व्यक्ति जोड़ें",
+  "agoraRooms.addPeopleButton_other": "{{count}} लोगों को जोड़ें"
 }

@@ -206,6 +206,7 @@ import InvitationService from '../services/InvitationService'
 import makeModels from './makeModels'
 import makeSubscriptions from './makeSubscriptions'
 import { agoraPlaybookTypeDefs, makeAgoraPlaybookQueries, makeAgoraPlaybookMutations } from './agora/playbook' // Agora: the playbook page
+import { agoraRoomsTypeDefs, makeAgoraRoomsQueries, makeAgoraRoomsMutations } from './agora/rooms' // Agora: room makers add circle members
 import { agoraMainCircleTypeDefs, makeAgoraMainCircleQueries } from './agora/mainCircle' // Agora: the 7BP Home look
 
 const schemaText = readFileSync(join(__dirname, 'schema.graphql')).toString()
@@ -312,8 +313,8 @@ async function buildGraphqlSchema (req) {
     mixpanel.people.set(userId)
 
     allResolvers = {
-      Query: { ...makeAuthenticatedQueries({ fetchOne, fetchMany }), ...makeAgoraPlaybookQueries(), ...makeAgoraMainCircleQueries() }, // Agora: the playbook page
-      Mutation: { ...makeMutations({ fetchOne }), ...makeAgoraPlaybookMutations() }, // Agora: the playbook page
+      Query: { ...makeAuthenticatedQueries({ fetchOne, fetchMany }), ...makeAgoraPlaybookQueries(), ...makeAgoraMainCircleQueries(), ...makeAgoraRoomsQueries() }, // Agora: the playbook page
+      Mutation: { ...makeMutations({ fetchOne }), ...makeAgoraPlaybookMutations(), ...makeAgoraRoomsMutations() }, // Agora: the playbook page
       Subscription: makeSubscriptions(),
 
       ...makeUnionAndInterfaceResolvers(models)
@@ -341,7 +342,7 @@ async function buildGraphqlSchema (req) {
   }
 
   const schema = createSchema({
-    typeDefs: [schemaText, agoraPlaybookTypeDefs, agoraMainCircleTypeDefs], // Agora: the playbook page
+    typeDefs: [schemaText, agoraPlaybookTypeDefs, agoraMainCircleTypeDefs, agoraRoomsTypeDefs], // Agora: the playbook page
     resolvers: Object.assign(allResolvers, resolvers)
   })
   schema[SCHEMA_LOADERS] = loaders

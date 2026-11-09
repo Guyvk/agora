@@ -127,6 +127,21 @@ describe('afterCreatingPost', () => {
       expect(rooms).to.include(Websockets.groupRoom(parent.id))
     })
 
+    // Agora: a person the room's maker adds later starts receiving the room's posts
+    it('sends a private room post to a member added after the room was made', async () => {
+      const { addRoomMembers } = require(rootPath('lib/agora/rooms'))
+      const maker = await factories.user().save()
+      const newcomer = await factories.user().save()
+      await maker.joinGroup(parent)
+      await newcomer.joinGroup(parent)
+      const space = await makeSpace({ visibility: 1, accessibility: 0, created_by_id: maker.id })
+      await maker.joinGroup(space)
+      await addRoomMembers(maker.id, space.id, [newcomer.id])
+      const rooms = await postInto(space)
+      expect(rooms).to.include(Websockets.userRoom(newcomer.id))
+      expect(rooms).to.not.include(Websockets.groupRoom(parent.id))
+    })
+
     for (const [label, attrs] of [
       // Hylo's numbers: visibility Hidden 0, Protected 1; accessibility Closed 0, Open 2
       ['hidden', { visibility: 0, accessibility: 2 }],

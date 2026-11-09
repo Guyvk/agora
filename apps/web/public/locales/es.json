@@ -3666,5 +3666,13 @@
   "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.": "Son sugerencias. No se añade nada a la lista de nadie hasta que la persona, quien organiza la reunión o un steward diga que sí.",
   "Waiting for a decision": "Esperando una decisión",
   "done": "hecha",
-  "not done yet": "aún no hecha"
+  "not done yet": "aún no hecha",
+  "agoraRooms.addPeople": "Añadir personas",
+  "agoraRooms.addPeopleTitle": "Añadir personas a {{name}}",
+  "agoraRooms.searchPeople": "Buscar en este círculo",
+  "agoraRooms.loadingPeople": "Cargando…",
+  "agoraRooms.nobodyToAdd": "Todas las personas de este círculo ya están en la sala.",
+  "agoraRooms.adding": "Añadiendo…",
+  "agoraRooms.addPeopleButton_one": "Añadir {{count}} persona",
+  "agoraRooms.addPeopleButton_other": "Añadir {{count}} personas"
 }

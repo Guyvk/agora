@@ -92,4 +92,85 @@ async function memberUserRooms (groupId, { transacting } = {}) {
   return rows.map(m => userRoom(m.get('user_id')))
 }
 
-module.exports = { isPrivateRoom, memberUserRooms, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }
+
+// ---------------------------------------------------------------------------
+// Adding people to a room (Guy, 9 Nov 2026: the maker of a private room adds
+// members of its circle, Slack style). The membership is made at once, no
+// invitation. Who may do it, in one place: canManageRoomPeople.
+
+class RoomError extends Error {}
+
+/** The room (an active space) or an error; the person asking must be logged in. */
+async function findRoomFor (userId, roomId) {
+  if (!userId) throw new RoomError('You need to log in')
+  const room = roomId ? await Group.findActive(roomId) : null
+  if (!room || room.get('type') !== 'space' || !room.get('parent_id')) throw new RoomError('Room not found')
+  return room
+}
+
+/** THE rule: the room's steward (its maker, still in the circle) or a steward of its circle. */
+async function canManageRoomPeople (userId, room) {
+  return await isRoomSteward(userId, room) || await isCircleSteward(userId, room.get('parent_id'))
+}
+
+async function requireRoomPeopleManager (userId, roomId) {
+  const room = await findRoomFor(userId, roomId)
+  if (!await canManageRoomPeople(userId, room)) throw new RoomError("You don't have permission to change who is in this room")
+  return room
+}
+
+/** Active members of the room's circle who are not yet in the room. */
+async function peopleToAdd (userId, roomId) {
+  const room = await requireRoomPeopleManager(userId, roomId)
+  const knex = bookshelf.knex
+  const inRoom = knex('group_memberships').where({ group_id: room.id, active: true }).select('user_id')
+  return knex('users')
+    .join('group_memberships', 'group_memberships.user_id', 'users.id')
+    .where({ 'group_memberships.group_id': room.get('parent_id'), 'group_memberships.active': true, 'users.active': true })
+    .whereNotIn('users.id', inRoom)
+    .orderBy('users.name')
+    .select('users.id', 'users.name', 'users.avatar_url')
+}
+
+/** Adds people to the room. Only active members of the room's circle; nobody else. */
+async function addRoomMembers (userId, roomId, userIds) {
+  const room = await requireRoomPeopleManager(userId, roomId)
+  const ids = [...new Set((userIds || []).map(String))]
+  if (!ids.length) return []
+  const inCircle = await bookshelf.knex('group_memberships')
+    .where({ group_id: room.get('parent_id'), active: true }).whereIn('user_id', ids).select('user_id')
+  const circleIds = new Set(inCircle.map(r => String(r.user_id)))
+  if (ids.some(id => !circleIds.has(id))) throw new RoomError('You can only add people who are in this circle')
+  const already = await bookshelf.knex('group_memberships')
+    .where({ group_id: room.id, active: true }).whereIn('user_id', ids).select('user_id')
+  const alreadyIds = new Set(already.map(r => String(r.user_id)))
+  const toAdd = ids.filter(id => !alreadyIds.has(id))
+  if (!toAdd.length) return []
+  const now = new Date()
+  await room.addMembers(toAdd, {
+    settings: {
+      showJoinForm: false,
+      agreementsAcceptedAt: now,
+      joinQuestionsAnsweredAt: now,
+      lastReadAt: now,
+      postNotifications: 'all',
+      digestFrequency: 'daily',
+      sendEmail: true,
+      sendPushNotifications: true
+    }
+  }, {})
+  return toAdd
+}
+
+/** Takes someone out of the room. The maker cannot be taken out. */
+async function removeRoomMember (userId, roomId, memberId) {
+  const room = await requireRoomPeopleManager(userId, roomId)
+  if (String(memberId) === String(room.get('created_by_id'))) throw new RoomError("The room's maker can't be taken out")
+  const member = await User.find(memberId)
+  if (!member) throw new RoomError('Person not found')
+  await member.leaveGroup(room, true)
+  return true
+}
+
+
+module.exports = { RoomError, findRoomFor, canManageRoomPeople, peopleToAdd, addRoomMembers, removeRoomMember, isPrivateRoom, memberUserRooms, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }

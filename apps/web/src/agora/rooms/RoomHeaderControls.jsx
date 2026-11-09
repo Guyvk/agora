@@ -1,4 +1,4 @@
-import { Archive, Bell, BellOff, AtSign } from 'lucide-react'
+import { Archive, Bell, BellOff, AtSign, UserPlus } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
@@ -12,6 +12,7 @@ import hasResponsibilityForGroup from 'store/selectors/hasResponsibilityForGroup
 import { RESP_ADMINISTRATION } from 'store/constants'
 import { isSpaceGroup } from 'store/selectors/getMyGroups'
 import { cn } from 'util/index'
+import AddRoomPeopleDialog from '@/agora/rooms/AddRoomPeopleDialog'
 import { ROOM_NOTIFICATION_CHOICES, roomNotificationChoice } from './roomNotifications'
 
 const ICONS = { all: Bell, important: AtSign, none: BellOff }
@@ -34,6 +35,7 @@ export default function RoomHeaderControls ({ group }) {
   const membership = useMemo(() => memberships.find(m => m.group?.id === group?.id), [memberships, group?.id])
   const canManage = useCanManageRoom(group)
   const [open, setOpen] = useState(false)
+  const [addingPeople, setAddingPeople] = useState(false)
 
   if (!membership) return null
   const choice = roomNotificationChoice(membership)
@@ -87,6 +89,16 @@ export default function RoomHeaderControls ({ group }) {
         {canManage && group.status !== 'archived' && (
           <button
             type='button'
+            onClick={() => { setOpen(false); setAddingPeople(true) }}
+            className='mt-3 flex items-center gap-2 w-full text-left rounded-md p-2 bg-transparent border-none cursor-pointer text-foreground/70 hover:text-foreground text-sm'
+          >
+            <UserPlus className='w-4 h-4' />
+            {t('agoraRooms.addPeople')}
+          </button>
+        )}
+        {canManage && group.status !== 'archived' && (
+          <button
+            type='button'
             onClick={archive}
             className='mt-3 flex items-center gap-2 w-full text-left rounded-md p-2 bg-transparent border-none cursor-pointer text-foreground/70 hover:text-foreground text-sm'
           >
@@ -95,6 +107,7 @@ export default function RoomHeaderControls ({ group }) {
           </button>
         )}
       </PopoverContent>
+      {addingPeople && <AddRoomPeopleDialog room={group} onClose={() => setAddingPeople(false)} />}
     </Popover>
   )
 }

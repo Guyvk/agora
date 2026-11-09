@@ -318,3 +318,10 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
 - `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).
 - `apps/backend/api/models/post/createPost.js`: a post in a private room (hidden or invite only) is no longer pushed to the parent circle's socket room; only the room's own members get it, each in their own user room (so their menu still badges). Open rooms and all other posts behave as in Hylo. `upsertChatActivityNotice.js` (the chat notice with the last chats' text) and `GroupController.js` (typing signs) follow the same rule: a private room is anything not simply open to its circle (invite only, request to join, hidden, paywalled, role-gated).
+
+## Room makers add circle members (November 2026)
+
+- `apps/backend/api/graphql/makeSchema.js`: adds Agora's `agoraRoomPeopleToAdd`, `agoraAddRoomMembers` and `agoraRemoveRoomMember` (new files `api/graphql/agora/rooms.js` and `rooms.graphql`; the rules are in `lib/agora/rooms.js`).
+- `apps/backend/api/models/post/createPost.js`: the pushes of a new post are now waited for, and a failed push is logged instead of lost, because a private room first looks up its members.
+- `apps/web/src/agora/rooms/RoomHeaderControls.jsx`: "Add people" for the room's steward, opening `AddRoomPeopleDialog.jsx`.
+- `apps/web/public/locales/*.json`: new keys `agoraRooms.addPeople*` (non-English texts written by Claude, please check).
