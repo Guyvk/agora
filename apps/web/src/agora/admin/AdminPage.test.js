@@ -245,6 +245,8 @@ describe('AdminPage', () => {
     expect(screen.getByText('50% used, 20.0 GB free of 40.0 GB')).toBeInTheDocument()
     expect(screen.getByText('kDrive (circle files)').nextSibling).toHaveTextContent('Yes')
     expect(screen.queryByText('No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing')).toBeNull()
+    // Agora: admins are told when the Build page is off
+    expect(screen.getByText('The Build page is off: AGORA_BUILD_CIRCLE is not set.')).toBeInTheDocument()
   })
 
   it('writes the activity log in plain sentences', async () => {
