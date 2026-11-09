@@ -586,6 +586,13 @@ function emailLabel (t, email) {
   return email.sends ? t('Sent through {{name}}', { name }) : t('Set to {{name}}, but not complete, so nothing is sent', { name })
 }
 
+function buildPageLabel (t, b) {
+  if (!b || !b.circle) return t('The Build page is off: AGORA_BUILD_CIRCLE is not set.')
+  return b.connected
+    ? t('On for the circle {{circle}}', { circle: b.circle })
+    : t('On for the circle {{circle}}, but AGORA_GITHUB_BOARD_TOKEN is not set', { circle: b.circle })
+}
+
 function System () {
   const { t } = useTranslation()
   const { data, error } = useLoad('/system')
@@ -600,6 +607,7 @@ function System () {
     [t('kDrive (circle files)'), s.kdrive ? t('Yes') : (s.kdriveMissingTopFolder ? t('No: AGORA_KDRIVE_ROOT_FOLDER_ID is missing') : t('No'))],
     [t('Google Drive'), s.googleDrive ? (s.driveUploads ? t('Yes, members may add files') : t('Yes, read only')) : t('No')],
     [t('Video calls (AGORA_MEET_DOMAIN)'), s.meetDomain || t('Not set')],
+    [t('Build page'), buildPageLabel(t, s.buildPage)],
     [t('Sign-up by invitation only'), yesNo(t, s.inviteOnly)]
   ]
   const b = data.backups

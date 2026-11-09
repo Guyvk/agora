@@ -179,6 +179,11 @@ module.exports.routes = {
   'POST   /noo/agora/tasks/api/:taskId/restore':          'AgoraTasksController.restore',
   'POST   /noo/agora/tasks/api/:taskId/comments':         'AgoraTasksController.addComment',
 
+  // Agora build: the Build page (the GitHub board), for the members of AGORA_BUILD_CIRCLE
+  'GET    /noo/agora/build/api/access':                   'AgoraBuildController.access',
+  'GET    /noo/agora/build/api/board':                    'AgoraBuildController.board',
+  'POST   /noo/agora/build/api/move':                     'AgoraBuildController.move',
+
   // Agora: claiming a profile made from someone's sheet (lib/agora/claims.js)
   // (the fixed addresses come before :token)
   'GET    /noo/agora/claim/api/proposal':                 'AgoraClaimController.myProposal',
