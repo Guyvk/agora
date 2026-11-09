@@ -3,7 +3,8 @@ import { flatten, merge, pick, uniq } from 'lodash'
 import setupPostAttrs from './setupPostAttrs'
 import updateChildren from './updateChildren'
 import { assertGroupsAcceptPostType } from './validatePostData'
-import { groupRoom, pushToSockets } from '../../services/Websockets'
+import { groupRoom, pushToSockets, userRoom } from '../../services/Websockets'
+import { isPrivateRoom, memberUserRooms } from '../../../lib/agora/rooms' // Agora: private rooms
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { fillMeetingLink, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
 import { withKind, afterCreate as agoraAfterCreate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
@@ -308,8 +309,22 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
     const payload = post.getNewPostSocketPayload()
     payload.localId = localId
     const rooms = new Set()
+    // Agora: a post in a private room goes only to the room's members, each in their own
+    // user room (so their menu badges once, and an open chat still receives it). It is never
+    // pushed to the room's own channel or the parent circle's. See lib/agora/rooms.js.
+    const privateSpaceIds = new Set(groups.models
+      .filter(group => group.get('type') === 'space' && isPrivateRoom(group))
+      .map(group => String(group.id)))
     payload.groups.forEach(g => {
       rooms.add(String(g.id))
+      if (privateSpaceIds.has(String(g.id))) {
+        notifySockets.push(
+          memberUserRooms(g.id, { transacting: trx }).then(userRooms => Promise.all(userRooms.map(room =>
+            pushToSockets(room, 'newPost', Object.assign({}, payload, { groups: [g] }))
+          )))
+        )
+        return
+      }
       notifySockets.push(pushToSockets(
         groupRoom(g.id),
         'newPost',
@@ -320,7 +335,7 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
     // without every client joining every space room.
     groups.models.forEach(group => {
       const parentId = group.get('parent_id')
-      if (!parentId || rooms.has(String(parentId))) return
+      if (!parentId || rooms.has(String(parentId)) || privateSpaceIds.has(String(group.id))) return
       rooms.add(String(parentId))
       const g = payload.groups.find(p => String(p.id) === String(group.id))
       if (!g) return

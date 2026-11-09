@@ -1,5 +1,6 @@
 import { refineOne } from '../util/relations'
 import { groupRoom, pushToSockets } from '../../services/Websockets'
+import { isPrivateRoom, memberUserRooms } from '../../../lib/agora/rooms' // Agora: private rooms
 
 export const RECENT_POST_IDS_LIMIT = 5
 
@@ -199,12 +200,21 @@ async function publishChatActivityNotice (notice) {
   })
 
   const rooms = new Set()
-  groups.forEach(g => {
+  // Agora: the notice carries the last chats' text, so a private room's notice goes only to
+  // the room's members (user rooms), never to the room's channel or the parent circle's
+  const privateIds = new Set((fresh.relations.groups?.models || [])
+    .filter(g => g.get('type') === 'space' && isPrivateRoom(g)).map(g => String(g.id)))
+  const memberRooms = new Set()
+  for (const g of groups) {
+    if (privateIds.has(String(g.id))) {
+      (await memberUserRooms(g.id)).forEach(room => memberRooms.add(room))
+      continue
+    }
     rooms.add(groupRoom(g.id))
     if (g.parentId) rooms.add(groupRoom(g.parentId))
-  })
+  }
 
-  return Promise.map(Array.from(rooms), room => pushToSockets(room, 'newPost', payload))
+  return Promise.map([...rooms, ...memberRooms], room => pushToSockets(room, 'newPost', payload))
 }
 
 /** Returns true when a unique-index conflict occurred on the bucket key. */

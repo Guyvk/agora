@@ -1269,6 +1269,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
           const membership = await GroupMembership.forPair(userId, g, { includeInactive: true }).fetch()
           return membership ? !!membership.get('active') : null
         },
+        // Agora: the maker of a room is its steward (see lib/agora/rooms.js)
+        agoraIAmRoomSteward: async g => !!(userId && g && g.get('type') === 'space' && await require('../../lib/agora/rooms').isRoomSteward(userId, g)),
         stripeDashboardUrl: g => g.stripeDashboardUrl(),
         invitePath: async g => {
           if (!userId || !await GroupMembership.hasResponsibility(userId, g, Responsibility.constants.RESP_ADD_MEMBERS)) {
