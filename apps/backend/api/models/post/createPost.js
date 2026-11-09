@@ -4,7 +4,7 @@ import setupPostAttrs from './setupPostAttrs'
 import updateChildren from './updateChildren'
 import { assertGroupsAcceptPostType } from './validatePostData'
 import { groupRoom, pushToSockets, userRoom } from '../../services/Websockets'
-import { isPrivateRoom } from '../../../lib/agora/rooms' // Agora: private rooms
+import { isPrivateRoom, memberUserRooms } from '../../../lib/agora/rooms' // Agora: private rooms
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { fillMeetingLink, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
 import { withKind, afterCreate as agoraAfterCreate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
@@ -309,8 +309,22 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
     const payload = post.getNewPostSocketPayload()
     payload.localId = localId
     const rooms = new Set()
+    // Agora: a post in a private room goes only to the room's members, each in their own
+    // user room (so their menu badges once, and an open chat still receives it). It is never
+    // pushed to the room's own channel or the parent circle's. See lib/agora/rooms.js.
+    const privateSpaceIds = new Set(groups.models
+      .filter(group => group.get('type') === 'space' && isPrivateRoom(group))
+      .map(group => String(group.id)))
     payload.groups.forEach(g => {
       rooms.add(String(g.id))
+      if (privateSpaceIds.has(String(g.id))) {
+        notifySockets.push(
+          memberUserRooms(g.id, { transacting: trx }).then(userRooms => Promise.all(userRooms.map(room =>
+            pushToSockets(room, 'newPost', Object.assign({}, payload, { groups: [g] }))
+          )))
+        )
+        return
+      }
       notifySockets.push(pushToSockets(
         groupRoom(g.id),
         'newPost',
@@ -321,24 +335,10 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
     // without every client joining every space room.
     groups.models.forEach(group => {
       const parentId = group.get('parent_id')
-      if (!parentId || rooms.has(String(parentId))) return
+      if (!parentId || rooms.has(String(parentId)) || privateSpaceIds.has(String(group.id))) return
+      rooms.add(String(parentId))
       const g = payload.groups.find(p => String(p.id) === String(group.id))
       if (!g) return
-      // Agora: a post in a private room (hidden or invite only) must not reach the whole
-      // circle through the parent room. Only the room's own members get it, each in
-      // their own user room, so their menu still badges. See lib/agora/rooms.js.
-      if (group.get('type') === 'space' && isPrivateRoom(group)) {
-        notifySockets.push(
-          GroupMembership.query(q => {
-            q.where({ group_id: group.id, active: true })
-            if (trx) q.transacting(trx)
-          }).fetchAll().then(memberships => Promise.all(memberships.map(m =>
-            pushToSockets(userRoom(m.get('user_id')), 'newPost', Object.assign({}, payload, { groups: [g] }))
-          )))
-        )
-        return
-      }
-      rooms.add(String(parentId))
       notifySockets.push(pushToSockets(
         groupRoom(parentId),
         'newPost',

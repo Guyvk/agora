@@ -69,9 +69,27 @@ function presetFor (visibility, accessibility) {
   return Object.values(roomPresets()).some(p => p.visibility === visibility && p.accessibility === accessibility)
 }
 
-/** A private room: hidden or invite only. Its posts go only to its own members. */
+/**
+ * A private room: anything that is not simply open to its circle (invite only,
+ * request to join, hidden, paywalled or role-gated). Its posts, chat notices and
+ * typing signs go only to its own members, never to the parent circle's channel.
+ */
 function isPrivateRoom (space) {
-  return space.get('visibility') === Group.Visibility.HIDDEN || space.get('accessibility') === Group.Accessibility.CLOSED
+  const roles = space.get('required_roles')
+  return space.get('accessibility') !== Group.Accessibility.OPEN ||
+    space.get('visibility') === Group.Visibility.HIDDEN ||
+    !!space.get('paywall') ||
+    (Array.isArray(roles) ? roles.length > 0 : !!roles && roles !== '[]')
 }
 
-module.exports = { isPrivateRoom, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }
+/** Socket rooms (one per active member) that a private room's live messages go to. */
+async function memberUserRooms (groupId, { transacting } = {}) {
+  const { userRoom } = require('../../api/services/Websockets')
+  const rows = await GroupMembership.query(q => {
+    q.where({ group_id: groupId, active: true })
+    if (transacting) q.transacting(transacting)
+  }).fetchAll()
+  return rows.map(m => userRoom(m.get('user_id')))
+}
+
+module.exports = { isPrivateRoom, memberUserRooms, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }

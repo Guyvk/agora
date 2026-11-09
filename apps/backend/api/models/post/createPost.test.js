@@ -130,15 +130,18 @@ describe('afterCreatingPost', () => {
     for (const [label, attrs] of [
       // Hylo's numbers: visibility Hidden 0, Protected 1; accessibility Closed 0, Open 2
       ['hidden', { visibility: 0, accessibility: 2 }],
-      ['invite only', { visibility: 1, accessibility: 0 }]
+      ['invite only', { visibility: 1, accessibility: 0 }],
+      ['request-to-join', { visibility: 1, accessibility: 1 }],
+      ['paywalled', { visibility: 1, accessibility: 2, paywall: true }]
     ]) {
       it(`does not push a ${label} space post to the parent group room, only to the space members`, async () => {
         const space = await makeSpace(attrs)
         await member.joinGroup(space)
         const rooms = await postInto(space)
-        expect(rooms).to.include(Websockets.groupRoom(space.id))
+        // only the members' own channels, once each: no room channel (that would badge twice)
+        expect(rooms).to.not.include(Websockets.groupRoom(space.id))
         expect(rooms).to.not.include(Websockets.groupRoom(parent.id))
-        expect(rooms).to.include(Websockets.userRoom(member.id))
+        expect(rooms.filter(r => r === Websockets.userRoom(member.id)).length).to.equal(1)
         expect(rooms).to.not.include(Websockets.userRoom(outsider.id))
       })
     }

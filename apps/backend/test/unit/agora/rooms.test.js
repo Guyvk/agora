@@ -156,6 +156,18 @@ describe('Agora rooms made by members', () => {
     await deleteSpace(steward.id, room.id, {})
   })
 
+  it('counts every room that is not simply open to the circle as private', async () => {
+    const { isPrivateRoom } = require(rootPath('lib/agora/rooms'))
+    const make = attrs => ({ get: k => ({ visibility: 1, accessibility: 2, paywall: false, required_roles: null, ...attrs })[k] })
+    expect(isPrivateRoom(make({}))).to.be.false
+    expect(isPrivateRoom(make({ accessibility: 0 }))).to.be.true
+    expect(isPrivateRoom(make({ accessibility: 1 }))).to.be.true
+    expect(isPrivateRoom(make({ visibility: 0 }))).to.be.true
+    expect(isPrivateRoom(make({ paywall: true }))).to.be.true
+    expect(isPrivateRoom(make({ required_roles: [3] }))).to.be.true
+    expect(isPrivateRoom(make({ required_roles: [] }))).to.be.false
+  })
+
   it('lets a circle steward still manage a member-made room', async () => {
     const room = await createSpace(member.id, { parentGroupId: circle.id, name: 'Steward can', ...openRoom }, {})
     await archiveSpace(steward.id, room.id, {})
