@@ -1,0 +1,24 @@
+# Agora: the maker of a room adds people from the room's circle. See lib/agora/rooms.js.
+# Added to Hylo's schema in api/graphql/makeSchema.js, for logged-in people only.
+
+type AgoraRoomPerson {
+  id: ID
+  name: String
+  avatarUrl: String
+}
+
+type AgoraRoomResult {
+  success: Boolean
+  # Ids of the people who were added
+  addedIds: [ID]
+}
+
+extend type Query {
+  # Members of the room's circle who are not in the room yet; only for the room's steward
+  agoraRoomPeopleToAdd(roomId: ID): [AgoraRoomPerson]
+}
+
+extend type Mutation {
+  agoraAddRoomMembers(roomId: ID, userIds: [ID]): AgoraRoomResult
+  agoraRemoveRoomMember(roomId: ID, userId: ID): AgoraRoomResult
+}

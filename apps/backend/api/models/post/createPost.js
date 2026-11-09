@@ -319,9 +319,12 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
       rooms.add(String(g.id))
       if (privateSpaceIds.has(String(g.id))) {
         notifySockets.push(
-          memberUserRooms(g.id, { transacting: trx }).then(userRooms => Promise.all(userRooms.map(room =>
-            pushToSockets(room, 'newPost', Object.assign({}, payload, { groups: [g] }))
-          )))
+          memberUserRooms(g.id, { transacting: trx })
+            .then(userRooms => Promise.all(userRooms.map(room =>
+              pushToSockets(room, 'newPost', Object.assign({}, payload, { groups: [g] }))
+            )))
+            // a failed push must never make the post fail
+            .catch(err => sails.log.error('Agora: private room push failed', err))
         )
         return
       }
@@ -393,7 +396,8 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
   ))
 
   return Promise.all([
-    notifySockets,
+    // Agora: wait for the pushes (private rooms look up their members first, and a failure must not go unnoticed)
+    Promise.all(notifySockets.map(p => Promise.resolve(p).catch(err => sails.log.error('Websockets push failed', err)))),
     trackAsNewPost && groupTagsQuery.update({ updated_at: new Date() })
   ])
 }

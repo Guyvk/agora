@@ -337,3 +337,9 @@ New files: `apps/backend/lib/agora/chatThreads.js` and its test `apps/backend/te
 - `apps/web/src/components/SocketListener/SocketListener.js`, `store/reducers/ormReducer/index.js`, `store/models/Post.js`: the `chatThreadUpdated` event updates the message's counter, repliers and last reply time.
 - `apps/web/public/locales/*.json`: new `agoraChat.*` texts (German, Spanish, French, Portuguese and Hindi written by Claude, to be checked by a native speaker).
 
+## Room makers add circle members (November 2026)
+
+- `apps/backend/api/graphql/makeSchema.js`: adds Agora's `agoraRoomPeopleToAdd`, `agoraAddRoomMembers` and `agoraRemoveRoomMember` (new files `api/graphql/agora/rooms.js` and `rooms.graphql`; the rules are in `lib/agora/rooms.js`).
+- `apps/backend/api/models/post/createPost.js`: the pushes of a new post are now waited for, and a failed push is logged instead of lost, because a private room first looks up its members.
+- `apps/web/src/agora/rooms/RoomHeaderControls.jsx`: "Add people" for the room's steward, opening `AddRoomPeopleDialog.jsx`.
+- `apps/web/public/locales/*.json`: new keys `agoraRooms.addPeople*` (non-English texts written by Claude, please check).
