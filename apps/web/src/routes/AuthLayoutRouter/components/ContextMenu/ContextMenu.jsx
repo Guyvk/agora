@@ -76,6 +76,7 @@ import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
 import AskMenuLink from '@/agora/ask/AskMenuLink' // Agora: the Ask tab of a circle
 import TasksMenuLink from '@/agora/tasks/TasksMenuLink' // Agora: the Tasks page of a circle
+import BuildMenuLink from '@/agora/buildboard/BuildMenuLink' // Agora: the Build page of one circle
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -980,6 +981,8 @@ export default function ContextMenu (props) {
         {isGroupContext && !isEditing && !showingSpaceMenu && group?.slug && (
           <TasksMenuLink groupSlug={group.slug} isMember={myMemberships.some(m => String(m.group?.id) === String(group.id))} />
         )}
+        {/* Agora: the Build page, only in the circle set in AGORA_BUILD_CIRCLE and only for its members (the link asks the server) */}
+        {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <BuildMenuLink groupSlug={groupSlug} />}
         {/* Agora: the playbook page of a group */}
         {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
         {/* Agora: the Ask tab of a circle */}

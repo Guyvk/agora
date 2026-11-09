@@ -91,6 +91,7 @@ import AskPage from '@/agora/ask/AskPage' // Agora: the Ask tab of a circle
 import CircleTasksPage from '@/agora/tasks/CircleTasksPage' // Agora: the Tasks page of a circle, inside the app
 import MyTasksPage from '@/agora/tasks/MyTasksPage' // Agora: My tasks, across all my circles
 import FilesRedirect from '@/agora/resources/FilesRedirect' // Agora: the old Files address leads to Resources
+import BuildPage from '@/agora/buildboard/BuildPage' // Agora: the Build page of one circle, inside the app
 import GuidePage from '@/agora/guide/GuidePage' // Agora: the guide
 import CalendarPage from '@/agora/calendar/CalendarPage' // Agora: my calendar of Meetings and Events
 import WelcomeSteps from '@/agora/guide/WelcomeSteps' // Agora: welcome steps for new members
@@ -1168,6 +1169,7 @@ export default function AuthLayoutRouter (props) {
                             <Route path='ask' element={<AskPage />} /> {/* Agora: the Ask tab of a circle */}
                             <Route path='tasks' element={<CircleTasksPage />} /> {/* Agora: the Tasks page of a circle, inside the app */}
                             <Route path='files' element={<FilesRedirect />} /> {/* Agora: the old Files address leads to Resources */}
+                            <Route path='build' element={<BuildPage />} /> {/* Agora: the Build page (GitHub board) of one circle, inside the app */}
                             <Route path='topics/:topicName/*' element={<ViewContent context='groups' />} />
                             <Route path='topics' element={<AllTopics context='groups' />} />
                             <Route path='chat/*' element={<ChatRoom context='groups' />} />
