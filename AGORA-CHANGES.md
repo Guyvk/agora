@@ -301,3 +301,4 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx`: a "New room" button for members (opens `AddRoomDialog`), and a muted room shows its unread count quietly.
 - `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
 - `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).
+- `apps/backend/api/models/post/createPost.js`: a post in a private room (hidden or invite only) is no longer pushed to the parent circle's socket room; only the room's own members get it, each in their own user room (so their menu still badges). Open rooms and all other posts behave as in Hylo.

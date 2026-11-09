@@ -19,7 +19,7 @@ let archiveSpace, createSpace, deleteSpace, updateSpace
 describe('Agora rooms made by members', () => {
   let steward, member, otherMember, outsider, circle
   const privateRoom = { visibility: 0, accessibility: 0 } // Hidden + Closed
-  const openRoom = { visibility: 2, accessibility: 2 } // Public + Open
+  const openRoom = { visibility: 1, accessibility: 2 } // Protected + Open (only the circle sees it)
 
   before(async () => {
     ({ archiveSpace, createSpace, deleteSpace, updateSpace } = require(rootPath('api/graphql/mutations/spaces')))
@@ -106,6 +106,45 @@ describe('Agora rooms made by members', () => {
     for (const attempt of [
       () => updateSpace(otherMember.id, { id: room.id, name: 'Hijacked' }, {}),
       () => archiveSpace(otherMember.id, room.id, {})
+    ]) {
+      try {
+        await attempt()
+        expect.fail('should throw')
+      } catch (e) {
+        expect(e.message).to.match(/don.t have permission/)
+      }
+    }
+    await deleteSpace(steward.id, room.id, {})
+  })
+
+  it('refuses the Public + Open preset, which every logged-in user could see', async () => {
+    try {
+      await createSpace(member.id, { parentGroupId: circle.id, name: 'Everyone sees', visibility: 2, accessibility: 2 }, {})
+      expect.fail('should throw')
+    } catch (e) {
+      expect(e.message).to.equal('A room is either open or private')
+    }
+  })
+
+  it('refuses extra settings a member cannot pick in the dialog', async () => {
+    for (const extra of [{ slug: 'mine' }, { purpose: 'x' }, { location: 'Here' }, { bannerUrl: 'http://x/y.png' }, { avatarUrl: 'http://x/y.png' }, { addToMenu: false }]) {
+      try {
+        await createSpace(member.id, { parentGroupId: circle.id, name: 'Extras', ...extra }, {})
+        expect.fail('should throw for ' + JSON.stringify(extra))
+      } catch (e) {
+        expect(e.message).to.match(/don.t have permission/)
+      }
+    }
+  })
+
+  it('takes the room steward powers away when they leave the circle', async () => {
+    const leaver = await factories.user().save()
+    await leaver.joinGroup(circle)
+    const room = await createSpace(leaver.id, { parentGroupId: circle.id, name: 'Left behind', ...openRoom }, {})
+    await bookshelf.knex('group_memberships').where({ user_id: leaver.id, group_id: circle.id }).update({ active: false })
+    for (const attempt of [
+      () => updateSpace(leaver.id, { id: room.id, name: 'Still mine' }, {}),
+      () => archiveSpace(leaver.id, room.id, {})
     ]) {
       try {
         await attempt()

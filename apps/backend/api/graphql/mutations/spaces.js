@@ -53,7 +53,7 @@ async function requireSpaceManager (userId, spaceId, action, { includeInactive =
   const responsibilities = await Responsibility.fetchForUserAndGroupAsStrings(userId, parentId)
   if (!responsibilities.includes(Responsibility.constants.RESP_ADMINISTRATION)) {
     // Agora: the steward of a room (its maker) may update and archive it, nothing more
-    if (allowRoomSteward && require('../../../lib/agora/rooms').isRoomSteward(userId, space)) {
+    if (allowRoomSteward && await require('../../../lib/agora/rooms').isRoomSteward(userId, space)) {
       space.agoraRoomStewardOnly = true
       return space
     }
@@ -78,7 +78,8 @@ export async function createSpace (userId, { parentGroupId, name, slug, accepted
     throw new GraphQLError("You don't have permission to create spaces in this group")
   }
   if (!await agoraRooms.isCircleSteward(userId, parentGroupId)) {
-    if (paywall || autoAddMembers || (requiredRoles && requiredRoles.length) || (status && status !== Group.Status.PUBLISHED)) {
+    const blocked = agoraRooms.restrictedCreateFields({ slug, requiredRoles, purpose, location, locationId, geoShape, bannerUrl, avatarUrl, paywall, autoAddMembers })
+    if (blocked.length || addToMenu === false || (status && status !== Group.Status.PUBLISHED)) {
       throw new GraphQLError("You don't have permission to use these settings for a room")
     }
     const vis = visibility != null ? visibility : agoraRooms.roomPresets().private.visibility

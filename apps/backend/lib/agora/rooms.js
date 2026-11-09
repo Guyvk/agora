@@ -15,11 +15,13 @@
  * groups.created_by_id of the space. Circle stewards can still do everything.
  */
 
-// The two choices a member sees: open and private. Same values as the 'open'
-// and 'invite' presets in apps/web .../ContextMenu/spaceFormConstants.js
+// The two choices a member sees: open and private. Private is the 'invite'
+// preset in apps/web .../ContextMenu/spaceFormConstants.js. Open is PROTECTED +
+// OPEN (not PUBLIC): Hylo shows PUBLIC spaces to every logged-in user, while a
+// PROTECTED one is seen only by members of its circle (api/graphql/filters.js).
 // (a function, because the Group model only exists once the app has started)
 const roomPresets = () => ({
-  open: { visibility: Group.Visibility.PUBLIC, accessibility: Group.Accessibility.OPEN },
+  open: { visibility: Group.Visibility.PROTECTED, accessibility: Group.Accessibility.OPEN },
   private: { visibility: Group.Visibility.HIDDEN, accessibility: Group.Accessibility.CLOSED }
 })
 
@@ -39,10 +41,22 @@ async function canCreateRoom (userId, parentGroup) {
   return !!(membership && membership.get('active'))
 }
 
-/** The steward of a room is the person who made it. */
-function isRoomSteward (userId, space) {
+/** The steward of a room is the person who made it, as long as they are still in its circle. */
+async function isRoomSteward (userId, space) {
   const creator = space && space.get('created_by_id')
-  return !!(userId && creator && String(creator) === String(userId))
+  if (!userId || !creator || String(creator) !== String(userId)) return false
+  const parentId = space.get('parent_id')
+  if (!parentId) return false
+  const membership = await GroupMembership.forPair(userId, parentId).fetch()
+  return !!(membership && membership.get('active'))
+}
+
+// What a plain member may set when making a room (what the member dialog offers)
+const ROOM_CREATE_FIELDS = ['parentGroupId', 'name', 'description', 'icon', 'visibility', 'accessibility', 'viewTypes', 'acceptedPostTypes']
+
+/** Fields a plain member may not set when making a room. */
+function restrictedCreateFields (args) {
+  return Object.keys(args).filter(k => args[k] !== undefined && args[k] !== null && !ROOM_CREATE_FIELDS.includes(k) && args[k] !== false && !(Array.isArray(args[k]) && args[k].length === 0))
 }
 
 /** True when this member may only use the simple member dialog (not a circle steward). */
@@ -55,4 +69,9 @@ function presetFor (visibility, accessibility) {
   return Object.values(roomPresets()).some(p => p.visibility === visibility && p.accessibility === accessibility)
 }
 
-module.exports = { roomPresets, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }
+/** A private room: hidden or invite only. Its posts go only to its own members. */
+function isPrivateRoom (space) {
+  return space.get('visibility') === Group.Visibility.HIDDEN || space.get('accessibility') === Group.Accessibility.CLOSED
+}
+
+module.exports = { isPrivateRoom, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }

@@ -13,10 +13,10 @@ import fetchGroupViews from 'store/actions/fetchGroupViews'
 import { GROUP_ACCESSIBILITY, GROUP_VISIBILITY } from 'store/models/Group'
 import { cn } from 'util/index'
 
-// The two choices of a member-made room. Same values as the 'open' and 'invite'
-// presets in routes/AuthLayoutRouter/components/ContextMenu/spaceFormConstants.js
+// The two choices of a member-made room (same values as lib/agora/rooms.js on the server).
+// Open is Protected + Open, so only the circle sees it; Private is the 'invite' preset
 export const ROOM_CHOICES = [
-  { value: 'open', icon: DoorOpen, labelKey: 'agoraRooms.open', helpKey: 'agoraRooms.openHelp', visibility: GROUP_VISIBILITY.Public, accessibility: GROUP_ACCESSIBILITY.Open },
+  { value: 'open', icon: DoorOpen, labelKey: 'agoraRooms.open', helpKey: 'agoraRooms.openHelp', visibility: GROUP_VISIBILITY.Protected, accessibility: GROUP_ACCESSIBILITY.Open },
   { value: 'private', icon: Lock, labelKey: 'agoraRooms.private', helpKey: 'agoraRooms.privateHelp', visibility: GROUP_VISIBILITY.Hidden, accessibility: GROUP_ACCESSIBILITY.Closed }
 ]
 
@@ -31,7 +31,7 @@ export default function AddRoomDialog ({ group, onClose }) {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [access, setAccess] = useState('open')
+  const [access, setAccess] = useState('private')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
 

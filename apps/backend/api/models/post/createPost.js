@@ -3,7 +3,8 @@ import { flatten, merge, pick, uniq } from 'lodash'
 import setupPostAttrs from './setupPostAttrs'
 import updateChildren from './updateChildren'
 import { assertGroupsAcceptPostType } from './validatePostData'
-import { groupRoom, pushToSockets } from '../../services/Websockets'
+import { groupRoom, pushToSockets, userRoom } from '../../services/Websockets'
+import { isPrivateRoom } from '../../../lib/agora/rooms' // Agora: private rooms
 import { partitionImageUrls } from '../../../lib/uploader/rehostRemoteMedia'
 import { fillMeetingLink, refuseOutsideCallLocation } from '../../../lib/agora/meetingLink' // Agora: events get their meeting room
 import { withKind, afterCreate as agoraAfterCreate } from '../../../lib/agora/eventKinds' // Agora: Meeting or Event
@@ -321,9 +322,23 @@ async function notifyAndMarkAuthorRead (post, localId, trx, { silent = false } =
     groups.models.forEach(group => {
       const parentId = group.get('parent_id')
       if (!parentId || rooms.has(String(parentId))) return
-      rooms.add(String(parentId))
       const g = payload.groups.find(p => String(p.id) === String(group.id))
       if (!g) return
+      // Agora: a post in a private room (hidden or invite only) must not reach the whole
+      // circle through the parent room. Only the room's own members get it, each in
+      // their own user room, so their menu still badges. See lib/agora/rooms.js.
+      if (group.get('type') === 'space' && isPrivateRoom(group)) {
+        notifySockets.push(
+          GroupMembership.query(q => {
+            q.where({ group_id: group.id, active: true })
+            if (trx) q.transacting(trx)
+          }).fetchAll().then(memberships => Promise.all(memberships.map(m =>
+            pushToSockets(userRoom(m.get('user_id')), 'newPost', Object.assign({}, payload, { groups: [g] }))
+          )))
+        )
+        return
+      }
+      rooms.add(String(parentId))
       notifySockets.push(pushToSockets(
         groupRoom(parentId),
         'newPost',
