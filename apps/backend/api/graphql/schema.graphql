@@ -2379,6 +2379,8 @@ type Post {
   commentersTotal: Int
   # Total number of comments on this post
   commentsTotal: Int
+  # Agora: when the newest reply (comment) was written, for "3 replies, last 10 min ago" in chat
+  lastCommentAt: Date
   # The date and time this post was completed by the current user
   completedAt: Date
   # The action that people can take to complete this post. 'button', 'comment', 'reaction', 'selectMultiple', 'selectOne', 'text', 'uploadFile'

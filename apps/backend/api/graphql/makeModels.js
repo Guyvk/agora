@@ -22,6 +22,7 @@ import {
 import { LOCATION_DISPLAY_PRECISION } from '../../lib/constants'
 import { parseAcceptedPostTypes } from '../models/post/validatePostData'
 import InvitationService from '../services/InvitationService'
+import { lastCommentAt } from '../../lib/agora/chatThreads' // Agora: reply time under chat messages
 import {
   filterAndSortContentAccess,
   filterAndSortPosts,
@@ -673,7 +674,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
                   mentionsOf,
                   offset,
                   order,
-                  savedBy,
+                  // Agora: your saved list is yours only, also through a person's posts
+                  savedBy: savedBy && savedBy.length ? [userId] : savedBy,
                   search,
                   sortBy,
                   topic,
@@ -776,6 +778,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
         completedAt: p => p.completedAtForUser(userId),
         completionResponse: p => p.completionResponseForUser(userId),
         details: p => p.details(userId),
+        // Agora: newest reply time, only looked up when the post has replies
+        lastCommentAt: p => p.get('num_comments') > 0 ? lastCommentAt(p.id) : null,
         fundingRound: p => p.fundingRounds().fetchOne(),
         isAnonymousVote: p => p.get('anonymous_voting') === 'true',
         localId: p => p.getLocalId(),
@@ -934,7 +938,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
           proposalOutcome,
           proposalStatus,
           rsvpResponse,
-          savedBy,
+          // Agora: your saved list is yours only, whatever ids the request names
+          savedBy: savedBy && savedBy.length ? [userId] : savedBy,
           sort: sortBy,
           term: search,
           topic,

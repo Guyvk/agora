@@ -1,6 +1,6 @@
 import isMobile from 'ismobilejs'
 import { debounce } from 'lodash/fp'
-import { ChevronDown, MessageSquareMore } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, MessageSquareMore, Search } from 'lucide-react'
 import { DateTimeHelpers, postAppearsInChat } from '@hylo/shared'
 import { EditorView } from 'prosemirror-view'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, Routes, Route } from 'react-router-dom'
 // Agora: our own free message list instead of the paid @virtuoso.dev/message-list, which shows nothing without a licence key
+import ThreadPanel from '@/agora/chat/ThreadPanel' // Agora: thread panel beside the chat
+import RoomSearchPanel from '@/agora/chat/RoomSearchPanel' // Agora: search inside this room
 import AgoraMessageList, { useMessageListLocation as useVirtuosoLocation, useMessageListMethods as useVirtuosoMethods } from '@/agora/chat/AgoraMessageList'
 
 import { getSocket } from 'client/websockets.js'
@@ -29,7 +31,8 @@ import {
   chatShowsDayLabel,
   computeChatInitialScrollIndex,
   isPersistedChatPostId,
-  samePostId
+  samePostId,
+  unreadOffScreenDirection
 } from './chatRoomUtils'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
 import RoomHeaderControls, { useCanManageRoom } from '@/agora/rooms/RoomHeaderControls'
@@ -146,6 +149,14 @@ export default function ChatRoom (props) {
   const [postIdToStartAt, setPostIdToStartAt] = useState(sanitizePostId(querystringParams?.postId))
 
   const [container, setContainer] = React.useState(null)
+  // Agora: panel beside the chat: { kind: 'thread', postId } or { kind: 'search' } or null
+  const [sidePanel, setSidePanel] = useState(null)
+  const openThread = useCallback((post) => setSidePanel({ kind: 'thread', postId: post.id }), [])
+  const closeSidePanel = useCallback(() => setSidePanel(null), [])
+  // Agora: first and last message on screen, so we know whether the first unread one is out of sight
+  const [visibleRange, setVisibleRange] = useState({ first: null, last: null })
+  // Agora: a different room starts without a panel open
+  useEffect(() => { setSidePanel(null) }, [group?.id])
   const messageListRef = useRef(null)
   /**
    * Monotonic “generation” for which chat room the list is showing. We bump it on every room entry
@@ -268,6 +279,22 @@ export default function ChatRoom (props) {
       return updated ? { ...item, ...updated } : item
     })
   }, [postsForDisplay])
+
+  // Agora: the first message written by someone else after what you had read when you opened the room
+  const firstUnreadPostId = useMemo(() => {
+    if (!latestOldPostId || !currentUser) return null
+    const firstUnread = postsForDisplay.find(post => (
+      post.type === 'chat' && !post.pending && Number(post.id) > Number(latestOldPostId) && post.creator?.id !== currentUser.id
+    ))
+    return firstUnread?.id ?? null
+  }, [postsForDisplay, latestOldPostId, currentUser])
+  const unreadDirection = useMemo(() => unreadOffScreenDirection(firstUnreadPostId, visibleRange), [firstUnreadPostId, visibleRange])
+  const jumpToFirstUnread = useCallback(() => {
+    const list = messageListRef.current
+    if (!list || firstUnreadPostId == null) return
+    const index = list.data.findIndex(item => samePostId(item?.id, firstUnreadPostId))
+    if (index !== -1) list.scrollToItem({ index, align: 'start-no-overflow', behavior: 'auto' })
+  }, [firstUnreadPostId])
 
   const fetchPostsPast = useCallback((offset, extraParams = {}, force = false) => {
     if ((loadingPastRef.current || hasMorePastRef.current === false) && !force) return Promise.resolve()
@@ -768,6 +795,10 @@ export default function ChatRoom (props) {
   )
 
   const onRenderedDataChange = useCallback((data) => {
+    // Agora: remember which messages are on screen, for the "Jump to first unread" button
+    const shownIds = (data || []).map(item => item?.id).filter(id => id != null)
+    const shown = { first: shownIds[0] ?? null, last: shownIds[shownIds.length - 1] ?? null }
+    setVisibleRange(prev => (prev.first === shown.first && prev.last === shown.last ? prev : shown))
     if (suppressReadUpdateRef.current) return
     // Last item in visual order is the bottom of the viewport — how far they have read.
     const lastPost = [...(data || [])].reverse().find(isPersistedChatPostId)
@@ -907,7 +938,7 @@ export default function ChatRoom (props) {
   }, [])
 
   return (
-    <div className={cn('ChatRoom flex-1 min-h-0 flex flex-col overflow-hidden items-center justify-center', { [styles.withoutNav]: withoutNav })} ref={setContainer}>
+    <div className={cn('ChatRoom relative flex-1 min-h-0 flex flex-col overflow-hidden items-center justify-center', { [styles.withoutNav]: withoutNav, 'sm:pr-[420px]': sidePanel })} ref={setContainer}>
       <Helmet>
         <title>{agoraTitle(t('Chat'), group?.name)}</title>
       </Helmet>
@@ -926,7 +957,7 @@ export default function ChatRoom (props) {
             the chips column tucks right-aligned beneath it; sm+ keeps the
             strip on the same row, left of the cluster */}
         {/* Agora: the room's short description under the room name */}
-        <RoomDescription group={group} className='relative z-30 pt-12 sm:pt-1 sm:pr-[240px]' />
+        <RoomDescription group={group} className='relative z-30 pt-12 sm:pt-1 sm:pr-[240px] max-sm:pr-11' />
         <PinnedPostChips
           posts={pinnedPosts}
           viewId={chatView?.id}
@@ -978,6 +1009,29 @@ export default function ChatRoom (props) {
         {/* Member pill + active strip + slide-in list; absolute inside this container
             so the cover blankets the chat pane and nothing else */}
         <ChatMembersPanel group={group} latestPost={postsForDisplay[postsForDisplay.length - 1]} />
+        {/* Agora: "Jump to first unread", only while that message is out of sight */}
+        {unreadDirection && (
+          <button
+            type='button'
+            data-testid='jump-to-first-unread'
+            onClick={jumpToFirstUnread}
+            className={cn('absolute z-30 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-accent text-white text-xs font-semibold shadow-lg hover:scale-105 transition-transform', hasRoomDescription ? 'top-[7.5rem] sm:top-20' : 'top-12')}
+          >
+            {unreadDirection === 'above' ? <ArrowUp className='w-3.5 h-3.5' /> : <ArrowDown className='w-3.5 h-3.5' />}
+            {t('agoraChat.jumpToFirstUnread')}
+          </button>
+        )}
+        {/* Agora: search only this room's messages */}
+        <button
+          type='button'
+          data-testid='room-search-button'
+          onClick={() => setSidePanel(panel => (panel?.kind === 'search' ? null : { kind: 'search' }))}
+          aria-label={t('agoraChat.searchRoom')}
+          title={t('agoraChat.searchRoom')}
+          className='absolute z-30 top-11 right-2 max-sm:top-[3.25rem] w-7 h-7 grid place-items-center rounded-md bg-card/90 backdrop-blur-sm border border-foreground/20 text-foreground cursor-pointer hover:border-foreground/40'
+        >
+          <Search className='w-3.5 h-3.5' />
+        </button>
         {initialPostToScrollTo === null || groupLoading || chatViewLoading
           ? (
             <div className='h-full w-full mt-auto overflow-x-visible flex flex-col justify-end min-h-[40vh]'>
@@ -1008,6 +1062,7 @@ export default function ChatRoom (props) {
                 handleFlagPost,
                 handleRemovePost,
                 handleRemoveReaction,
+                handleOpenThread: openThread, // Agora: Reply and the reply counter open the thread panel
                 loadToLatest,
                 postIdToStartAt,
                 selectedPostId
@@ -1051,6 +1106,15 @@ export default function ChatRoom (props) {
           />
         )}
       </div>
+      {/* Agora: thread panel or room search beside the chat (the chat stays visible); full screen on a phone */}
+      {sidePanel?.kind === 'thread' && <ThreadPanel postId={sidePanel.postId} group={group} onClose={closeSidePanel} />}
+      {sidePanel?.kind === 'search' && (
+        <RoomSearchPanel
+          group={group}
+          onClose={closeSidePanel}
+          onPick={(post) => dispatch(changeQuerystringParam(location, 'postId', post.id, null, true))}
+        />
+      )}
       {/* DEPRECATED: Now always show PostDialog routes */}
       {/* {!isWebView() && ( */}
       <Routes>
@@ -1200,7 +1264,7 @@ const ItemContent = ({ data: post, context, prevData, nextData, index }) => {
           slash-opacity classes on it are silently ignored */}
       {firstUnread &&
         <div className='w-full flex items-center my-3'>
-          <div className='text-accent text-xs font-semibold whitespace-nowrap'>{t('New posts')}</div>
+          <div className='text-accent text-xs font-semibold whitespace-nowrap'>{t('agoraChat.newMessages')}</div>
           <div className='grow ml-4 border-t border-dashed border-[hsl(var(--accent)/0.3)]' />
         </div>}
       {displayDay && (
@@ -1227,6 +1291,7 @@ const ItemContent = ({ data: post, context, prevData, nextData, index }) => {
               showHeader={showHeader}
               post={post}
               onAddReaction={handleAddReaction}
+              onOpenThread={context.handleOpenThread} // Agora
               onFlagPost={handleFlagPost}
               onRemoveReaction={handleRemoveReaction}
               onRemovePost={handleRemovePost}

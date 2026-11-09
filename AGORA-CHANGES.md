@@ -323,3 +323,17 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
 - `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).
 - `apps/backend/api/models/post/createPost.js`: a post in a private room (hidden or invite only) is no longer pushed to the parent circle's socket room; only the room's own members get it, each in their own user room (so their menu still badges). Open rooms and all other posts behave as in Hylo. `upsertChatActivityNotice.js` (the chat notice with the last chats' text) and `GroupController.js` (typing signs) follow the same rule: a private room is anything not simply open to its circle (invite only, request to join, hidden, paywalled, role-gated).
+
+
+## Chat threads and room comforts (9 November 2026)
+
+New files: `apps/backend/lib/agora/chatThreads.js` and its test `apps/backend/test/unit/agora/chatThreads.test.js`; `apps/web/src/agora/chat/` `ThreadPanel.jsx`, `ThreadSummary.jsx`, `RoomSearchPanel.jsx`, `chatThreads.store.js`, `relativeTime.js`, `chatThreads.test.js`.
+
+- `apps/backend/api/models/Post.js`: after a reply is counted, `pushThreadSummary` tells the circle's chat the new count (live reply counter).
+- `apps/backend/api/services/Websockets.js`: new message type `chatThreadUpdated`.
+- `apps/backend/api/graphql/schema.graphql`, `makeModels.js`: new Post field `lastCommentAt`; the `posts` query always reads your own saved list when `savedBy` is given (before, naming another person's id showed that person's saved posts).
+- `apps/web/src/routes/ChatRoom/ChatRoom.js`, `ChatPost/ChatPost.js`, `chatRoomUtils.js` (+ `ChatPost.test.js`): Reply and the reply counter open the thread panel beside the chat; room search button and panel; "New messages" line wording and the "Jump to first unread" button.
+- `apps/web/src/graphql/fragments/chatRoomPostFieldsFragment.js`: asks for `lastCommentAt`.
+- `apps/web/src/components/SocketListener/SocketListener.js`, `store/reducers/ormReducer/index.js`, `store/models/Post.js`: the `chatThreadUpdated` event updates the message's counter, repliers and last reply time.
+- `apps/web/public/locales/*.json`: new `agoraChat.*` texts (German, Spanish, French, Portuguese and Hindi written by Claude, to be checked by a native speaker).
+

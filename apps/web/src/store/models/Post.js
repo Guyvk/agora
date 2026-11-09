@@ -110,6 +110,8 @@ Post.fields = {
   meetingLink: attr(),
   agoraKind: attr(), // Agora: 'meeting' or 'event'
   agoraForAll: attr(), // Agora: for all of 7BP
+  lastCommentAt: attr(), // Agora: when the newest reply was written (chat threads)
+  chatThreadRepliers: attr(), // Agora: who replied, kept fresh by the chat thread socket event
   // Plain data, not a relation: the flag badge tooltip reads reasons off it
   moderationActions: attr(),
   peopleReactedTotal: attr(),

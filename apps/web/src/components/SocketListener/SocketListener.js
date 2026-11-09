@@ -15,6 +15,7 @@ import {
   receiveOpenJoinRequestCount
 } from './SocketListener.store'
 import fetchGroupViews from 'store/actions/fetchGroupViews'
+import { receiveChatThreadUpdate } from '@/agora/chat/chatThreads.store' // Agora: live reply counter in chat
 import getMe from 'store/selectors/getMe'
 import {
   addUserTyping,
@@ -38,6 +39,7 @@ const SocketListener = (props) => {
 
   const handlers = useMemo(() => ({
     commentAdded: data => dispatch(receiveComment(data)),
+    chatThreadUpdated: data => dispatch(receiveChatThreadUpdate(data)), // Agora: live reply counter in chat
     groupUpdated: (data) => {
       if (!group?.id || !data?.groupId) return
       if (String(data.groupId) !== String(group.id)) return
