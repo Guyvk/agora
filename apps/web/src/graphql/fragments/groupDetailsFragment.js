@@ -45,6 +45,7 @@ const groupFieldsFragment = ({ withTopics, withJoinQuestions, withPrerequisites,
   canAccess
   hasValidScope
   currentUserMembershipActive
+  agoraIAmRoomSteward
   track {
     id
     actionDescriptor

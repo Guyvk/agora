@@ -217,6 +217,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` (tasks) | The Tasks line in a circle's menu above the Files line (an import and one block) |
 | `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (tasks) | A "My tasks" button in the left bar after Calendar |
 | `apps/web/src/routes/GroupWelcomePage/GroupWelcomePage.jsx` (tasks) | The "Your tasks here" block under "This week in 7BP" (an import and one line) |
+| `apps/web/src/routes/PostDetail/PostDetail.js` (tasks from minutes) | One import and one line that mounts `PostTaskBlocks`: the "Action points" box on a minutes post and "Open tasks from last time" on an event post |
+| `apps/backend/config/routes.js` (tasks from minutes) | The addresses of the suggested tasks: list for a minutes post, mine, last time, add, not a task, not mine, add all |
+| `apps/backend/migrations/schema.sql` (tasks from minutes) | The two suggestion tables: `agora_task_suggestions` and `agora_task_suggestion_people` |
+| `apps/backend/api/models/MeetingSession.js`, `apps/backend/api/services/MeetingMinutes.js`, `apps/backend/lib/agora/library.js`, `apps/backend/lib/agora/mailer.js` (tasks from minutes) | The assistant is asked for `who` as a list, a real date and the project of each action; the open projects go into its prompt; after the minutes post is made the action points become suggested tasks (in a try block, so the minutes are never held up); two new email texts (one for add all lists several tasks) |
+| `apps/web/public/locales/*.json` (tasks from minutes) | The texts of the Action points box, "From the minutes, for you" and "Open tasks from last time", in every language (translations still to be checked) |
 
 ## Files that are new
 
@@ -278,6 +283,7 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 - `apps/backend/lib/agora/mainCircle.js`, `apps/backend/api/graphql/agora/mainCircle.js` and `.graphql`, `apps/backend/test/unit/agora/mainCircle.test.js`, `apps/web/src/agora/mainCircle/` (the 7BP Home look: which circle is the main one and its active children, the left bar order, the header pill and "Part of 7BP" link, the "Every circle in 7BP" cards, with tests)
 - `apps/backend/migrations/20261029120000_add_agora_claim_proposals.js`, `apps/web/src/agora/claim/ProposedProfileBanner.jsx`, `apps/web/src/agora/claim/ProposedProfileBanner.test.js` (propose a profile to a member)
 - `apps/backend/migrations/20261109120000_add_agora_tasks.js`, `apps/backend/lib/agora/tasks.js`, `apps/backend/api/controllers/AgoraTasksController.js`, `apps/backend/test/unit/agora/tasks.test.js` (tasks in a circle, optionally in a project: status columns, assignees, due date, comments; server only, no screen yet)
+- `apps/backend/migrations/20261110120000_add_agora_task_suggestions.js`, `apps/backend/lib/agora/minutesActions.js`, `taskSuggestions.js`, `taskNotify.js`, `tasksFromMinutes.js`, `apps/backend/scripts/agora-tasks-from-minutes.js`, `apps/backend/test/unit/agora/minutesActions.test.js`, `taskSuggestions.test.js`, `apps/web/src/agora/tasks/MinutesActionPoints.jsx`, `MinutesTasksForYou.jsx`, `OpenTasksFromLastTime.jsx`, `PostTaskBlocks.jsx`, `MinutesTasks.test.js` (tasks suggested by meeting minutes, part 4 of tasks)
 
 ## Hylo sync of 3 November 2026
 
@@ -307,3 +313,13 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 
 - `apps/web/src/components/PostDialog/PostDialog.jsx` (with `PostDialog.test.js`, new), `apps/web/src/agora/projectFullPage.js` (new, with its test): a project post never opens in the pop-up. Once the post is known to be a project, the pop-up swaps itself (replace, so Back returns to the list) for the project's own page in the same circle, inside the app. Other post types keep the pop-up. This one place covers every stream, search, track and chat room list that uses the pop-up.
 - `apps/web/src/routes/PostDetail/PostDetail.js` (with `PostDetail.test.js`): a project on its own page may be up to 1280 px wide (for the Tasks board). Members no longer get a visible "Leave Project" button; "Join Project" stays for non-members. `apps/web/src/components/PostCard/PostHeader/PostHeader.js` (with `PostHeader.test.js`): "Leave Project" is an item in the post's ... menu, shown only on a project and only when `PostDetail` passes `onLeaveProject` (members only). No new texts; "Leave Project" already exists in all six languages.
+
+## Chat rooms made by members (November 2026)
+
+- `apps/backend/api/graphql/mutations/spaces.js`: every member of a circle can make a room (a space); the maker is the room's steward and may rename, describe and archive it. The rules are in the new `apps/backend/lib/agora/rooms.js`. Deleting, converting, paywall, role gates and the other settings stay with circle stewards.
+- `apps/backend/api/graphql/schema.graphql`, `apps/backend/api/graphql/makeModels.js`: new field `Group.agoraIAmRoomSteward`.
+- `apps/web/src/routes/ChatRoom/ChatRoom.js`: the room's description line and the notification bell (all / mentions only / muted) in the header, both from `apps/web/src/agora/rooms/`.
+- `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx`: a "New room" button for members (opens `AddRoomDialog`), and a muted room shows its unread count quietly.
+- `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
+- `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).
+- `apps/backend/api/models/post/createPost.js`: a post in a private room (hidden or invite only) is no longer pushed to the parent circle's socket room; only the room's own members get it, each in their own user room (so their menu still badges). Open rooms and all other posts behave as in Hylo. `upsertChatActivityNotice.js` (the chat notice with the last chats' text) and `GroupController.js` (typing signs) follow the same rule: a private room is anything not simply open to its circle (invite only, request to join, hidden, paywalled, role-gated).

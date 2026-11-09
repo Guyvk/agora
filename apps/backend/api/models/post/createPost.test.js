@@ -97,6 +97,56 @@ describe('afterCreatingPost', () => {
       .finally(() => unspyify(Websockets, 'pushToSockets'))
   })
 
+  describe('posts in a space', () => {
+    // Agora: a post in a private room must not be pushed to the parent circle's socket room
+    let parent, member, outsider
+    before(async () => {
+      parent = await factories.group().save()
+      member = await factories.user().save()
+      outsider = await factories.user().save()
+    })
+
+    const makeSpace = (attrs) => factories.group({ type: 'space', parent_id: parent.id, ...attrs }).save()
+
+    const postInto = async (space) => {
+      const p = factories.post({ user_id: member.id, description: 'hello', link_preview_id: null })
+      await p.save()
+      spyify(Websockets, 'pushToSockets')
+      try {
+        await afterCreatingPost(p, { group_ids: [space.id] })
+        return Websockets.pushToSockets.__spy.calls.map(c => c[0])
+      } finally {
+        unspyify(Websockets, 'pushToSockets')
+      }
+    }
+
+    it('still pushes an open space post to the parent group room', async () => {
+      const space = await makeSpace({ visibility: 1, accessibility: 2 })
+      const rooms = await postInto(space)
+      expect(rooms).to.include(Websockets.groupRoom(space.id))
+      expect(rooms).to.include(Websockets.groupRoom(parent.id))
+    })
+
+    for (const [label, attrs] of [
+      // Hylo's numbers: visibility Hidden 0, Protected 1; accessibility Closed 0, Open 2
+      ['hidden', { visibility: 0, accessibility: 2 }],
+      ['invite only', { visibility: 1, accessibility: 0 }],
+      ['request-to-join', { visibility: 1, accessibility: 1 }],
+      ['paywalled', { visibility: 1, accessibility: 2, paywall: true }]
+    ]) {
+      it(`does not push a ${label} space post to the parent group room, only to the space members`, async () => {
+        const space = await makeSpace(attrs)
+        await member.joinGroup(space)
+        const rooms = await postInto(space)
+        // only the members' own channels, once each: no room channel (that would badge twice)
+        expect(rooms).to.not.include(Websockets.groupRoom(space.id))
+        expect(rooms).to.not.include(Websockets.groupRoom(parent.id))
+        expect(rooms.filter(r => r === Websockets.userRoom(member.id)).length).to.equal(1)
+        expect(rooms).to.not.include(Websockets.userRoom(outsider.id))
+      })
+    }
+  })
+
   it('ignores duplicate group ids', () => {
     const c = factories.group()
     return c.save()

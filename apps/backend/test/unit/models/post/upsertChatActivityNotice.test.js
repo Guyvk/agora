@@ -1,6 +1,8 @@
 /* eslint-disable no-unused-expressions */
 import upsertChatActivityNotice, { chatActivityBucketKey, findChatActivityNoticeForPost } from '../../../../api/models/post/upsertChatActivityNotice'
+import * as Websockets from '../../../../api/services/Websockets'
 const rootPath = require('root-path')
+const { spyify, unspyify } = require(rootPath('test/setup/helpers'))
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
 
@@ -75,6 +77,35 @@ describe('upsertChatActivityNotice', function () {
     expect(new Date(notice.get('updated_at')).getTime()).to.equal(later.getTime())
     expect(String(notice.get('user_id'))).to.equal(String(axolotl.id))
   })
+
+  // Agora: the notice holds the text of recent chats, so a private room's notice must not reach the parent circle
+  for (const [label, attrs, isPrivate] of [
+    ['an invite-only', { visibility: 1, accessibility: 0 }, true],
+    ['a request-to-join', { visibility: 1, accessibility: 1 }, true],
+    ['an open', { visibility: 1, accessibility: 2 }, false]
+  ]) {
+    it(`${isPrivate ? 'keeps' : 'does not keep'} the notice of ${label} room out of the parent circle channel`, async () => {
+      const space = await factories.group({ type: 'space', parent_id: group.id, ...attrs }).save()
+      const insider = await factories.user().save()
+      await insider.joinGroup(space)
+      const chat = await factories.post({ type: Post.Type.CHAT, user_id: author.id, description: 'secret words' }).save()
+      await chat.groups().attach(space.id)
+      spyify(Websockets, 'pushToSockets')
+      try {
+        await upsertChatActivityNotice({ postId: chat.id })
+        const rooms = Websockets.pushToSockets.__spy.calls.map(c => c[0])
+        if (isPrivate) {
+          expect(rooms).to.not.include(Websockets.groupRoom(group.id))
+          expect(rooms).to.not.include(Websockets.groupRoom(space.id))
+          expect(rooms).to.include(Websockets.userRoom(insider.id))
+        } else {
+          expect(rooms).to.include(Websockets.groupRoom(group.id))
+        }
+      } finally {
+        unspyify(Websockets, 'pushToSockets')
+      }
+    })
+  }
 
   it('creates a separate notice for a different hour', async () => {
     const firstHour = new Date(Date.UTC(2026, 7, 6, 17, 10, 0))

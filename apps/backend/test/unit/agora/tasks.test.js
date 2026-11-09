@@ -10,6 +10,7 @@
  */
 import AgoraTasksController from '../../../api/controllers/AgoraTasksController'
 import Tasks from '../../../lib/agora/tasks'
+import TaskNotify from '../../../lib/agora/taskNotify'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
@@ -39,6 +40,7 @@ describe('Agora tasks', () => {
   const show = (id, userId = bea.id) => call('show', { params: { taskId: id }, userId })
 
   before(async () => {
+    TaskNotify.setSender(async () => true) // no email in these checks
     await setup.clearDb()
     amara = await new User({ name: 'Amara', email: 'amara@tasks.test', active: true }).save()
     bea = await new User({ name: 'Bea', email: 'bea@tasks.test', active: true }).save()
@@ -380,4 +382,6 @@ describe('Agora tasks', () => {
       expect((await del(comment.id)(cora.id)).statusCode).to.equal(404)
     })
   })
+
+  after(() => TaskNotify.setSender(null))
 })
