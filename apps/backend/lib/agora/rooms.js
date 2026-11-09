@@ -180,5 +180,4 @@ async function removeRoomMember (userId, roomId, memberId) {
   return true
 }
 
-
 module.exports = { RoomError, findRoomFor, canManageRoomPeople, peopleToAdd, addRoomMembers, removeRoomMember, isPrivateRoom, memberUserRooms, roomPresets, ROOM_CREATE_FIELDS, restrictedCreateFields, ROOM_STEWARD_FIELDS, isCircleSteward, canCreateRoom, isRoomSteward, restrictedRoomFields, presetFor }
