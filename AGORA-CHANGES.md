@@ -287,3 +287,12 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/backend/api/graphql/index.test.js`: Hylo's tests that read public groups, posts and profiles without logging in now check that Agora returns nothing.
 - `apps/backend/test/setup/index.js`: the timeout is Hylo's again (50000). `test/setup/index.js.bak` removed.
 - `apps/web/src/routes/CreateGroup/CreateGroupForm.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/SpaceSlugField.jsx`, `fitSpaceUrl.js` and their tests: the address preview shows the host of the running site (`window.location.host`) instead of hylo.com.
+
+## Chat rooms made by members (November 2026)
+
+- `apps/backend/api/graphql/mutations/spaces.js`: every member of a circle can make a room (a space); the maker is the room's steward and may rename, describe and archive it. The rules are in the new `apps/backend/lib/agora/rooms.js`. Deleting, converting, paywall, role gates and the other settings stay with circle stewards.
+- `apps/backend/api/graphql/schema.graphql`, `apps/backend/api/graphql/makeModels.js`: new field `Group.agoraIAmRoomSteward`.
+- `apps/web/src/routes/ChatRoom/ChatRoom.js`: the room's description line and the notification bell (all / mentions only / muted) in the header, both from `apps/web/src/agora/rooms/`.
+- `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx`: a "New room" button for members (opens `AddRoomDialog`), and a muted room shows its unread count quietly.
+- `apps/web/src/store/actions/fetchForGroup.js`, `apps/web/src/graphql/fragments/groupDetailsFragment.js`, `apps/web/src/store/models/Group.js`: ask for and keep `agoraIAmRoomSteward`.
+- `apps/web/public/locales/*.json`: new keys `agoraRooms.*` (the non-English texts are my own translations; please have them checked).

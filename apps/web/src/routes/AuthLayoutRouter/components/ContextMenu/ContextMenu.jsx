@@ -1,6 +1,6 @@
 import { isDrawerNavLayout, isPhoneDevice } from 'util/mobile'
 import { get } from 'lodash/fp'
-import { CircleEllipsis, Info, Pencil, Settings, ShieldCheck, UserPlus, Users } from 'lucide-react'
+import { CircleEllipsis, Info, Pencil, Plus, Settings, ShieldCheck, UserPlus, Users } from 'lucide-react'
 import React, { useEffect, useCallback, useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom'
 import { replace } from 'redux-first-history'
@@ -61,6 +61,8 @@ import AddCollectionDialog from './AddCollectionDialog'
 import AddSpaceCollectionDialog from './AddSpaceCollectionDialog'
 import AddGroupViewDialog from './AddGroupViewDialog'
 import AddSpaceDialog from './AddSpaceDialog'
+import AddRoomDialog from '@/agora/rooms/AddRoomDialog'
+import { isRoomMuted } from '@/agora/rooms/roomNotifications'
 import AddViewOrSpaceMenu, { AddViewOrSpaceButton } from './AddViewOrSpaceMenu'
 import TruncatedText from 'components/TruncatedText'
 import { menuViewUrl, externalLinkHref, spaceEntryUrl, isParentGroupPath } from './groupViewMenuUrl'
@@ -145,6 +147,7 @@ function SpaceMenuItemWithMore ({
   aboutUrl,
   spaceUnread,
   spaceChatBadgeCount,
+  spaceChatMuted = false,
   spaceBannerUrl,
   spaceCol,
   parentSlug,
@@ -237,8 +240,12 @@ function SpaceMenuItemWithMore ({
         )}
         {(spaceChatBadgeCount || spaceUnread || typeof spaceMemberCount === 'number' || !isSpaceMember) && (
           <span className='relative z-10 shrink-0 inline-flex items-center gap-1.5 ml-auto mr-1 pointer-events-none'>
+            {/* Agora: a muted room shows its unread count quietly, no bold badge */}
             {spaceChatBadgeCount > 0 && (
-              <span className='min-w-5 h-5 px-1 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center'>
+              <span className={spaceChatMuted
+                ? 'min-w-5 px-1 text-xs text-foreground/50 flex items-center justify-center'
+                : 'min-w-5 h-5 px-1 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center'}
+              >
                 {spaceChatBadgeCount}
               </span>
             )}
@@ -452,6 +459,7 @@ function GroupViewMenuItem ({
         aboutUrl={aboutUrl}
         spaceUnread={showSpaceDot}
         spaceChatBadgeCount={spaceChatBadgeCount}
+        spaceChatMuted={isRoomMuted(spaceMembership)}
         spaceBannerUrl={spaceBannerUrl}
         spaceCol={spaceCol}
         parentSlug={parentSlug}
@@ -552,11 +560,13 @@ function GroupViewList ({
   parentGroup = null,
   isEditing,
   onOpenSettings,
-  canAdminister = false
+  canAdminister = false,
+  canAddRoom = false
 }) {
   const { t } = useTranslation()
   const [showAddView, setShowAddView] = useState(false)
   const [showAddSpace, setShowAddSpace] = useState(false)
+  const [showAddRoom, setShowAddRoom] = useState(false)
   // Spaces cannot nest spaces; Add Space is parent-menu only
   const canAddSpace = canAdminister && !spaceGroup
 
@@ -609,6 +619,20 @@ function GroupViewList ({
           />
         ))}
       </ul>
+      {/* Agora: every member can make a room in their circle (simple dialog, same page) */}
+      {canAddRoom && !spaceGroup && (
+        <div className='px-1.5 pb-1.5 -mt-4 mb-4'>
+          <button
+            type='button'
+            onClick={() => setShowAddRoom(true)}
+            className='flex items-center gap-2 w-full rounded-md p-2 bg-transparent border-none cursor-pointer text-foreground/70 hover:text-foreground text-sm'
+          >
+            <Plus className='w-4 h-4' />
+            {t('agoraRooms.newRoom')}
+          </button>
+        </div>
+      )}
+      {showAddRoom && <AddRoomDialog group={group} onClose={() => setShowAddRoom(false)} />}
     </div>
   )
 }
@@ -1243,6 +1267,7 @@ export default function ContextMenu (props) {
                   isEditing={isEditing}
                   onOpenSettings={setSettingsView}
                   canAdminister={canAdminister}
+                  canAddRoom={isGroupContext && myMemberships.some(m => String(m.group?.id) === String(group?.id))}
                 />
                 )
               : groupViewsLoading

@@ -277,7 +277,9 @@ Group.fields = {
   stripeDetailsSubmitted: attr(),
   paywall: attr(),
   hasValidScope: attr(),
-  currentUserMembershipActive: attr()
+  currentUserMembershipActive: attr(),
+  // Agora: true when the current user made this room and so is its steward
+  agoraIAmRoomSteward: attr()
 }
 
 export const DEFAULT_BANNER = '/default-group-banner.svg'

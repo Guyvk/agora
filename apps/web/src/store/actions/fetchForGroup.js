@@ -62,6 +62,7 @@ const queryFragment = `group(slug: $slug, updateLastViewed: $updateLastViewed) {
     canAccess
     hasValidScope
     currentUserMembershipActive
+    agoraIAmRoomSteward
     stripeAccountId
     stripeChargesEnabled
     stripePayoutsEnabled

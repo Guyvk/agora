@@ -41,7 +41,7 @@ async function uniqueStoredSpaceSlug (parentSlug, requestedSlug, name) {
  * @param {object} [opts]
  * @param {boolean} [opts.includeInactive] - allow inactive (archived) spaces; used by delete
  */
-async function requireSpaceManager (userId, spaceId, action, { includeInactive = false } = {}) {
+async function requireSpaceManager (userId, spaceId, action, { includeInactive = false, allowRoomSteward = false } = {}) {
   const space = includeInactive
     ? await Group.find(spaceId)
     : await Group.findActive(spaceId)
@@ -52,6 +52,11 @@ async function requireSpaceManager (userId, spaceId, action, { includeInactive =
 
   const responsibilities = await Responsibility.fetchForUserAndGroupAsStrings(userId, parentId)
   if (!responsibilities.includes(Responsibility.constants.RESP_ADMINISTRATION)) {
+    // Agora: the steward of a room (its maker) may update and archive it, nothing more
+    if (allowRoomSteward && require('../../../lib/agora/rooms').isRoomSteward(userId, space)) {
+      space.agoraRoomStewardOnly = true
+      return space
+    }
     throw new GraphQLError(`You don't have permission to ${action}`)
   }
   return space
@@ -65,9 +70,22 @@ export async function createSpace (userId, { parentGroupId, name, slug, accepted
   const parentGroup = await Group.findActive(parentGroupId)
   if (!parentGroup) throw new GraphQLError('Parent group not found')
 
-  const responsibilities = await Responsibility.fetchForUserAndGroupAsStrings(userId, parentGroupId)
-  if (!responsibilities.includes(Responsibility.constants.RESP_ADMINISTRATION)) {
+  // Agora: every member of the circle can make a room (rules in lib/agora/rooms.js).
+  // A member who is not a circle steward gets the simple member options only:
+  // open or private, no paywall, no role gate, no auto-adding of members.
+  const agoraRooms = require('../../../lib/agora/rooms')
+  if (!await agoraRooms.canCreateRoom(userId, parentGroup)) {
     throw new GraphQLError("You don't have permission to create spaces in this group")
+  }
+  if (!await agoraRooms.isCircleSteward(userId, parentGroupId)) {
+    if (paywall || autoAddMembers || (requiredRoles && requiredRoles.length) || (status && status !== Group.Status.PUBLISHED)) {
+      throw new GraphQLError("You don't have permission to use these settings for a room")
+    }
+    const vis = visibility != null ? visibility : agoraRooms.roomPresets().private.visibility
+    const acc = accessibility != null ? accessibility : agoraRooms.roomPresets().private.accessibility
+    if (!agoraRooms.presetFor(vis, acc)) throw new GraphQLError('A room is either open or private')
+    visibility = vis
+    accessibility = acc
   }
   await GroupRole.assertAssignableRoleIds(requiredRoles)
 
@@ -163,7 +181,20 @@ export async function updateSpace (userId, { id, name, slug, acceptedPostTypes, 
   if (!userId) throw new GraphQLError('No userId passed into function')
   if (!id) throw new GraphQLError('No id passed into function')
 
-  const space = await requireSpaceManager(userId, id, 'update this space')
+  // Agora: a room's steward (its maker) may change the basics of their own room
+  const space = await requireSpaceManager(userId, id, 'update this space', { allowRoomSteward: true })
+  if (space.agoraRoomStewardOnly) {
+    const agoraRooms = require('../../../lib/agora/rooms')
+    const blocked = agoraRooms.restrictedRoomFields({ id, name, slug, acceptedPostTypes, visibility, accessibility, icon, description, requiredRoles, location, locationId, geoShape, purpose, bannerUrl, avatarUrl, paywall, status, autoAddMembers })
+    if (blocked.length) throw new GraphQLError("You don't have permission to change these settings")
+    if (status !== undefined && status !== Group.Status.PUBLISHED && status !== Group.Status.ARCHIVED) {
+      throw new GraphQLError("You don't have permission to change these settings")
+    }
+    if ((visibility !== undefined || accessibility !== undefined) &&
+      !agoraRooms.presetFor(visibility !== undefined ? visibility : space.get('visibility'), accessibility !== undefined ? accessibility : space.get('accessibility'))) {
+      throw new GraphQLError('A room is either open or private')
+    }
+  }
   const wasAutoAdd = !!space.getSetting('auto_add_members')
 
   const changes = {}
@@ -262,7 +293,7 @@ export async function archiveSpace (userId, id, context) {
   if (!userId) throw new GraphQLError('No userId passed into function')
   if (!id) throw new GraphQLError('No id passed into function')
 
-  const space = await requireSpaceManager(userId, id, 'archive this space')
+  const space = await requireSpaceManager(userId, id, 'archive this space', { allowRoomSteward: true })
   const parentId = space.get('parent_id')
 
   await bookshelf.transaction(async trx => {
