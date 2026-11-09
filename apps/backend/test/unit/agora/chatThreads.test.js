@@ -9,10 +9,12 @@
  *   DATABASE_URL=postgres://$USER@localhost:5432/agora_chatthreads_test yarn test test/unit/agora/chatThreads.test.js
  */
 import { createRequestHandler } from '../../../api/graphql'
+import * as Websockets from '../../../api/services/Websockets'
 import { lastCommentAt, pushThreadSummary } from '../../../lib/agora/chatThreads'
 const rootPath = require('root-path')
 const setup = require(rootPath('test/setup'))
 const factories = require(rootPath('test/setup/factories'))
+const { spyify, unspyify } = require(rootPath('test/setup/helpers'))
 
 describe('Agora chat threads, room search and saved messages', () => {
   const knex = () => bookshelf.knex
@@ -65,6 +67,48 @@ describe('Agora chat threads, room search and saved messages', () => {
       expect(payload.commentersTotal).to.equal(2)
       expect(payload.commenters.map(c => c.name).sort()).to.deep.equal(['Ann', 'Cat'])
       expect(payload.lastCommentAt).to.equal('2026-11-02T10:00:00.000Z')
+    })
+
+    describe('which rooms hear about a reply', () => {
+      let parent, member, outsider
+      before(async () => {
+        parent = await factories.group().save()
+        member = await factories.user().save()
+        outsider = await factories.user().save()
+      })
+
+      const roomsFor = async (group) => {
+        const p = await factories.post({ type: 'chat', user_id: member.id, description: 'hi' }).save()
+        await p.groups().attach(group.id)
+        spyify(Websockets, 'pushToSockets')
+        try {
+          await pushThreadSummary(p.id)
+          return Websockets.pushToSockets.__spy.calls.map(c => c[0])
+        } finally {
+          unspyify(Websockets, 'pushToSockets')
+        }
+      }
+
+      it('a circle (not a space) is told through its own room', async () => {
+        const circle = await factories.group().save()
+        expect(await roomsFor(circle)).to.deep.equal([Websockets.groupRoom(circle.id)])
+      })
+
+      it('an open space is told through its own room and its parent circle\'s room', async () => {
+        const space = await factories.group({ type: 'space', parent_id: parent.id, visibility: 1, accessibility: 2 }).save()
+        const rooms = await roomsFor(space)
+        expect(rooms).to.have.members([Websockets.groupRoom(space.id), Websockets.groupRoom(parent.id)])
+      })
+
+      it('a private space reaches only its members\' own rooms, never the space or parent room', async () => {
+        const space = await factories.group({ type: 'space', parent_id: parent.id, visibility: 0, accessibility: 0 }).save()
+        await member.joinGroup(space)
+        const rooms = await roomsFor(space)
+        expect(rooms).to.deep.equal([Websockets.userRoom(member.id)])
+        expect(rooms).to.not.include(Websockets.groupRoom(space.id))
+        expect(rooms).to.not.include(Websockets.groupRoom(parent.id))
+        expect(rooms).to.not.include(Websockets.userRoom(outsider.id))
+      })
     })
 
     it('does nothing for a post that is not a chat message', async () => {

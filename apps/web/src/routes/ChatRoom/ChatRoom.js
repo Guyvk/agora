@@ -957,7 +957,7 @@ export default function ChatRoom (props) {
             the chips column tucks right-aligned beneath it; sm+ keeps the
             strip on the same row, left of the cluster */}
         {/* Agora: the room's short description under the room name */}
-        <RoomDescription group={group} className='relative z-30 pt-12 sm:pt-1 sm:pr-[240px]' />
+        <RoomDescription group={group} className='relative z-30 pt-12 sm:pt-1 sm:pr-[240px] max-sm:pr-11' />
         <PinnedPostChips
           posts={pinnedPosts}
           viewId={chatView?.id}
@@ -1015,7 +1015,7 @@ export default function ChatRoom (props) {
             type='button'
             data-testid='jump-to-first-unread'
             onClick={jumpToFirstUnread}
-            className='absolute z-30 top-12 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-accent text-white text-xs font-semibold shadow-lg hover:scale-105 transition-transform'
+            className={cn('absolute z-30 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-accent text-white text-xs font-semibold shadow-lg hover:scale-105 transition-transform', hasRoomDescription ? 'top-[7.5rem] sm:top-20' : 'top-12')}
           >
             {unreadDirection === 'above' ? <ArrowUp className='w-3.5 h-3.5' /> : <ArrowDown className='w-3.5 h-3.5' />}
             {t('agoraChat.jumpToFirstUnread')}
@@ -1028,7 +1028,7 @@ export default function ChatRoom (props) {
           onClick={() => setSidePanel(panel => (panel?.kind === 'search' ? null : { kind: 'search' }))}
           aria-label={t('agoraChat.searchRoom')}
           title={t('agoraChat.searchRoom')}
-          className='absolute z-30 top-11 right-2 max-sm:top-2 max-sm:right-24 w-7 h-7 grid place-items-center rounded-md bg-card/90 backdrop-blur-sm border border-foreground/20 text-foreground cursor-pointer hover:border-foreground/40'
+          className='absolute z-30 top-11 right-2 max-sm:top-[3.25rem] w-7 h-7 grid place-items-center rounded-md bg-card/90 backdrop-blur-sm border border-foreground/20 text-foreground cursor-pointer hover:border-foreground/40'
         >
           <Search className='w-3.5 h-3.5' />
         </button>
