@@ -767,7 +767,7 @@ function minutesAsText (minutes) {
   if (minutes.summary) lines.push('Summary', minutes.summary, '')
   if (minutes.decisions && minutes.decisions.length) lines.push('Decisions', ...minutes.decisions.map(d => `- ${d}`), '')
   if (minutes.actions && minutes.actions.length) {
-    lines.push('Actions', ...minutes.actions.map(a => `- ${(a && a.who) || ''}: ${(a && a.what) || ''}${a && a.due ? ` (by ${a.due})` : ''}`), '')
+    lines.push('Actions', ...minutes.actions.map(a => `- ${require('./minutesActions').whoText(a && a.who)}: ${(a && a.what) || ''}${a && a.due ? ` (by ${a.due})` : ''}`), '')
   }
   if (minutes.open_questions && minutes.open_questions.length) lines.push('Open questions', ...minutes.open_questions.map(q => `- ${q}`), '')
   if (minutes.topics && minutes.topics.length) {

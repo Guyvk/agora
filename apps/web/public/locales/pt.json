@@ -3606,5 +3606,21 @@
   "Your tasks here": "Suas tarefas aqui",
   "the meeting": "da reunião",
   "Moved back to To do.": "Devolvida para «A fazer».",
-  "Undo moving {{title}} back to To do": "Desfazer devolver {{title}} para «A fazer»"
+  "Undo moving {{title}} back to To do": "Desfazer devolver {{title}} para «A fazer»",
+  "Action points": "Pontos de ação",
+  "Add a person to {{what}}": "Adicionar uma pessoa a {{what}}",
+  "Add a person": "Adicionar uma pessoa",
+  "Add all": "Adicionar tudo",
+  "Add as task": "Adicionar como tarefa",
+  "Add to my tasks": "Adicionar às minhas tarefas",
+  "From the minutes, for you": "Da ata, para você",
+  "Not a task": "Não é uma tarefa",
+  "Not mine": "Não é minha",
+  "Open tasks from last time": "Tarefas em aberto da última vez",
+  "Open the task": "Abrir a tarefa",
+  "Task added": "Tarefa adicionada",
+  "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.": "São sugestões. Nada é adicionado à lista de ninguém até que a pessoa, quem organizou a reunião ou um steward diga sim.",
+  "Waiting for a decision": "Aguardando uma decisão",
+  "done": "concluída",
+  "not done yet": "ainda não concluída"
 }

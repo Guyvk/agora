@@ -30,6 +30,7 @@ import PostDetailSkeleton from './PostDetailSkeleton'
 import PeopleInfo from 'components/PostCard/PeopleInfo'
 import ProjectContributions from './ProjectContributions'
 import TasksPanel from '@/agora/tasks/TasksPanel'
+import PostTaskBlocks from '@/agora/tasks/PostTaskBlocks' // Agora: action points of minutes, open tasks from last time
 import PostPeopleDialog from 'components/PostPeopleDialog'
 import useRouteParams from 'hooks/useRouteParams'
 import { useEffectiveGroupSlug, useGroupRouteOpts } from 'contexts/SpaceGroupContext'
@@ -703,6 +704,7 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
             </div>
           )}
           {isProject && currentUser && <TasksPanel projectId={post.id} />}
+          {currentUser && <PostTaskBlocks post={post} />}{/* Agora: tasks from meetings */}
           {isProject && acceptContributions && currentUser.hasFeature(PROJECT_CONTRIBUTIONS) && (
             <ProjectContributions
               postId={post.id}

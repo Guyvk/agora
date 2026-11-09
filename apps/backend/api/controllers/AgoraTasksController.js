@@ -9,6 +9,7 @@
  * request made with someone's login.
  */
 import Tasks from '../../lib/agora/tasks'
+import Suggestions from '../../lib/agora/taskSuggestions'
 
 function fromAgoraPage (req) {
   return req.headers['x-agora'] === '1'
@@ -79,6 +80,34 @@ module.exports = {
 
   addComment: taskAction(async (req, res, userId) => {
     res.ok({ comment: await Tasks.addComment(userId, req.param('taskId'), body(req)) })
+  }, { change: true }),
+
+  suggestions: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.listForMinutes(userId, (req.query || {}).minutesPostId))
+  }),
+
+  suggestionsMine: taskAction(async (req, res, userId) => {
+    res.ok({ suggestions: await Suggestions.mine(userId) })
+  }),
+
+  openFromLastTime: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.openFromLastTime(userId, (req.query || {}).eventPostId))
+  }),
+
+  acceptSuggestion: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.accept(userId, req.param('id'), body(req)))
+  }, { change: true }),
+
+  dismissSuggestion: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.dismiss(userId, req.param('id')))
+  }, { change: true }),
+
+  notMine: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.notMine(userId, req.param('id')))
+  }, { change: true }),
+
+  acceptAll: taskAction(async (req, res, userId) => {
+    res.ok(await Suggestions.acceptAll(userId, body(req)))
   }, { change: true }),
 
   destroyComment: taskAction(async (req, res, userId) => {

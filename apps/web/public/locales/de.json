@@ -3606,5 +3606,21 @@
   "Your tasks here": "Deine Aufgaben hier",
   "the meeting": "der Sitzung",
   "Moved back to To do.": "Zurück zu „Zu erledigen“ verschoben.",
-  "Undo moving {{title}} back to To do": "Verschieben von {{title}} zurück zu „Zu erledigen“ rückgängig machen"
+  "Undo moving {{title}} back to To do": "Verschieben von {{title}} zurück zu „Zu erledigen“ rückgängig machen",
+  "Action points": "Aktionspunkte",
+  "Add a person to {{what}}": "Person zu {{what}} hinzufügen",
+  "Add a person": "Person hinzufügen",
+  "Add all": "Alle hinzufügen",
+  "Add as task": "Als Aufgabe hinzufügen",
+  "Add to my tasks": "Zu meinen Aufgaben hinzufügen",
+  "From the minutes, for you": "Aus dem Protokoll, für dich",
+  "Not a task": "Keine Aufgabe",
+  "Not mine": "Nicht meine",
+  "Open tasks from last time": "Offene Aufgaben vom letzten Mal",
+  "Open the task": "Aufgabe öffnen",
+  "Task added": "Aufgabe hinzugefügt",
+  "These are suggestions. Nothing is added to anyone's list until the person, the host or a steward says yes.": "Das sind Vorschläge. Nichts wird zur Liste von jemandem hinzugefügt, bis die Person, die Gastgeberin oder ein Steward Ja sagt.",
+  "Waiting for a decision": "Wartet auf eine Entscheidung",
+  "done": "erledigt",
+  "not done yet": "noch nicht erledigt"
 }
