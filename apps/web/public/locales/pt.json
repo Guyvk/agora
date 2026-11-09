@@ -3561,5 +3561,19 @@
   "agoraCalendar.renew": "Criar um novo link",
   "agoraCalendar.revoke": "Desativar o link",
   "agoraCalendar.confirmRenew": "Criar um novo link? O link antigo deixa de funcionar e os calendários que o usam deixam de ser atualizados.",
-  "agoraCalendar.confirmRevoke": "Desativar o link? Os calendários que o usam deixam de ser atualizados."
+  "agoraCalendar.confirmRevoke": "Desativar o link? Os calendários que o usam deixam de ser atualizados.",
+  "agoraChat.thread": "Conversa",
+  "agoraChat.backToChat": "Voltar ao chat",
+  "agoraChat.closeThread": "Fechar conversa",
+  "agoraChat.searchRoom": "Pesquisar nesta sala",
+  "agoraChat.searchPlaceholder": "Pesquisar em {{room}}",
+  "agoraChat.searching": "A pesquisar...",
+  "agoraChat.noResults": "Nenhuma mensagem encontrada nesta sala.",
+  "agoraChat.closeSearch": "Fechar pesquisa",
+  "agoraChat.newMessages": "Novas mensagens",
+  "agoraChat.jumpToFirstUnread": "Ir para a primeira não lida",
+  "agoraChat.threadSummary_one": "{{count}} resposta, a última {{ago}}",
+  "agoraChat.threadSummary_other": "{{count}} respostas, a última {{ago}}",
+  "agoraChat.threadSummaryNoTime_one": "{{count}} resposta",
+  "agoraChat.threadSummaryNoTime_other": "{{count}} respostas"
 }

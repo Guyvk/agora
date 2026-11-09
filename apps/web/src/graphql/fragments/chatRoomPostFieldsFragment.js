@@ -29,6 +29,7 @@ export default function chatRoomPostFieldsFragment () {
       text
     }
   }
+  lastCommentAt # Agora: "3 replies, last 10 minutes ago"
   linkPreviewFeatured
   savedAt
   startTime

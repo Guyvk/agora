@@ -3998,5 +3998,19 @@
   "agoraCalendar.renew": "Make a new link",
   "agoraCalendar.revoke": "Switch the link off",
   "agoraCalendar.confirmRenew": "Make a new link? The old link stops working, so calendars that use it stop updating.",
-  "agoraCalendar.confirmRevoke": "Switch the link off? Calendars that use it stop updating."
+  "agoraCalendar.confirmRevoke": "Switch the link off? Calendars that use it stop updating.",
+  "agoraChat.thread": "Thread",
+  "agoraChat.backToChat": "Back to chat",
+  "agoraChat.closeThread": "Close thread",
+  "agoraChat.searchRoom": "Search this room",
+  "agoraChat.searchPlaceholder": "Search in {{room}}",
+  "agoraChat.searching": "Searching...",
+  "agoraChat.noResults": "No messages found in this room.",
+  "agoraChat.closeSearch": "Close search",
+  "agoraChat.newMessages": "New messages",
+  "agoraChat.jumpToFirstUnread": "Jump to first unread",
+  "agoraChat.threadSummary_one": "{{count}} reply, last {{ago}}",
+  "agoraChat.threadSummary_other": "{{count}} replies, last {{ago}}",
+  "agoraChat.threadSummaryNoTime_one": "{{count}} reply",
+  "agoraChat.threadSummaryNoTime_other": "{{count}} replies"
 }

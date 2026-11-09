@@ -76,3 +76,14 @@ export const computeChatInitialScrollIndex = (sortedPosts, postIdToStartAt, last
 
   return sortedPosts.length - 1
 }
+
+/**
+ * Agora: is the first unread message out of sight? 'above' or 'below' the part of the
+ * list on screen, or null when it is visible (or unknown), so no button is needed.
+ */
+export const unreadOffScreenDirection = (firstUnreadPostId, { first, last } = {}) => {
+  if (firstUnreadPostId == null || first == null || last == null) return null
+  if (Number(firstUnreadPostId) < Number(first)) return 'above'
+  if (Number(firstUnreadPostId) > Number(last)) return 'below'
+  return null
+}

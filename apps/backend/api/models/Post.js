@@ -21,6 +21,7 @@ import ProjectMixin from './project/mixin'
 import EventMixin, { eventClassMethods } from './event/mixin'
 import { defaultTimezone, wherePostedInGroups } from '../../lib/group/digest2/util'
 import { publishPostUpdate } from '../../lib/postSubscriptionPublisher'
+import { pushThreadSummary } from '../../lib/agora/chatThreads' // Agora: live reply counter in chat
 
 init({ data })
 
@@ -1112,6 +1113,8 @@ module.exports = bookshelf.Model.extend(Object.assign({
 
     // Publish post update after comment changes
     Post.afterRelatedMutation(postId, { changeContext: 'comment' })
+    // Agora: tell the circle's chat the new reply count
+    await pushThreadSummary(postId).catch(e => sails.log.error('pushThreadSummary failed', e))
   },
 
   deactivate: postId =>

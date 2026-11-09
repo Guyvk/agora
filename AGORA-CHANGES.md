@@ -287,3 +287,16 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/backend/api/graphql/index.test.js`: Hylo's tests that read public groups, posts and profiles without logging in now check that Agora returns nothing.
 - `apps/backend/test/setup/index.js`: the timeout is Hylo's again (50000). `test/setup/index.js.bak` removed.
 - `apps/web/src/routes/CreateGroup/CreateGroupForm.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/SpaceSlugField.jsx`, `fitSpaceUrl.js` and their tests: the address preview shows the host of the running site (`window.location.host`) instead of hylo.com.
+
+## Chat threads and room comforts (9 November 2026)
+
+New files: `apps/backend/lib/agora/chatThreads.js` and its test `apps/backend/test/unit/agora/chatThreads.test.js`; `apps/web/src/agora/chat/` `ThreadPanel.jsx`, `ThreadSummary.jsx`, `RoomSearchPanel.jsx`, `chatThreads.store.js`, `relativeTime.js`, `chatThreads.test.js`.
+
+- `apps/backend/api/models/Post.js`: after a reply is counted, `pushThreadSummary` tells the circle's chat the new count (live reply counter).
+- `apps/backend/api/services/Websockets.js`: new message type `chatThreadUpdated`.
+- `apps/backend/api/graphql/schema.graphql`, `makeModels.js`: new Post field `lastCommentAt`; the `posts` query always reads your own saved list when `savedBy` is given (before, naming another person's id showed that person's saved posts).
+- `apps/web/src/routes/ChatRoom/ChatRoom.js`, `ChatPost/ChatPost.js`, `chatRoomUtils.js` (+ `ChatPost.test.js`): Reply and the reply counter open the thread panel beside the chat; room search button and panel; "New messages" line wording and the "Jump to first unread" button.
+- `apps/web/src/graphql/fragments/chatRoomPostFieldsFragment.js`: asks for `lastCommentAt`.
+- `apps/web/src/components/SocketListener/SocketListener.js`, `store/reducers/ormReducer/index.js`, `store/models/Post.js`: the `chatThreadUpdated` event updates the message's counter, repliers and last reply time.
+- `apps/web/public/locales/*.json`: new `agoraChat.*` texts (German, Spanish, French, Portuguese and Hindi written by Claude, to be checked by a native speaker).
+
