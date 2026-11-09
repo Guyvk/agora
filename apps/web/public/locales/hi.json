@@ -3561,5 +3561,17 @@
   "agoraCalendar.renew": "नया लिंक बनाएँ",
   "agoraCalendar.revoke": "लिंक बंद करें",
   "agoraCalendar.confirmRenew": "नया लिंक बनाएँ? पुराना लिंक काम करना बंद कर देगा, इसलिए उसका उपयोग करने वाले कैलेंडर अपडेट नहीं होंगे।",
-  "agoraCalendar.confirmRevoke": "लिंक बंद करें? इसका उपयोग करने वाले कैलेंडर अपडेट नहीं होंगे।"
+  "agoraCalendar.confirmRevoke": "लिंक बंद करें? इसका उपयोग करने वाले कैलेंडर अपडेट नहीं होंगे।",
+  "Search names, tags and the text inside files": "नाम, टैग और फ़ाइलों के अंदर का पाठ खोजें",
+  "Search resources": "संसाधन खोजें",
+  "Add with details": "विवरण के साथ जोड़ें",
+  "Nothing matches your search.": "आपकी खोज से कुछ भी मेल नहीं खाता।",
+  "Nothing here yet. Add the first file, folder or link.": "यहाँ अभी कुछ नहीं है। पहली फ़ाइल, फ़ोल्डर या लिंक जोड़ें।",
+  "Folders are not available for this circle right now. Only what is kept in Agora shows.": "इस सर्कल के लिए फ़ोल्डर अभी उपलब्ध नहीं हैं। केवल वही दिखता है जो Agora में रखा है।",
+  "What is kept in Agora could not be loaded right now. Only the folders show.": "जो Agora में रखा है वह अभी लोड नहीं हो सका। केवल फ़ोल्डर दिख रहे हैं।",
+  "Files in folders are kept in 7BP's kDrive at Infomaniak, in Switzerland. Files added at the top level are kept in Agora, which reads their text so search finds words inside them and recordings get a transcript. Only members of this circle see them. The member who added a file, and the stewards of the circle, can rename, move and delete files in folders.": "फ़ोल्डरों की फ़ाइलें स्विट्ज़रलैंड में Infomaniak पर 7BP के kDrive में रखी जाती हैं। शीर्ष स्तर पर जोड़ी गई फ़ाइलें Agora में रखी जाती हैं, जो उनका पाठ पढ़ता है ताकि खोज उनके अंदर के शब्द ढूँढ सके और रिकॉर्डिंग को ट्रांसक्रिप्ट मिले। उन्हें केवल इस सर्कल के सदस्य देखते हैं। फ़ाइल जोड़ने वाला सदस्य और सर्कल के स्टीवर्ड फ़ोल्डरों की फ़ाइलों का नाम बदल, हटा और स्थानांतरित कर सकते हैं।",
+  "Link address": "लिंक का पता",
+  "Open the link": "लिंक खोलें",
+  "Open the post": "पोस्ट खोलें",
+  "This item has no file to download.": "इस आइटम में डाउनलोड करने के लिए कोई फ़ाइल नहीं है।"
 }

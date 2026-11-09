@@ -1,40 +1,71 @@
 /**
- * Agora: the Files page of a circle or space, inside the app, at
- * /groups/<circle>/files (and /groups/<circle>/spaces/<space>/files).
+ * Agora: the Resources page of a circle or space, inside the app, at
+ * /groups/<circle>/resources (and /groups/<circle>/spaces/<space>/resources).
  *
- * It shows the circle's folder in 7BP's kDrive: folders, files and links to
- * Google documents, with who added each and when. Members open folders,
- * download, add files (pick several or drop them), make folders, and add
- * links. The member who added something, and the stewards, rename, move and
- * delete it. Items can be dragged onto a folder or a part of the path, or
- * moved with "Move to…". Several items can be selected for Move, Download and
- * Delete. The server checks every permission again (AgoraKdriveController).
+ * One list for everything the circle keeps. It joins two stores that stay
+ * where they are:
+ *   - the circle's folder in 7BP's kDrive: folders, files and links to Google
+ *     documents (files/api.js, AgoraKdriveController);
+ *   - the library: documents, pictures, recordings with their transcript,
+ *     meeting notes and links, kept in Agora and searchable inside the text
+ *     (library/api.js, AgoraLibraryController).
+ * At the top level both show together, sortable by name, who added it, date
+ * and size. Inside a kDrive folder only that folder shows. Files dropped or
+ * added at the top level go to the library, inside a folder to that folder.
+ * If one of the two cannot be reached, the other still shows.
  *
- * The browser never talks to kDrive: files come and go through Agora.
+ * The browser never talks to kDrive: files come and go through Agora. The
+ * server checks every permission again.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet'
-import { useParams, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Download, ExternalLink, Eye, File as FileIcon, Folder, FolderInput, FolderOpen, Link2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowDown, ArrowUp, Download, ExternalLink, Eye, File as FileIcon, FileText, Folder, FolderInput, FolderOpen, Link2, MessageSquare, MoreHorizontal, Pencil, Search, Trash2 } from 'lucide-react'
 import Button from 'components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from 'components/ui/dropdown-menu'
 import { Input } from 'components/ui/input'
 import Loading from 'components/Loading'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
 import { cn } from 'util/index'
-import FileViewer from './FileViewer'
-import FolderPicker from './FolderPicker'
-import { downloadUrl, listFolder, post, sendFile } from './api'
-import { SERVICES, formatDay, formatSize, googleUrl, selectionActions, sortItems, viewKind } from './helpers'
+import FileViewer from '../files/FileViewer'
+import FolderPicker from '../files/FolderPicker'
+import { downloadUrl, listFolder, post, sendFile } from '../files/api'
+import { SERVICES, formatDay, formatSize, googleUrl, selectionActions, sortItems, viewKind } from '../files/helpers'
+import { libraryApi, circlePath, uploadFile, createItem } from '../library/api'
+import { AddPanel, ItemDetail, KIND_ICONS, TextStatus, fieldClasses as selectClasses, useKindLabels } from './LibraryParts'
 
-export default function FilesPage ({ groupSlug: slugProp }) {
+const KINDS = ['document', 'image', 'audio', 'video', 'meeting', 'link']
+const MEDIA_NAME = /\.(mp3|m4a|wav|ogg|opus|flac|mp4|mov|webm|mkv)$/i
+
+/** A library item, shaped like a kDrive row so one table and one sort can show both. */
+const libraryRow = item => ({
+  id: `lib-${item.id}`,
+  libId: item.id,
+  lib: true,
+  name: item.title,
+  kind: 'library',
+  libKind: item.kind,
+  addedBy: item.addedBy ? item.addedBy.name : '',
+  changedAt: item.createdAt,
+  size: item.size || null,
+  canChange: false,
+  tags: item.tags || [],
+  snippet: item.snippet,
+  description: item.description,
+  textStatus: item.textStatus,
+  link: item.link
+})
+
+export default function ResourcesPage ({ groupSlug: slugProp }) {
   const { t, i18n } = useTranslation()
   const params = useParams()
   const groupSlug = slugProp || params.groupSlug
   const locale = i18n && i18n.language
   const [searchParams, setSearchParams] = useSearchParams()
   const folderId = searchParams.get('folder') || null
+  const openId = searchParams.get('item')
+  const kinds = useKindLabels()
 
   const [view, setView] = useState({ state: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
@@ -43,7 +74,15 @@ export default function FilesPage ({ groupSlug: slugProp }) {
   const [busy, setBusy] = useState(false)
   const [sort, setSort] = useState({ key: 'name', direction: 'asc' })
   const [selectedIds, setSelectedIds] = useState([])
-  const [panel, setPanel] = useState(null) // 'folder', 'link', 'move' or null
+  const [panel, setPanel] = useState(null) // 'folder', 'link', 'details', 'move' or null
+  const [linkForm, setLinkForm] = useState({ url: '', title: '', description: '', tags: '' })
+  const [libSettings, setLibSettings] = useState(undefined) // undefined: loading, null: could not be loaded
+  const [libResult, setLibResult] = useState(null)
+  const [libError, setLibError] = useState(null)
+  const [libKey, setLibKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [query, setQuery] = useState('')
+  const [kindFilter, setKindFilter] = useState('')
   const [renaming, setRenaming] = useState(null) // { id, value }
   const [confirmDelete, setConfirmDelete] = useState(null) // the items to delete
   const [movingItems, setMovingItems] = useState([])
@@ -55,7 +94,7 @@ export default function FilesPage ({ groupSlug: slugProp }) {
 
   const { setHeaderDetails } = useViewHeader()
   useEffect(() => {
-    setHeaderDetails({ title: t('Files'), icon: <FolderOpen />, info: '', search: false })
+    setHeaderDetails({ title: t('Resources'), icon: <FolderOpen />, info: '', search: false })
   }, [setHeaderDetails, t])
 
   // Load a folder. A new folder or a new group starts clean.
@@ -70,6 +109,40 @@ export default function FilesPage ({ groupSlug: slugProp }) {
     })
     return () => { stopped = true }
   }, [groupSlug, folderId, reloadKey, t])
+
+  // The library: its settings, then its items.
+  useEffect(() => {
+    let stopped = false
+    setLibSettings(undefined)
+    setLibResult(null)
+    setLibError(null)
+    libraryApi(circlePath(groupSlug, '/settings'))
+      .then(s => { if (!stopped) setLibSettings(s) })
+      .catch(err => { if (!stopped) { setLibSettings(null); setLibError(err.message) } })
+    return () => { stopped = true }
+  }, [groupSlug])
+
+  // The search starts a moment after typing stops.
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const loadLibrary = useCallback(async (offset = 0) => {
+    try {
+      setLibError(null)
+      const params = new URLSearchParams()
+      if (query) params.set('search', query)
+      if (kindFilter) params.set('kind', kindFilter)
+      if (offset) params.set('offset', String(offset))
+      const data = await libraryApi(circlePath(groupSlug, `/items${params.toString() ? `?${params}` : ''}`))
+      setLibResult(old => offset && old ? { ...data, items: [...old.items, ...data.items] } : data)
+    } catch (err) {
+      setLibError(err.message)
+    }
+  }, [groupSlug, query, kindFilter])
+
+  useEffect(() => { if (libSettings && !folderId) loadLibrary(0) }, [loadLibrary, libSettings, folderId, libKey])
 
   useEffect(() => {
     setSelectedIds([])
@@ -88,21 +161,72 @@ export default function FilesPage ({ groupSlug: slugProp }) {
 
   const data = view.state === 'ready' ? view.data : null
   const folder = data && data.folder
-  const canAdd = Boolean(folder && folder.canAdd)
-  const items = useMemo(() => (data ? sortItems(data.items || [], sort.key, sort.direction) : []), [data, sort])
-  const selected = useMemo(() => items.filter(i => selectedIds.includes(i.id)), [items, selectedIds])
+  const atTop = !folderId
+  const libOk = Boolean(libSettings) && !libError
+  const kdOff = view.state === 'notConnected' || view.state === 'error'
+  const kdCanAdd = Boolean(folder && folder.canAdd)
+  // Where new files and links go: the library at the top level, otherwise the open kDrive folder.
+  const addDest = atTop && libOk && libSettings.canAdd !== false ? 'library' : (kdCanAdd ? 'kdrive' : null)
+  const canAdd = Boolean(addDest)
+  const lowerQuery = query.toLowerCase()
+  const items = useMemo(() => {
+    const kd = ((data && data.items) || []).filter(i => {
+      if (kindFilter && !(kindFilter === 'link' && i.kind === 'link')) return false
+      return !lowerQuery || i.name.toLowerCase().includes(lowerQuery)
+    })
+    const lib = atTop && libOk && libResult ? libResult.items.map(libraryRow) : []
+    return sortItems([...kd, ...lib], sort.key, sort.direction)
+  }, [data, atTop, libOk, libResult, sort, kindFilter, lowerQuery])
+  const selectable = useMemo(() => items.filter(i => !i.lib), [items])
+  const selected = useMemo(() => selectable.filter(i => selectedIds.includes(i.id)), [selectable, selectedIds])
   const actions = selectionActions(selected)
 
-  const reload = useCallback(() => setReloadKey(k => k + 1), [])
+  const reload = useCallback(() => { setReloadKey(k => k + 1); setLibKey(k => k + 1) }, [])
   const say = (text, warn = false) => setStatus({ text, warn })
   const openFolder = id => setSearchParams(id ? { folder: id } : {})
+  const openItem = id => setSearchParams(id ? { item: id } : {})
 
   const failed = res => (res.data && res.data.error) || t('That did not work. Try again in a minute.')
 
   /* ---- adding ---- */
 
+  // At the top level: one library item per file, with the library's size limits.
+  const addToLibrary = async files => {
+    const good = []
+    const problems = []
+    for (const file of files) {
+      const media = /^(audio|video)\//.test(file.type) || MEDIA_NAME.test(file.name)
+      const maxMb = media ? libSettings.maxMediaMb : libSettings.maxDocumentMb
+      if (file.size === 0) problems.push(t('{{name}}: empty, so not added.', { name: file.name }))
+      else if (file.size > maxMb * 1048576) problems.push(t('{{name}}: larger than {{mb}} MB, so not added.', { name: file.name, mb: maxMb }))
+      else good.push(file)
+    }
+    setBusy(true)
+    let added = 0
+    for (let i = 0; i < good.length; i++) {
+      const file = good[i]
+      say(good.length > 1
+        ? t('Adding {{name}} ({{i}} of {{n}})…', { name: file.name, i: i + 1, n: good.length })
+        : t('Adding {{name}}…', { name: file.name }))
+      setProgress(0)
+      try {
+        const id = await uploadFile({ groupSlug, file, onProgress: p => setProgress(p) })
+        await createItem(groupSlug, { title: file.name, description: '', tags: '', link: '', fileIds: [id] })
+        added++
+      } catch (err) {
+        problems.push(`${file.name}: ${err.message}`)
+      }
+    }
+    setProgress(null)
+    setBusy(false)
+    if (problems.length) say(problems.join(' '), true)
+    else if (good.length) say(good.length === 1 ? t('Added.') : t('Added {{n}} files.', { n: good.length }))
+    if (added) reload()
+  }
+
   const addFiles = async files => {
     if (busy || !canAdd || !files.length) return
+    if (addDest === 'library') return addToLibrary(files)
     const maxMb = data.maxUploadMb || 100
     const limit = maxMb * 1048576
     const good = files.filter(f => f.size > 0 && f.size <= limit)
@@ -146,17 +270,48 @@ export default function FilesPage ({ groupSlug: slugProp }) {
 
   const addLink = async e => {
     e.preventDefault()
-    const url = e.target.elements.url.value.trim()
-    const title = e.target.elements.title.value.trim()
+    const url = linkForm.url.trim()
+    const title = linkForm.title.trim()
     if (busy || !url) return
     setBusy(true)
     say(t('Adding the link…'))
-    const res = await post(groupSlug, '/link', { url, title, folder: folder.isCircleFolder ? '' : folder.id })
+    let res
+    if (addDest === 'library') {
+      try {
+        await createItem(groupSlug, { title, description: linkForm.description, tags: linkForm.tags, link: url, fileIds: [] })
+        res = { ok: true }
+      } catch (err) {
+        res = { ok: false, data: { error: err.message } }
+      }
+    } else {
+      res = await post(groupSlug, '/link', { url, title, folder: folder.isCircleFolder ? '' : folder.id })
+    }
     setBusy(false)
     if (!res.ok) return say(failed(res), true)
     setPanel(null)
+    setLinkForm({ url: '', title: '', description: '', tags: '' })
     say(t('Link added.'))
     reload()
+  }
+
+  // Downloads every file of a library item, one by one, a moment apart.
+  const downloadLibraryItem = async row => {
+    try {
+      const { item } = await libraryApi(circlePath(groupSlug, `/items/${encodeURIComponent(row.libId)}`))
+      item.files.forEach((file, i) => {
+        setTimeout(() => {
+          const a = document.createElement('a')
+          a.href = `${file.url}${file.url.includes('?') ? '&' : '?'}download=1`
+          a.setAttribute('download', '')
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+        }, i * 400)
+      })
+      if (!item.files.length) say(t('This item has no file to download.'), true)
+    } catch (err) {
+      say(err.message, true)
+    }
   }
 
   /* ---- rename, delete, move ---- */
@@ -279,16 +434,32 @@ export default function FilesPage ({ groupSlug: slugProp }) {
 
   const toggleSort = key => setSort(old => (old.key === key ? { key, direction: old.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }))
   const toggleOne = id => setSelectedIds(old => (old.includes(id) ? old.filter(x => x !== id) : [...old, id]))
-  const allSelected = items.length > 0 && selected.length === items.length
-  const toggleAll = () => setSelectedIds(allSelected ? [] : items.map(i => i.id))
+  const allSelected = selectable.length > 0 && selected.length === selectable.length
+  const toggleAll = () => setSelectedIds(allSelected ? [] : selectable.map(i => i.id))
 
-  if (view.state === 'loading') return <Loading />
-  if (view.state === 'notConnected' || view.state === 'error') {
+  const circleName = (libSettings && libSettings.circleName) || (folder && (folder.isCircleFolder ? folder.name : folder.path[0].name)) || ''
+
+  // One item of the library, opened inside the page.
+  if (openId) {
+    if (libSettings === undefined) return <Loading />
+    return (
+      <div className='p-4 w-full max-w-[960px] mx-auto flex flex-col gap-3' data-testid='agora-resources-page'>
+        <Helmet><title>{t('Resources')} | {circleName} | Agora</title></Helmet>
+        {libSettings
+          ? <ItemDetail groupSlug={groupSlug} itemId={openId} onBack={() => openItem(null)} />
+          : <p className='text-destructive' role='alert'>{libError}</p>}
+      </div>
+    )
+  }
+
+  if (view.state === 'loading' || libSettings === undefined) return <Loading />
+
+  // Only when nothing at all can be shown is it an error.
+  if ((!atTop && kdOff) || (atTop && kdOff && !libOk)) {
+    const message = view.state === 'error' ? view.message : (libError || t('kDrive is not connected to Agora yet. Once it is, the files of this circle show up here.'))
     return (
       <div className='p-4 max-w-[750px] mx-auto mt-8'>
-        <p role='alert' className={cn('text-center py-12 rounded-lg border', view.state === 'error' ? 'bg-destructive/10 border-destructive/20 text-foreground' : 'bg-card border-border text-foreground')}>
-          {view.state === 'error' ? view.message : t('kDrive is not connected to Agora yet. Once it is, the files of this circle show up here.')}
-        </p>
+        <p role='alert' className='text-center py-12 rounded-lg border bg-destructive/10 border-destructive/20 text-foreground'>{message}</p>
       </div>
     )
   }
@@ -302,42 +473,111 @@ export default function FilesPage ({ groupSlug: slugProp }) {
     </th>
   )
 
-  const fieldClasses = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-  const lastPart = folder.path.length - 1
+  const lastPart = folder ? folder.path.length - 1 : -1
+  const googleHint = Boolean(googleUrl(linkForm.url.trim()))
+  const hasQuery = Boolean(query || kindFilter)
+
+  const libraryRowView = item => {
+    const Icon = KIND_ICONS[item.libKind] || FileText
+    return (
+      <tr key={item.id} data-testid='files-row' data-source='library' className='border-t border-border first:border-t-0 hover:bg-foreground/5'>
+        <td className='px-3 py-2' />
+        <td className='px-3 py-2 min-w-0'>
+          <span className='flex items-start gap-2 min-w-0'>
+            <Icon className='w-4 h-4 mt-0.5 shrink-0 text-muted-foreground' aria-label={kinds[item.libKind]} />
+            <span className='flex flex-col gap-0.5 min-w-0'>
+              <button type='button' className='text-left text-foreground hover:underline break-words min-w-0' onClick={() => openItem(item.libId)}>{item.name}</button>
+              {item.snippet && <span className='text-xs text-muted-foreground italic break-words'>…{item.snippet}…</span>}
+              {!item.snippet && item.description && <span className='text-xs text-muted-foreground break-words line-clamp-2'>{item.description}</span>}
+              <span className='flex flex-wrap gap-1.5 items-center'>
+                {item.tags.map(tag => <span key={tag} className='text-xs rounded-full border border-border px-2 py-0.5 text-foreground/80'>#{tag}</span>)}
+                <TextStatus status={item.textStatus} />
+              </span>
+            </span>
+          </span>
+        </td>
+        <td className='px-3 py-2 hidden sm:table-cell text-muted-foreground'>{item.addedBy}</td>
+        <td className='px-3 py-2 hidden sm:table-cell text-muted-foreground whitespace-nowrap'>{formatDay(item.changedAt, locale)}</td>
+        <td className='px-3 py-2 hidden md:table-cell text-muted-foreground whitespace-nowrap'>{formatSize(item.size, locale)}</td>
+        <td className='px-3 py-2 w-12 text-right'>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size='sm' variant='ghost' className='h-8 w-8 p-0' aria-label={t('Actions for {{name}}', { name: item.name })}>
+                <MoreHorizontal className='w-4 h-4' />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end'>
+              <DropdownMenuItem onSelect={() => openItem(item.libId)}><Eye className='w-4 h-4' />{t('Open')}</DropdownMenuItem>
+              {item.link && (
+                <DropdownMenuItem asChild>
+                  <a href={item.link} target='_blank' rel='noopener noreferrer'><ExternalLink className='w-4 h-4' />{t('Open the link')}</a>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => downloadLibraryItem(item)}><Download className='w-4 h-4' />{t('Download')}</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to={`/post/${item.libId}`}><MessageSquare className='w-4 h-4' />{t('Open the post')}</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </td>
+      </tr>
+    )
+  }
 
   return (
-    <div className='p-4 w-full max-w-[1000px] mx-auto flex flex-col gap-3' data-testid='agora-files-page'>
+    <div className='p-4 w-full max-w-[1000px] mx-auto flex flex-col gap-3' data-testid='agora-resources-page'>
       <Helmet>
-        <title>{t('Files')} | {folder.isCircleFolder ? folder.name : folder.path[0].name} | Agora</title>
+        <title>{t('Resources')} | {circleName} | Agora</title>
       </Helmet>
 
-      <nav className='flex flex-wrap items-center gap-1 text-sm text-muted-foreground' aria-label={t('Path')} data-testid='files-path'>
-        {folder.path.map((part, i) => (
-          <React.Fragment key={part.id}>
-            {i > 0 && <span aria-hidden='true'>/</span>}
-            {i === lastPart
-              ? <span className='text-foreground font-medium'>{part.name}</span>
-              : (
-                <button
-                  type='button'
-                  data-testid='files-path-part'
-                  className={cn('underline text-foreground rounded px-1', dropTarget === part.id && 'ring-2 ring-selected bg-selected/20')}
-                  onClick={() => openFolder(part.isCircleFolder ? null : part.id)}
-                  {...folderTarget(part.id, part.isCircleFolder ? '' : part.id)}
-                >
-                  {part.name}
-                </button>
-                )}
-          </React.Fragment>
-        ))}
-      </nav>
+      {folder && (
+        <nav className='flex flex-wrap items-center gap-1 text-sm text-muted-foreground' aria-label={t('Path')} data-testid='files-path'>
+          {folder.path.map((part, i) => (
+            <React.Fragment key={part.id}>
+              {i > 0 && <span aria-hidden='true'>/</span>}
+              {i === lastPart
+                ? <span className='text-foreground font-medium'>{part.name}</span>
+                : (
+                  <button
+                    type='button'
+                    data-testid='files-path-part'
+                    className={cn('underline text-foreground rounded px-1', dropTarget === part.id && 'ring-2 ring-selected bg-selected/20')}
+                    onClick={() => openFolder(part.isCircleFolder ? null : part.id)}
+                    {...folderTarget(part.id, part.isCircleFolder ? '' : part.id)}
+                  >
+                    {part.name}
+                  </button>
+                  )}
+            </React.Fragment>
+          ))}
+        </nav>
+      )}
+
+      <div className='flex flex-wrap items-center gap-2'>
+        <div className='relative flex-1 min-w-[200px]'>
+          <Search className='w-4 h-4 absolute left-3 top-3 text-foreground/50' aria-hidden='true' />
+          <Input
+            className='pl-9'
+            type='search'
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t('Search names, tags and the text inside files')}
+            aria-label={t('Search resources')}
+          />
+        </div>
+        <select className={cn(selectClasses, 'w-auto h-10')} value={kindFilter} onChange={e => setKindFilter(e.target.value)} aria-label={t('Kind')}>
+          <option value=''>{t('All kinds')}</option>
+          {KINDS.map(k => <option key={k} value={k}>{kinds[k]}</option>)}
+        </select>
+      </div>
 
       <div className='flex flex-wrap items-center gap-2'>
         {canAdd && (
           <>
             <Button size='sm' disabled={busy} onClick={() => fileInput.current && fileInput.current.click()}>{t('Add files')}</Button>
-            <Button size='sm' variant='outline' disabled={busy} onClick={() => setPanel(panel === 'folder' ? null : 'folder')}>{t('New folder')}</Button>
-            <Button size='sm' variant='outline' disabled={busy} onClick={() => setPanel(panel === 'link' ? null : 'link')}>{t('Add a Google Doc')}</Button>
+            {kdCanAdd && <Button size='sm' variant='outline' disabled={busy} onClick={() => setPanel(panel === 'folder' ? null : 'folder')}>{t('New folder')}</Button>}
+            <Button size='sm' variant='outline' disabled={busy} onClick={() => setPanel(panel === 'link' ? null : 'link')}>{t('Add a link')}</Button>
+            {addDest === 'library' && <Button size='sm' variant='outline' disabled={busy} onClick={() => setPanel(panel === 'details' ? null : 'details')}>{t('Add with details')}</Button>}
             <input
               ref={fileInput}
               type='file'
@@ -355,7 +595,9 @@ export default function FilesPage ({ groupSlug: slugProp }) {
           <div className='h-2 bg-selected rounded' style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
       )}
-      {!canAdd && <p className='text-sm text-muted-foreground'>{t('This folder is only for the meeting minutes.')}</p>}
+      {folder && !canAdd && <p className='text-sm text-muted-foreground'>{t('This folder is only for the meeting minutes.')}</p>}
+      {atTop && kdOff && <p className='text-sm text-muted-foreground'>{t('Folders are not available for this circle right now. Only what is kept in Agora shows.')}</p>}
+      {atTop && !kdOff && !libOk && <p className='text-sm text-muted-foreground'>{t('What is kept in Agora could not be loaded right now. Only the folders show.')}</p>}
 
       {panel === 'folder' && (
         <form onSubmit={makeFolder} className='bg-card border border-border rounded-lg p-3 flex flex-wrap items-end gap-2' aria-label={t('New folder')}>
@@ -369,21 +611,42 @@ export default function FilesPage ({ groupSlug: slugProp }) {
       )}
 
       {panel === 'link' && (
-        <form onSubmit={addLink} className='bg-card border border-border rounded-lg p-3 flex flex-col gap-2' aria-label={t('Add a Google Doc')}>
+        <form onSubmit={addLink} className='bg-card border border-border rounded-lg p-3 flex flex-col gap-2' aria-label={t('Add a link')}>
           <label className='flex flex-col gap-1 text-sm text-muted-foreground'>
-            {t('Link to the Google document')}
-            <Input name='url' type='url' maxLength={2000} required autoFocus autoComplete='off' spellCheck={false} placeholder={t('Paste the address from your browser')} />
+            {t('Link address')}
+            <Input name='url' type='url' maxLength={2000} required autoFocus autoComplete='off' spellCheck={false} value={linkForm.url} onChange={e => setLinkForm({ ...linkForm, url: e.target.value })} placeholder={t('Paste the address from your browser')} />
           </label>
           <label className='flex flex-col gap-1 text-sm text-muted-foreground'>
             {t('Title (optional)')}
-            <Input name='title' maxLength={200} autoComplete='off' />
+            <Input name='title' maxLength={200} autoComplete='off' value={linkForm.title} onChange={e => setLinkForm({ ...linkForm, title: e.target.value })} />
           </label>
-          <p className='text-sm text-muted-foreground'>{t('Comments and suggestions stay in Google Docs. Check the document\'s sharing setting: Commenter is usually right.')}</p>
+          {addDest === 'library' && (
+            <>
+              <label className='flex flex-col gap-1 text-sm text-muted-foreground'>
+                {t('Description (optional)')}
+                <Input name='description' autoComplete='off' value={linkForm.description} onChange={e => setLinkForm({ ...linkForm, description: e.target.value })} />
+              </label>
+              <label className='flex flex-col gap-1 text-sm text-muted-foreground'>
+                {t('Tags, separated by commas')}
+                <Input name='tags' autoComplete='off' value={linkForm.tags} onChange={e => setLinkForm({ ...linkForm, tags: e.target.value })} placeholder={t('for example: budget, playbook')} />
+              </label>
+            </>
+          )}
+          {googleHint && <p className='text-sm text-muted-foreground'>{t('Comments and suggestions stay in Google Docs. Check the document\'s sharing setting: Commenter is usually right.')}</p>}
           <div className='flex gap-2'>
             <Button type='submit' size='sm' disabled={busy}>{t('Add link')}</Button>
             <Button type='button' size='sm' variant='outline' onClick={() => setPanel(null)}>{t('Cancel')}</Button>
           </div>
         </form>
+      )}
+
+      {panel === 'details' && libOk && (
+        <AddPanel
+          groupSlug={groupSlug}
+          settings={libSettings}
+          onCancel={() => setPanel(null)}
+          onDone={item => { setPanel(null); reload(); openItem(item.id) }}
+        />
       )}
 
       {panel === 'move' && (
@@ -428,7 +691,7 @@ export default function FilesPage ({ groupSlug: slugProp }) {
         {...panelDrop}
       >
         {items.length === 0
-          ? <p className='p-5 text-muted-foreground'>{t('This folder is empty.')}</p>
+          ? <p className='p-5 text-muted-foreground'>{hasQuery ? t('Nothing matches your search.') : atTop ? t('Nothing here yet. Add the first file, folder or link.') : t('This folder is empty.')}</p>
           : (
             <table className='w-full text-sm'>
               <thead className='border-b border-border'>
@@ -445,6 +708,7 @@ export default function FilesPage ({ groupSlug: slugProp }) {
               </thead>
               <tbody>
                 {items.map(item => {
+                  if (item.lib) return libraryRowView(item)
                   const isFolder = item.kind === 'folder'
                   const target = isFolder && !item.kept ? folderTarget(item.id, item.id) : {}
                   const service = item.kind === 'link' ? (SERVICES[item.service] || SERVICES.drive) : null
@@ -532,8 +796,12 @@ export default function FilesPage ({ groupSlug: slugProp }) {
             )}
       </div>
 
+      {atTop && libOk && libResult && libResult.hasMore && (
+        <div><Button variant='outline' onClick={() => loadLibrary(libResult.items.length)}>{t('Show more')}</Button></div>
+      )}
+
       <p className='text-sm text-muted-foreground'>
-        {t('These files are kept in 7BP\'s kDrive at Infomaniak, in Switzerland. Only members of this circle see them here. The member who added a file, and the stewards of the circle, can rename, move and delete it.')}
+        {t('Files in folders are kept in 7BP\'s kDrive at Infomaniak, in Switzerland. Files added at the top level are kept in Agora, which reads their text so search finds words inside them and recordings get a transcript. Only members of this circle see them. The member who added a file, and the stewards of the circle, can rename, move and delete files in folders.')}
       </p>
 
       {viewing && <FileViewer groupSlug={groupSlug} item={viewing} onClose={() => setViewing(null)} />}
