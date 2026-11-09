@@ -121,6 +121,15 @@ describe('Agora chat threads, room search and saved messages', () => {
       // Cat asks for Bob's list by naming him: she gets her own (empty) list
       const peek = await saved(cat, [bob.id])
       expect(peek.data.posts.items).to.deep.equal([])
+    })
+
+    it('does not show a person\'s saved list through that person\'s own posts either', async () => {
+      const q = 'query ($id: ID, $ids: [ID]) { person(id: $id) { posts(savedBy: $ids, first: 30) { items { id } } } }'
+      // (Hylo's own query for this relation may fail on the owner's side too; what matters is that nothing leaks)
+      const peek = await gql(cat, q, { id: bob.id, ids: [bob.id] })
+      const items = peek.data && peek.data.person && peek.data.person.posts ? peek.data.person.posts.items : []
+      expect(items.map(p => p.id)).to.not.include(String(alphaMsg.id))
+      expect(items).to.deep.equal([])
       expect(alphaOther.id).to.not.equal(undefined)
       expect(betaMsg.id).to.not.equal(undefined)
     })

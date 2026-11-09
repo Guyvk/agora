@@ -674,7 +674,8 @@ export default function makeModels (userId, isAdmin, apiClient) {
                   mentionsOf,
                   offset,
                   order,
-                  savedBy,
+                  // Agora: your saved list is yours only, also through a person's posts
+                  savedBy: savedBy && savedBy.length ? [userId] : savedBy,
                   search,
                   sortBy,
                   topic,
