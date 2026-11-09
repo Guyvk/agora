@@ -92,7 +92,6 @@ async function memberUserRooms (groupId, { transacting } = {}) {
   return rows.map(m => userRoom(m.get('user_id')))
 }
 
-
 // ---------------------------------------------------------------------------
 // Adding people to a room (Guy, 9 Nov 2026: the maker of a private room adds
 // members of its circle, Slack style). The membership is made at once, no
