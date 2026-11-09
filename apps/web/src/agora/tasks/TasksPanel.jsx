@@ -103,7 +103,7 @@ export default function TasksPanel ({ projectId }) {
     <button type='button' aria-pressed={view === key} className={cn('px-3 py-1 text-sm rounded-md border', view === key ? 'bg-selected text-foreground border-selected' : 'border-border text-muted-foreground')} onClick={() => setView(key)}>{label}</button>
   )
 
-  const shared = { tasks: tasks || [], today: today(), selectedId, onAdd: addTask, onOpen: setSelectedId }
+  const shared = { tasks: tasks || [], today: today(), selectedId, onAdd: addTask, onMove: moveTask, onOpen: setSelectedId }
 
   return (
     <section className='flex flex-col gap-3 p-2 sm:p-4' aria-label={t('Tasks')}>
