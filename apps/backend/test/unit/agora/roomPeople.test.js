@@ -85,6 +85,28 @@ describe('Agora: adding people to a room', () => {
     await expectRefused(() => Rooms.removeRoomMember(maker.id, room.id, maker.id), /maker can.t be taken out/)
   })
 
+  it('refuses to take out someone who is not in the room, and the member count stays right', async () => {
+    const count = async () => (await Group.find(room.id)).get('num_members')
+    const before = await count()
+    await expectRefused(() => Rooms.removeRoomMember(maker.id, room.id, other.id), /not in the room/)
+    expect(await count()).to.equal(before)
+  })
+
+  it('can add someone again after they were taken out', async () => {
+    await Rooms.addRoomMembers(maker.id, room.id, [other.id])
+    expect(await isIn(other, room)).to.be.true
+    await Rooms.removeRoomMember(maker.id, room.id, other.id)
+    expect(await isIn(other, room)).to.be.false
+  })
+
+  it('does not add a deactivated account', async () => {
+    const gone = await factories.user().save()
+    await gone.joinGroup(circle)
+    await gone.save({ active: false }, { patch: true })
+    await expectRefused(() => Rooms.addRoomMembers(maker.id, room.id, [gone.id]), /only add people who are in this circle/)
+    expect(await isIn(gone, room)).to.be.false
+  })
+
   it('refuses when nobody is logged in', async () => {
     await expectRefused(() => mutations.agoraAddRoomMembers({}, { roomId: room.id, userIds: [other.id] }, {}), /log in/)
     await expectRefused(() => Rooms.addRoomMembers(undefined, room.id, [other.id]), /log in/)

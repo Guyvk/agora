@@ -137,8 +137,11 @@ async function addRoomMembers (userId, roomId, userIds) {
   const room = await requireRoomPeopleManager(userId, roomId)
   const ids = [...new Set((userIds || []).map(String))]
   if (!ids.length) return []
+  // Agora: only active accounts that are active members of the circle (same rule as peopleToAdd)
   const inCircle = await bookshelf.knex('group_memberships')
-    .where({ group_id: room.get('parent_id'), active: true }).whereIn('user_id', ids).select('user_id')
+    .join('users', 'users.id', 'group_memberships.user_id')
+    .where({ 'group_memberships.group_id': room.get('parent_id'), 'group_memberships.active': true, 'users.active': true })
+    .whereIn('group_memberships.user_id', ids).select('group_memberships.user_id as user_id')
   const circleIds = new Set(inCircle.map(r => String(r.user_id)))
   if (ids.some(id => !circleIds.has(id))) throw new RoomError('You can only add people who are in this circle')
   const already = await bookshelf.knex('group_memberships')
@@ -159,6 +162,8 @@ async function addRoomMembers (userId, roomId, userIds) {
       sendPushNotifications: true
     }
   }, {})
+  // Agora: like every other way into a space (joinSpace, auto-add), set up the per-view unread rows
+  await Group.ensureSpaceViewUsers(room.id, toAdd)
   return toAdd
 }
 
@@ -168,6 +173,9 @@ async function removeRoomMember (userId, roomId, memberId) {
   if (String(memberId) === String(room.get('created_by_id'))) throw new RoomError("The room's maker can't be taken out")
   const member = await User.find(memberId)
   if (!member) throw new RoomError('Person not found')
+  // Agora: only someone who is in the room now; removing twice would lower the member count again
+  const membership = await GroupMembership.forPair(member.id, room.id).fetch()
+  if (!membership || !membership.get('active')) throw new RoomError('This person is not in the room')
   await member.leaveGroup(room, true)
   return true
 }
