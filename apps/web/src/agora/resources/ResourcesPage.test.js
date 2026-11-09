@@ -1,10 +1,13 @@
-// Agora: the Files page inside the app, with a pretend server.
+// Agora: the Resources page (kDrive folders and the library in one list), with a pretend server.
 import React from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { AllTheProviders, render, screen, fireEvent, waitFor, within } from 'util/testing/reactTestingLibraryExtended'
-import FilesPage from './FilesPage'
-import FolderPicker from './FolderPicker'
-import { sortItems, selectionActions, googleUrl, viewKind } from './helpers'
+import ResourcesPage from './ResourcesPage'
+import FolderPicker from '../files/FolderPicker'
+import { sortItems, selectionActions, googleUrl, viewKind } from '../files/helpers'
+import { uploadFile } from '../library/api'
+
+jest.mock('../library/api', () => ({ ...jest.requireActual('../library/api'), uploadFile: jest.fn() }))
 
 const WAIT = { timeout: 30000 }
 // A busy test computer can be very slow.
@@ -31,16 +34,39 @@ function tree () {
   }
 }
 
-let calls, drive, failMove
-function fakeServer () {
+const libItem = (id, title, extra = {}) => ({
+  id, title, kind: 'document', description: '', tags: [], createdAt: '2026-10-12T08:00:00Z', addedBy: { id: '2', name: 'Amara' }, link: null, meeting: false, fileCount: 1, size: 2048, textStatus: 'done', snippet: null, ...extra
+})
+const recording = {
+  ...libItem('13', 'Call with the mayor', { kind: 'audio' }),
+  descriptionHtml: '',
+  postUrl: '/post/13',
+  files: [{ mediaId: '5', name: 'Call.m4a', url: 'https://agora.test/noo/agora/library/file/3/Call.m4a', kind: 'audio', mimeType: 'audio/mp4', size: 5000000 }],
+  texts: [{ id: '1', mediaId: '5', kind: 'audio', title: 'Call.m4a', status: 'done', text: '[0:00] We will clean the river on Saturday.', cut: false }]
+}
+
+let calls, drive, failMove, library
+// library: the items the library has; 'down' makes every library call fail; kdrive 'off' answers 409.
+function fakeServer ({ items = [], libraryDown = false, kdrive = 'on', hasMore = false } = {}) {
   calls = []
   drive = tree()
   failMove = null
+  library = items
   global.fetch = jest.fn(async (url, options = {}) => {
     const method = options.method || 'GET'
     const body = options.body ? JSON.parse(options.body) : null
     calls.push({ url, method, headers: options.headers, body })
     const reply = (status, data) => ({ ok: status < 300, status, json: async () => data })
+    if (url.startsWith('/noo/agora/library/')) {
+      if (libraryDown) return reply(403, { error: 'Only members of this circle can use its library.' })
+      if (url.endsWith('/settings')) return reply(200, { circleName: 'Governance', storage: 'disk', maxMediaMb: 500, maxDocumentMb: 100, canAdd: true })
+      if (url.includes('/items/13')) return reply(200, { item: recording })
+      if (url.includes('/items/') && method === 'GET') return reply(200, { item: { ...recording, id: '20', files: [], texts: [] } })
+      if (method === 'POST') return reply(200, { item: libItem('20', 'New') })
+      const term = new URL(url, 'http://x').searchParams.get('search')
+      return reply(200, { items: term ? library.filter(i => i.title.toLowerCase().includes(term)).map(i => ({ ...i, snippet: 'found in the text' })) : library, hasMore, offset: 0 })
+    }
+    if (method === 'GET' && url.includes('/kd/list') && kdrive === 'off') return reply(409, { error: 'kDrive is not connected for this circle.' })
     if (method === 'GET' && url.includes('/kd/list')) {
       const id = new URL(url, 'http://x').searchParams.get('folder') || 'root'
       const f = drive[id]
@@ -55,9 +81,9 @@ function fakeServer () {
   })
 }
 
-function renderPage (path = '/groups/governance/files', props = {}) {
+function renderPage (path = '/groups/governance/resources', props = {}) {
   useParams.mockReturnValue({ groupSlug: 'governance' })
-  return render(<FilesPage {...props} />, { wrapper: AllTheProviders({}, [path]) })
+  return render(<ResourcesPage {...props} />, { wrapper: AllTheProviders({}, [path]) })
 }
 
 const rowOf = name => screen.getAllByTestId('files-row').find(r => r.textContent.includes(name))
@@ -68,10 +94,10 @@ async function pickFromMenu (name, label) {
 }
 const posts = suffix => calls.filter(c => c.method === 'POST' && c.url.endsWith(suffix))
 
-describe('FilesPage', () => {
+describe('ResourcesPage', () => {
   const originalFetch = global.fetch
   const originalXhr = global.XMLHttpRequest
-  afterEach(() => { global.fetch = originalFetch; global.XMLHttpRequest = originalXhr })
+  afterEach(() => { global.fetch = originalFetch; global.XMLHttpRequest = originalXhr; uploadFile.mockReset() })
 
   it('shows the folder with folders first, then files and links, and who added them', async () => {
     fakeServer()
@@ -322,7 +348,7 @@ describe('FilesPage', () => {
         this.onload()
       }
     }
-    renderPage('/groups/governance/files?folder=f1')
+    renderPage('/groups/governance/resources?folder=f1')
     await screen.findByText('q3.pdf', {}, WAIT)
     const file = new File(['hello'], 'new plan.txt', { type: 'text/plain' })
     fireEvent.change(screen.getByTestId('files-input'), { target: { files: [file] } })
@@ -342,8 +368,8 @@ describe('FilesPage', () => {
       setRequestHeader () {}
       send (file) { sent.push(file.name); this.status = 200; this.responseText = '{}'; this.onload() }
     }
-    renderPage()
-    await screen.findByText('plan.pdf', {}, WAIT)
+    renderPage('/groups/governance/resources?folder=f1')
+    await screen.findByText('q3.pdf', {}, WAIT)
     const list = screen.getByTestId('files-list')
     const files = [new File(['abc'], 'one.txt'), new File([''], 'empty.txt')]
     fireEvent.dragOver(list, { dataTransfer: { types: ['Files'] } })
@@ -354,7 +380,7 @@ describe('FilesPage', () => {
 
   it('adds nothing to the Minutes folder, and shows why', async () => {
     fakeServer()
-    renderPage('/groups/governance/files?folder=m1')
+    renderPage('/groups/governance/resources?folder=m1')
     await screen.findByText('This folder is empty.', {}, WAIT)
     expect(screen.queryByRole('button', { name: 'Add files' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New folder' })).toBeNull()
@@ -363,7 +389,7 @@ describe('FilesPage', () => {
 
   it('makes a folder, renames, and adds a link in the open folder', async () => {
     fakeServer()
-    renderPage('/groups/governance/files?folder=f1')
+    renderPage('/groups/governance/resources?folder=f1')
     await screen.findByText('q3.pdf', {}, WAIT)
     fireEvent.click(screen.getByRole('button', { name: 'New folder' }))
     const form = screen.getByRole('form', { name: 'New folder' })
@@ -380,9 +406,9 @@ describe('FilesPage', () => {
     expect(posts('/kd/rename')[0].body).toEqual({ item: 'r1', name: 'q3 final.pdf' })
     await screen.findByText('Renamed.', {}, WAIT)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add a Google Doc' }))
-    const linkForm = screen.getByRole('form', { name: 'Add a Google Doc' })
-    fireEvent.change(within(linkForm).getByLabelText('Link to the Google document'), { target: { value: 'https://docs.google.com/document/d/abc/edit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }))
+    const linkForm = screen.getByRole('form', { name: 'Add a link' })
+    fireEvent.change(within(linkForm).getByLabelText('Link address'), { target: { value: 'https://docs.google.com/document/d/abc/edit' } })
     fireEvent.change(within(linkForm).getByLabelText('Title (optional)'), { target: { value: 'Plan' } })
     fireEvent.submit(linkForm)
     await waitFor(() => expect(posts('/kd/link')).toHaveLength(1), WAIT)
@@ -397,9 +423,198 @@ describe('FilesPage', () => {
 
   it('uses the group it is given (a space) instead of the address', async () => {
     fakeServer()
-    renderPage('/groups/governance/spaces/budget/files', { groupSlug: 'governance-budget' })
+    renderPage('/groups/governance/spaces/budget/resources', { groupSlug: 'governance-budget' })
     await screen.findByText('plan.pdf', {}, WAIT)
     expect(calls[0].url).toContain('/noo/agora/files/governance-budget/kd/list')
+  })
+})
+
+describe('ResourcesPage, the library side', () => {
+  const originalFetch = global.fetch
+  afterEach(() => { global.fetch = originalFetch; uploadFile.mockReset() })
+
+  const river = libItem('11', 'River plan', { tags: ['water'], size: 2048 })
+  const minutesNote = libItem('12', 'Meeting notes: River call', { kind: 'meeting', addedBy: { id: '9', name: 'Agora Assistant' }, size: 300 })
+
+  it('mixes kDrive folders, files and library items, folders first, with kind, tags and text status', async () => {
+    fakeServer({ items: [river, minutesNote] })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    const names = screen.getAllByTestId('files-row').map(r => r.textContent)
+    expect(names[0]).toMatch(/^Budget/)
+    expect(names[1]).toMatch(/^Minutes/)
+    expect(names[2]).toMatch(/^Reports/)
+    expect(names.slice(3).map(n => n.match(/agenda\.txt|Budget sheet|Meeting notes|plan\.pdf|River plan/)[0])).toEqual(['agenda.txt', 'Budget sheet', 'Meeting notes', 'plan.pdf', 'River plan'])
+    const row = rowOf('River plan')
+    expect(within(row).getByText('#water')).toBeInTheDocument()
+    expect(within(row).getByText('Text ready')).toBeInTheDocument()
+    expect(within(row).getByText('Amara')).toBeInTheDocument()
+    expect(within(row).getByText('2 KB')).toBeInTheDocument()
+    expect(within(row).queryByRole('checkbox')).toBeNull()
+    expect(row.getAttribute('draggable')).toBeNull()
+  })
+
+  it('sorts library rows together with kDrive rows', async () => {
+    fakeServer({ items: [river, minutesNote] })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    fireEvent.click(screen.getByRole('button', { name: 'Size' }))
+    const files = screen.getAllByTestId('files-row').slice(3).map(r => r.textContent.match(/agenda\.txt|Budget sheet|Meeting notes|plan\.pdf|River plan/)[0])
+    // 20 B, 300 B, 2 KB, 4.9 KB, and the link without a size last
+    expect(files).toEqual(['agenda.txt', 'Meeting notes', 'River plan', 'plan.pdf', 'Budget sheet'])
+  })
+
+  it('shows the library only when kDrive is not connected, with a small note and no folder buttons', async () => {
+    fakeServer({ items: [river], kdrive: 'off' })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(/Folders are not available/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New folder' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
+  })
+
+  it('shows kDrive only when the library fails, with a note', async () => {
+    fakeServer({ libraryDown: true })
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    expect(screen.getByText(/could not be loaded right now/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New folder' })).toBeInTheDocument()
+  })
+
+  it('shows an error only when both fail', async () => {
+    fakeServer({ libraryDown: true, kdrive: 'off' })
+    renderPage()
+    expect((await screen.findByRole('alert', {}, WAIT)).textContent).toMatch(/Only members of this circle can use its library/)
+  })
+
+  it('searches the library on the server and kDrive rows by name, and filters by kind', async () => {
+    fakeServer({ items: [river, libItem('14', 'Plan B')] })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    fireEvent.change(screen.getByLabelText('Search resources'), { target: { value: 'plan' } })
+    await waitFor(() => expect(calls.some(c => c.url.endsWith('/items?search=plan'))).toBe(true), WAIT)
+    await screen.findAllByText('…found in the text…', {}, WAIT)
+    const rows = screen.getAllByTestId('files-row').map(r => r.textContent)
+    expect(rows.some(r => /plan\.pdf/.test(r))).toBe(true)
+    expect(rows.some(r => /agenda\.txt/.test(r))).toBe(false)
+    expect(rows.some(r => /Reports/.test(r))).toBe(false)
+    fireEvent.change(screen.getByLabelText('Search resources'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'link' } })
+    await waitFor(() => expect(calls.some(c => c.url.includes('kind=link'))).toBe(true), WAIT)
+    await waitFor(() => expect(screen.queryByText('plan.pdf')).toBeNull(), WAIT)
+    expect(await screen.findByText('Budget sheet', {}, WAIT)).toBeInTheDocument()
+  })
+
+  it('shows more library items', async () => {
+    fakeServer({ items: [river], hasMore: true })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    await waitFor(() => expect(calls.some(c => c.url.includes('offset=1'))).toBe(true), WAIT)
+  })
+
+  it('opens a library item inside the page, with its transcript', async () => {
+    fakeServer({ items: [libItem('13', 'Call with the mayor', { kind: 'audio' })] })
+    const { container } = renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Call with the mayor' }, WAIT))
+    const detail = await screen.findByTestId('library-detail', {}, WAIT)
+    expect(within(detail).getByText('Transcript')).toBeInTheDocument()
+    expect(within(detail).getByText(/We will clean the river on Saturday/)).toBeInTheDocument()
+    expect(container.querySelector('audio').getAttribute('src')).toBe('https://agora.test/noo/agora/library/file/3/Call.m4a')
+    expect(within(detail).getByRole('link', { name: 'Download' })).toHaveAttribute('href', 'https://agora.test/noo/agora/library/file/3/Call.m4a?download=1')
+    expect(within(detail).getByRole('link', { name: 'Open the post, with its comments' })).toHaveAttribute('href', '/post/13')
+    fireEvent.click(screen.getByRole('button', { name: /Back to the library/ }))
+    await screen.findByText('plan.pdf', {}, WAIT)
+  })
+
+  it('offers Open, Download and Open the post in the menu of a library row', async () => {
+    fakeServer({ items: [river] })
+    renderPage()
+    await screen.findByText('River plan', {}, WAIT)
+    await pickFromMenu('River plan', 'Open the post')
+    // no move, rename or delete for library rows
+    fireEvent.keyDown(within(rowOf('River plan')).getByRole('button', { name: 'Actions for River plan' }), { key: 'Enter' })
+    const menu = await screen.findByRole('menu', {}, WAIT)
+    expect(within(menu).getAllByRole('menuitem').map(i => i.textContent)).toEqual(['Open', 'Download', 'Open the post'])
+  })
+
+  it('adds files dropped at the top level to the library, one item per file', async () => {
+    fakeServer()
+    uploadFile.mockImplementation(async ({ onProgress }) => { onProgress(0.5); return '77' })
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    const list = screen.getByTestId('files-list')
+    const file = new File(['hello'], 'Report.pdf', { type: 'application/pdf' })
+    const empty = new File([''], 'empty.txt')
+    fireEvent.drop(list, { dataTransfer: { types: ['Files'], files: [file, empty] } })
+    await screen.findByText(/empty\.txt: empty, so not added\./, {}, WAIT)
+    expect(uploadFile.mock.calls[0][0].groupSlug).toBe('governance')
+    expect(uploadFile.mock.calls[0][0].file).toBe(file)
+    const created = calls.find(c => c.method === 'POST' && c.url === '/noo/agora/library/circles/governance/items')
+    expect(created.headers['X-Agora']).toBe('1')
+    expect(created.body).toEqual({ title: 'Report.pdf', description: '', tags: '', link: '', fileIds: ['77'] })
+    expect(calls.some(c => c.url.includes('/kd/upload'))).toBe(false)
+  })
+
+  it('refuses a file over the library limit before sending it', async () => {
+    fakeServer()
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    const big = new File(['x'], 'Huge.pdf', { type: 'application/pdf' })
+    Object.defineProperty(big, 'size', { value: 101 * 1048576 })
+    fireEvent.change(screen.getByTestId('files-input'), { target: { files: [big] } })
+    await screen.findByText(/Huge\.pdf: larger than 100 MB, so not added\./, {}, WAIT)
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('adds a link at the top level as a library item, with description and tags', async () => {
+    fakeServer()
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }))
+    const form = screen.getByRole('form', { name: 'Add a link' })
+    fireEvent.change(within(form).getByLabelText('Link address'), { target: { value: 'https://docs.google.com/document/d/abc/edit' } })
+    expect(within(form).getByText(/Commenter is usually right/)).toBeInTheDocument()
+    fireEvent.change(within(form).getByLabelText('Tags, separated by commas'), { target: { value: 'budget' } })
+    fireEvent.submit(form)
+    await waitFor(() => expect(calls.some(c => c.method === 'POST' && c.url.endsWith('/library/circles/governance/items'))).toBe(true), WAIT)
+    const created = calls.find(c => c.method === 'POST' && c.url.endsWith('/library/circles/governance/items'))
+    expect(created.body).toEqual({ title: '', description: '', tags: 'budget', link: 'https://docs.google.com/document/d/abc/edit', fileIds: [] })
+    expect(posts('/kd/link')).toHaveLength(0)
+  })
+
+  it('opens the add form with details (several files as one item) at the top level only', async () => {
+    fakeServer()
+    renderPage()
+    await screen.findByText('plan.pdf', {}, WAIT)
+    fireEvent.click(screen.getByRole('button', { name: 'Add with details' }))
+    expect(await screen.findByTestId('library-add')).toBeInTheDocument()
+  })
+
+  it('does not offer the library or details inside a kDrive folder', async () => {
+    fakeServer({ items: [river] })
+    renderPage('/groups/governance/resources?folder=f1')
+    await screen.findByText('q3.pdf', {}, WAIT)
+    expect(screen.queryByText('River plan')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add with details' })).toBeNull()
+  })
+
+  it('sends the old Files address to Resources, keeping the folder', async () => {
+    const FilesRedirect = require('./FilesRedirect').default
+    const { Routes, Route } = require('react-router-dom')
+    // the test setup fakes useLocation of react-router-dom, so the page reads the real one
+    const realLocation = jest.requireActual('react-router').useLocation
+    useLocation.mockReturnValue({ pathname: '/groups/governance/files', search: '?folder=f1' })
+    const Where = () => { const l = realLocation(); return <p>at {l.pathname}{l.search}</p> }
+    render(
+      <Routes>
+        <Route path='/groups/:g/files' element={<FilesRedirect />} />
+        <Route path='/groups/:g/resources' element={<Where />} />
+      </Routes>,
+      { wrapper: AllTheProviders({}, ['/groups/governance/files?folder=f1']) }
+    )
+    expect(await screen.findByText('at /groups/governance/resources?folder=f1', {}, WAIT)).toBeInTheDocument()
   })
 })
 

@@ -3561,5 +3561,17 @@
   "agoraCalendar.renew": "Criar um novo link",
   "agoraCalendar.revoke": "Desativar o link",
   "agoraCalendar.confirmRenew": "Criar um novo link? O link antigo deixa de funcionar e os calendários que o usam deixam de ser atualizados.",
-  "agoraCalendar.confirmRevoke": "Desativar o link? Os calendários que o usam deixam de ser atualizados."
+  "agoraCalendar.confirmRevoke": "Desativar o link? Os calendários que o usam deixam de ser atualizados.",
+  "Search names, tags and the text inside files": "Pesquisar nomes, etiquetas e o texto dentro dos ficheiros",
+  "Search resources": "Pesquisar recursos",
+  "Add with details": "Adicionar com detalhes",
+  "Nothing matches your search.": "Nada corresponde à tua pesquisa.",
+  "Nothing here yet. Add the first file, folder or link.": "Ainda não há nada aqui. Adiciona o primeiro ficheiro, pasta ou ligação.",
+  "Folders are not available for this circle right now. Only what is kept in Agora shows.": "As pastas não estão disponíveis para este círculo neste momento. Só aparece o que está guardado no Agora.",
+  "What is kept in Agora could not be loaded right now. Only the folders show.": "Não foi possível carregar o que está guardado no Agora. Só aparecem as pastas.",
+  "Files in folders are kept in 7BP's kDrive at Infomaniak, in Switzerland. Files added at the top level are kept in Agora, which reads their text so search finds words inside them and recordings get a transcript. Only members of this circle see them. The member who added a file, and the stewards of the circle, can rename, move and delete files in folders.": "Os ficheiros das pastas ficam no kDrive da 7BP na Infomaniak, na Suíça. Os ficheiros adicionados ao nível superior ficam no Agora, que lê o seu texto para que a pesquisa encontre palavras dentro deles e as gravações tenham uma transcrição. Só os membros deste círculo os veem. Quem adicionou um ficheiro e os stewards do círculo podem mudar o nome, mover e apagar os ficheiros das pastas.",
+  "Link address": "Endereço da ligação",
+  "Open the link": "Abrir a ligação",
+  "Open the post": "Abrir a publicação",
+  "This item has no file to download.": "Este item não tem ficheiro para transferir."
 }
