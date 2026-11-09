@@ -3586,5 +3586,17 @@
   "agoraRooms.archiveConfirm": "Archiver ce salon ? Il quitte le menu, ses messages sont conservés.",
   "agoraRooms.addDescription": "Ajouter une courte description",
   "agoraRooms.editDescription": "Modifier la description",
-  "agoraRooms.save": "Enregistrer"
+  "agoraRooms.save": "Enregistrer",
+  "Search names, tags and the text inside files": "Rechercher dans les noms, les étiquettes et le texte des fichiers",
+  "Search resources": "Rechercher dans les ressources",
+  "Add with details": "Ajouter avec des détails",
+  "Nothing matches your search.": "Rien ne correspond à votre recherche.",
+  "Nothing here yet. Add the first file, folder or link.": "Rien ici pour l'instant. Ajoutez le premier fichier, dossier ou lien.",
+  "Folders are not available for this circle right now. Only what is kept in Agora shows.": "Les dossiers ne sont pas disponibles pour ce cercle pour le moment. Seul ce qui est conservé dans Agora s'affiche.",
+  "What is kept in Agora could not be loaded right now. Only the folders show.": "Ce qui est conservé dans Agora n'a pas pu être chargé. Seuls les dossiers s'affichent.",
+  "Files in folders are kept in 7BP's kDrive at Infomaniak, in Switzerland. Files added at the top level are kept in Agora, which reads their text so search finds words inside them and recordings get a transcript. Only members of this circle see them. The member who added a file, and the stewards of the circle, can rename, move and delete files in folders.": "Les fichiers des dossiers sont conservés dans le kDrive de 7BP chez Infomaniak, en Suisse. Les fichiers ajoutés au niveau supérieur sont conservés dans Agora, qui lit leur texte pour que la recherche trouve les mots qu'ils contiennent et que les enregistrements reçoivent une transcription. Seuls les membres de ce cercle les voient. Le membre qui a ajouté un fichier et les stewards du cercle peuvent renommer, déplacer et supprimer les fichiers des dossiers.",
+  "Link address": "Adresse du lien",
+  "Open the link": "Ouvrir le lien",
+  "Open the post": "Ouvrir le message",
+  "This item has no file to download.": "Cet élément n'a pas de fichier à télécharger."
 }

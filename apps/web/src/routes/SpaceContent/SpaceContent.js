@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import Loading from 'components/Loading'
-import FilesPage from '@/agora/files/FilesPage' // Agora: the Files page of a space, inside the app
+import ResourcesPage from '@/agora/resources/ResourcesPage' // Agora: the Resources page of a space (folders, files and library)
+import FilesRedirect from '@/agora/resources/FilesRedirect' // Agora: the old Files address of a space leads to Resources
 import { SpaceGroupSlugContext } from 'contexts/SpaceGroupContext'
 import useRouteParams from 'hooks/useRouteParams'
 import useGroupViews from 'hooks/useGroupViews'
@@ -205,7 +206,7 @@ export default function SpaceContent ({ parentGroup: parentGroupProp, isOneColum
         <Route path='all/*' element={<ViewContent context='groups' view='all' />} />
         <Route path='discussions/*' element={<ViewContent context='groups' view='discussions' />} />
         <Route path='events/*' element={<ViewContent context='groups' view='events' />} />
-        <Route path='resources/*' element={<ViewContent context='groups' view='resources' />} />
+        <Route path='resources/*' element={<ResourcesPage groupSlug={spaceFullSlug} />} /> {/* Agora: folders, files and library instead of Hylo's list of resources */}
         <Route path='projects/*' element={<ViewContent context='groups' view='projects' />} />
         <Route path='proposals/*' element={<ViewContent context='groups' view='proposals' />} />
         <Route path='requests-and-offers/*' element={<ViewContent context='groups' view='requests-and-offers' />} />
@@ -223,7 +224,7 @@ export default function SpaceContent ({ parentGroup: parentGroupProp, isOneColum
         <Route path='manage-round/*' element={<ManageRoundView />} />
         <Route path='moderation/*' element={<Navigate to={`${spaceBase}/about/moderation`} replace />} />
         <Route path='about/*' element={<GroupAboutPage />} />
-        <Route path='files' element={<FilesPage groupSlug={spaceFullSlug} />} /> {/* Agora: the Files page of a space, inside the app */}
+        <Route path='files' element={<FilesRedirect />} /> {/* Agora: the old Files address of a space leads to Resources */}
         <Route path={POST_DETAIL_MATCH} element={<PostDetail />} />
         <Route path='*' element={spaceIndexElement} />
       </Routes>

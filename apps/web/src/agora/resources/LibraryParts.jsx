@@ -1,32 +1,26 @@
 /**
- * Agora: the library of a circle, on its Resources tab (/groups/<circle>/resources).
+ * Agora: the parts of the circle library that the Resources page shares:
+ * kind icons and labels, the text status, the "add with details" form
+ * (title, description, tags, several files as one item) and the item
+ * detail with its preview and transcript.
  *
- * Everything the circle keeps: documents, pictures, recordings (with their
- * transcript), meeting notes and links. Each item is a normal "resource" post,
- * so it also shows in the circle's stream. Members search titles, descriptions,
- * tags and the text read from the files, add files with a button or by
- * dropping them on the page, and open an item to see a picture, play a
- * recording, open a PDF or read the transcript.
- *
- * The server checks for every call that the person is a member of the circle
- * (apps/backend/lib/agora/library.js).
+ * They talk to the library API (library/api.js); the server checks for every
+ * call that the person is a member of the circle.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, BookOpen, FileText, Image as ImageIcon, Link2, Mic, NotebookPen, Plus, Search, Upload, Video, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowLeft, FileText, Image as ImageIcon, Link2, Mic, NotebookPen, Upload, Video, X } from 'lucide-react'
 import Button from 'components/ui/button'
 import { Input } from 'components/ui/input'
 import { Label } from 'components/ui/label'
 import Loading from 'components/Loading'
-import { useViewHeader } from 'contexts/ViewHeaderContext'
 import { cn } from 'util/index'
-import { libraryApi, circlePath, uploadFile, createItem } from './api'
+import { libraryApi, circlePath, uploadFile, createItem } from '../library/api'
 
-const fieldClasses = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+export const fieldClasses = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
-const KIND_ICONS = {
+export const KIND_ICONS = {
   document: FileText,
   image: ImageIcon,
   audio: Mic,
@@ -49,17 +43,17 @@ export function useKindLabels () {
   }
 }
 
-function formatDay (iso) {
+export function formatDay (iso) {
   return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 }
 
-function formatSize (bytes) {
+export function formatSize (bytes) {
   if (!bytes) return ''
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   return `${(bytes / 1048576).toFixed(bytes < 10 * 1048576 ? 1 : 0)} MB`
 }
 
-function TextStatus ({ status }) {
+export function TextStatus ({ status }) {
   const { t } = useTranslation()
   const labels = {
     done: t('Text ready'),
@@ -72,40 +66,8 @@ function TextStatus ({ status }) {
   return <span className='text-xs text-foreground/60'>{labels[status]}</span>
 }
 
-function ItemRow ({ item, onOpen }) {
-  const { t } = useTranslation()
-  const kinds = useKindLabels()
-  const Icon = KIND_ICONS[item.kind] || FileText
-  return (
-    <li data-testid='library-item'>
-      <button
-        type='button'
-        onClick={() => onOpen(item.id)}
-        className='w-full text-left bg-card border border-border rounded-lg p-3 flex gap-3 items-start hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-      >
-        <span className='mt-0.5 shrink-0 rounded-md bg-foreground/5 p-2 text-foreground/80' title={kinds[item.kind]}>
-          <Icon className='w-5 h-5' aria-hidden='true' />
-        </span>
-        <span className='flex flex-col gap-0.5 min-w-0 flex-1'>
-          <span className='font-semibold text-foreground break-words'>{item.title}</span>
-          <span className='text-sm text-foreground/70'>
-            {kinds[item.kind]} · {t('{{date}} by {{name}}', { date: formatDay(item.createdAt), name: item.addedBy.name })}
-            {item.size ? ` · ${formatSize(item.size)}` : ''}
-          </span>
-          {item.snippet && <span className='text-sm text-foreground/80 italic break-words'>…{item.snippet}…</span>}
-          {!item.snippet && item.description && <span className='text-sm text-foreground/80 break-words line-clamp-2'>{item.description}</span>}
-          <span className='flex flex-wrap gap-1.5 items-center'>
-            {item.tags.map(tag => <span key={tag} className='text-xs rounded-full border border-border px-2 py-0.5 text-foreground/80'>#{tag}</span>)}
-            <TextStatus status={item.textStatus} />
-          </span>
-        </span>
-      </button>
-    </li>
-  )
-}
-
 /** The form for adding files or a link, with a bar per file while it is sent. */
-function AddPanel ({ groupSlug, settings, initialFiles, onDone, onCancel }) {
+export function AddPanel ({ groupSlug, settings, initialFiles, onDone, onCancel }) {
   const { t } = useTranslation()
   const [files, setFiles] = useState(initialFiles || [])
   const [title, setTitle] = useState('')
@@ -250,7 +212,7 @@ function TextBlock ({ text }) {
   )
 }
 
-function ItemDetail ({ groupSlug, itemId, onBack }) {
+export function ItemDetail ({ groupSlug, itemId, onBack }) {
   const { t } = useTranslation()
   const kinds = useKindLabels()
   const [item, setItem] = useState(undefined)
@@ -291,137 +253,6 @@ function ItemDetail ({ groupSlug, itemId, onBack }) {
           {item.texts.map(text => <TextBlock key={text.id} text={text} />)}
           <p><Link className='text-selected underline' to={item.postUrl}>{t('Open the post, with its comments')}</Link></p>
         </article>
-      )}
-    </div>
-  )
-}
-
-export default function LibraryPage () {
-  const { t } = useTranslation()
-  const { groupSlug } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const openId = searchParams.get('item')
-  const [settings, setSettings] = useState(undefined)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
-  const [search, setSearch] = useState('')
-  const [query, setQuery] = useState('')
-  const [kind, setKind] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [dropped, setDropped] = useState(null)
-  const [dragging, setDragging] = useState(false)
-  const kinds = useKindLabels()
-
-  const { setHeaderDetails } = useViewHeader()
-  useEffect(() => {
-    setHeaderDetails({ title: t('Library'), icon: <BookOpen />, info: '', search: false })
-  }, [setHeaderDetails, t])
-
-  useEffect(() => {
-    libraryApi(circlePath(groupSlug, '/settings')).then(setSettings).catch(err => { setSettings(null); setError(err.message) })
-  }, [groupSlug])
-
-  // The search starts a moment after typing stops.
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(search.trim()), 300)
-    return () => clearTimeout(timer)
-  }, [search])
-
-  const load = useCallback(async (offset = 0) => {
-    try {
-      setError(null)
-      const params = new URLSearchParams()
-      if (query) params.set('search', query)
-      if (kind) params.set('kind', kind)
-      if (offset) params.set('offset', String(offset))
-      const data = await libraryApi(circlePath(groupSlug, `/items${params.toString() ? `?${params}` : ''}`))
-      setResult(old => offset && old ? { ...data, items: [...old.items, ...data.items] } : data)
-    } catch (err) {
-      setError(err.message)
-    }
-  }, [groupSlug, query, kind])
-
-  useEffect(() => { if (settings) load(0) }, [load, settings])
-
-  const open = id => setSearchParams(id ? { item: id } : {})
-
-  const onDragOver = e => {
-    if (!settings || !Array.from(e.dataTransfer?.types || []).includes('Files')) return
-    e.preventDefault()
-    setDragging(true)
-  }
-  const onDrop = e => {
-    if (!settings) return
-    e.preventDefault()
-    setDragging(false)
-    const files = Array.from(e.dataTransfer?.files || [])
-    if (files.length) {
-      setDropped(files)
-      setAdding(true)
-      open(null)
-    }
-  }
-
-  if (settings === undefined && !error) return <Loading />
-
-  return (
-    <div
-      className={cn('flex flex-col gap-4 p-4 max-w-[960px] mx-auto w-full relative', dragging && 'outline-dashed outline-2 outline-selected rounded-lg')}
-      onDragOver={onDragOver}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-      data-testid='library-page'
-    >
-      <Helmet>
-        <title>{t('Library')} | {(settings && settings.circleName) || ''} | Agora</title>
-      </Helmet>
-      {error && <p className='text-destructive' role='alert'>{error}</p>}
-      {settings && openId && <ItemDetail groupSlug={groupSlug} itemId={openId} onBack={() => open(null)} />}
-      {settings && !openId && (
-        <>
-          <p className='text-foreground/80'>
-            {t('Everything this circle keeps: documents, pictures, recordings with their transcript, meeting notes and links. Only members of the circle can see them.')}
-          </p>
-          <div className='flex flex-wrap gap-2 items-center'>
-            <div className='relative flex-1 min-w-[200px]'>
-              <Search className='w-4 h-4 absolute left-3 top-3 text-foreground/50' aria-hidden='true' />
-              <Input
-                className='pl-9'
-                type='search'
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('Search titles, descriptions and the text inside files')}
-                aria-label={t('Search the library')}
-              />
-            </div>
-            <select className={cn(fieldClasses, 'w-auto h-10')} value={kind} onChange={e => setKind(e.target.value)} aria-label={t('Kind')}>
-              <option value=''>{t('All kinds')}</option>
-              {['document', 'image', 'audio', 'video', 'meeting', 'link'].map(k => <option key={k} value={k}>{kinds[k]}</option>)}
-            </select>
-            {!adding && <Button onClick={() => { setDropped(null); setAdding(true) }}><Plus className='w-4 h-4 mr-1' /> {t('Add to the library')}</Button>}
-          </div>
-          {adding && (
-            <AddPanel
-              groupSlug={groupSlug}
-              settings={settings}
-              initialFiles={dropped}
-              onCancel={() => { setAdding(false); setDropped(null) }}
-              onDone={item => { setAdding(false); setDropped(null); load(0); open(item.id) }}
-            />
-          )}
-          {!result && !error && <Loading />}
-          {result && result.items.length === 0 && (
-            <p className='text-foreground/70'>{query || kind ? t('Nothing in the library matches.') : t('The library is empty. Add the first document, picture or recording.')}</p>
-          )}
-          {result && result.items.length > 0 && (
-            <ul className='flex flex-col gap-2'>
-              {result.items.map(item => <ItemRow key={item.id} item={item} onOpen={open} />)}
-            </ul>
-          )}
-          {result && result.hasMore && (
-            <div><Button variant='outline' onClick={() => load(result.items.length)}>{t('Show more')}</Button></div>
-          )}
-        </>
       )}
     </div>
   )

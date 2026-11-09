@@ -2,7 +2,22 @@
 
 This is the handover note. Whoever works on Agora, a person or Claude, reads it first and updates it before stopping. Keep it short and plain. Replace old facts instead of adding to a log.
 
-**Last updated:** 8 November 2026 (small clean-up PR, branch agora-cleanup-1108). "8 November" and "3-4 November" are current; older sections below are partly out of date.
+**Last updated:** 9 November 2026 (build board set up; tasks in projects live). The two "9 November" sections, "8 November" and "3-4 November" are current; older sections below are partly out of date.
+
+## 9 November 2026: build board
+
+- **Board:** GitHub Project "Agora build", https://github.com/users/Guyvk/projects/1, linked to Guyvk/agora. Columns (Status field) To do, Doing, In review, Live; fields Owner (Guy, Nana, David, Claude builders) and Circle (Tech Support, Governance, Communication, 7BP). Issues switched on for Guyvk/agora (Guy, 9 November). Cards #79 to #92 = the open rows of the early access plan, in plain words, nothing private. Help desk requests never go on the board by themselves (Guy): Guy or Nana writes a short card without names.
+- **Moves:** GitHub's built-in "Item closed" and "Pull request merged" automations stay OFF, because a merge closes the issue before the server is updated. After every deploy run `node agora/board-sync.mjs --apply <deployed commit>` on the Mac (dry run without `--apply`): linked pull request -> In review, merge inside the deployed commit -> Live plus a comment on the issue. Script and the board rules for AIs (`AGENTS.md`, `docs/CODING-WITH-AI.md`) are in PR #93.
+- **Build page in Agora:** plan doc https://claude.ai/artifact/TnhCzmuKBFrFcAGh4Cqhaf, card #79. Guy decided: Tech Support circle only, its members can move cards, a classic token with only the `project` scope (Guy puts it in the server .env as `AGORA_GITHUB_BOARD_TOKEN`). Not built yet.
+
+## 9 November 2026: tasks in projects
+
+- **Live on 53b4a90fc2** (deploy unit `agora-update-1109tasks2`, 18:05 UTC). Every project post has a Tasks part: Board (To do, Doing, Done, drag by a grip) and List, a side panel per task (title, description, people, due date, status, project, comments, delete with Undo). Only active members of the project's circle see tasks; non-members see "Tasks are for members of this circle."
+- **PRs:** #74 server (tables `agora_tasks`, `agora_task_assignees`, `agora_task_comments`, migration `20261109120000_add_agora_tasks`; REST API `/noo/agora/tasks/api`, code in `lib/agora/tasks.js` + `AgoraTasksController.js`; 30 unit tests). #73 web (`apps/web/src/agora/tasks/`, mounted in `PostDetail.js`; 15 tests). #75 hotfix: the first deploy (`agora-update-1109tasks`) failed in the Vite build because `PostDetail.js` imported `agora/tasks/TasksPanel`; Hylo files must import Agora code as `@/agora/...` (Jest resolves the bare path, Vite does not). Nothing changed for users during the failed run.
+- **Rules:** any circle member sees, adds, moves and comments; the people on a task, its maker and stewards (Administration or Manage Content in that circle, or an Agora admin) change or delete it. People can only be put on a task if they are members of that circle.
+- **Plan and next parts:** plan doc https://claude.ai/artifact/GcSDBgth2kqAXtkbofKkro (Guy's go on its six recommendations, 9 November). Next: part 3 (circle Tasks menu item, My tasks page, block on the circle home = Build Plan row 32), part 4 (minutes action points become suggested tasks after a yes, plus a dry-run read-back of old minutes), part 5 (calendar feed, project card counts, guide, translations).
+- **Known gaps:** texts are English only (no `public/locales` keys yet, part 5). Not yet tried by a person in a browser. No notifications when someone puts you on a task (part 4).
+- **Nana** said in the Tech Support meeting that she would work on task management too; Guy is sharing the plan with her.
 
 ## 8 November 2026
 
@@ -185,7 +200,7 @@ Small jobs for in between:
 | AI that keeps track and sends a weekly update | Planned, step 7 |
 | Progress on the governance playbook, visible to all | Chapters go in as proposals. The page is step 8 |
 | Files in Google Drive, shown inside Agora | Built. Needs the Google robot account, step 6 |
-| Everyone can see their tasks | Not designed yet. Hylo has projects, and the minutes list actions |
+| Everyone can see their tasks | Tasks on project pages live since 9 November; My tasks and minutes to tasks are next (see "9 November 2026") |
 | A CRM for people outside Agora | Built: the Contacts page. Needs a privacy review before real contacts go in |
 | Accountability reports | Planned, step 11 |
 | Message house for the communications circle | Planned, step 11 |

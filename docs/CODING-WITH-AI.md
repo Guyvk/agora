@@ -61,11 +61,27 @@ So a session starts with just your task, for example: "Fix the time shown on the
 
 If you use a tool that does not read these files, tell it once at the start: "Read AGENTS.md first and follow it."
 
+## The build board
+
+Everything we build is a card on the board **Agora build**: [github.com/users/Guyvk/projects/1](https://github.com/users/Guyvk/projects/1). Guy, Nana, your AI and Claude's builders all use this one list.
+
+| Column | Means |
+| --- | --- |
+| To do | Nobody has started |
+| Doing | Someone is building it (put your name in Owner) |
+| In review | A pull request is open, or merged but not on the server yet |
+| Live | On the live Agora |
+
+- Pick a card, set Owner to your name and move it to Doing.
+- Tell your AI the issue number, for example: "Work on issue #88. Put Closes #88 in the pull request." The card then moves to In review by itself.
+- After Guy puts the change live, the card moves to Live.
+- No card for your idea yet? Add one with a short title and a few plain sentences. The board is public: no names of people outside the team and no personal details.
+
 ## How a change reaches Agora
 
 Nothing you or your AI do can reach the live Agora directly. Every change passes Guy first.
 
-1. You give your AI a task (a fix from the Help desk, a wish from a meeting).
+1. You pick a card from the build board and give your AI the task (a fix from the Help desk, a wish from a meeting).
 2. Your AI makes a branch `<your-name>/<short-name>`, writes the code and the test, and tries it with demo data.
 3. Your AI opens a draft pull request on Guyvk/agora. You read it and try it once yourself.
 4. You tell Guy it is ready. Guy reviews it and asks questions in the pull request if needed.
