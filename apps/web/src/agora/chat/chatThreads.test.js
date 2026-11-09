@@ -11,6 +11,11 @@ import RoomSearchPanel, { roomSearchParams } from './RoomSearchPanel'
 import { receiveChatThreadUpdate } from './chatThreads.store'
 
 jest.mock('components/SocketSubscriber', () => ({ type, id }) => <div data-testid='socket-subscriber'>{type}:{id}</div>)
+// useDispatch is a non-configurable ESM export, so it cannot be spied on; mock it here and fall back to the real one.
+jest.mock('react-redux', () => {
+  const actual = jest.requireActual('react-redux')
+  return { ...actual, useDispatch: jest.fn((...args) => actual.useDispatch(...args)) }
+})
 jest.mock('routes/PostDetail/Comments', () => ({ post }) => <div data-testid='comments'>comments of {post.id}</div>)
 
 const group = { id: '5', name: 'Alpha', slug: 'alpha' }
@@ -21,6 +26,16 @@ function providers (build) {
   if (build) build(session)
   return AllTheProviders({ orm: session.state, pending: {} })
 }
+
+describe('reply counter texts', () => {
+  it('has English singular and plural texts for the counter', () => {
+    const en = require('../../../public/locales/en.json')
+    expect(en['agoraChat.threadSummary_one']).toBe('{{count}} reply, last {{ago}}')
+    expect(en['agoraChat.threadSummary_other']).toBe('{{count}} replies, last {{ago}}')
+    expect(en['agoraChat.threadSummaryNoTime_one']).toBe('{{count}} reply')
+    expect(en['agoraChat.threadSummaryNoTime_other']).toBe('{{count}} replies')
+  })
+})
 
 describe('relativeTime', () => {
   const now = new Date('2026-11-09T12:00:00Z').getTime()
@@ -52,6 +67,11 @@ describe('ThreadPanel', () => {
 })
 
 describe('RoomSearchPanel', () => {
+  afterEach(() => {
+    const actual = jest.requireActual('react-redux')
+    require('react-redux').useDispatch.mockReset().mockImplementation((...args) => actual.useDispatch(...args))
+  })
+
   it('asks only for this room, chat messages only', () => {
     expect(roomSearchParams('alpha', 'boat')).toMatchObject({ context: 'groups', slug: 'alpha', filter: 'chat', search: 'boat' })
   })
@@ -67,7 +87,7 @@ describe('RoomSearchPanel', () => {
     const { default: fetchPosts } = require('store/actions/fetchPosts')
     expect(typeof fetchPosts).toBe('function')
     // The store is real; intercept the posts request with a middleware-free check on the action we dispatch
-    jest.spyOn(require('react-redux'), 'useDispatch').mockReturnValue(action => {
+    require('react-redux').useDispatch.mockReturnValue(action => {
       seen.push(action)
       return Promise.resolve({ payload: { data: { group: { posts: { items: [result] } } } } })
     })
@@ -79,15 +99,13 @@ describe('RoomSearchPanel', () => {
     expect(screen.getByTestId('room-search-result')).toHaveTextContent('The boat leaves at nine')
     fireEvent.click(screen.getByTestId('room-search-result'))
     expect(onPick).toHaveBeenCalledWith(result)
-    jest.restoreAllMocks()
   })
 
   it('says so when nothing is found', async () => {
-    jest.spyOn(require('react-redux'), 'useDispatch').mockReturnValue(() => Promise.resolve({ payload: { data: { group: { posts: { items: [] } } } } }))
+    require('react-redux').useDispatch.mockReturnValue(() => Promise.resolve({ payload: { data: { group: { posts: { items: [] } } } } }))
     render(<RoomSearchPanel group={group} onClose={jest.fn()} onPick={jest.fn()} />, { wrapper: providers() })
     fireEvent.change(screen.getByTestId('room-search-input'), { target: { value: 'zzz' } })
     await waitFor(() => expect(screen.getByTestId('room-search-empty')).toBeInTheDocument())
-    jest.restoreAllMocks()
   })
 })
 

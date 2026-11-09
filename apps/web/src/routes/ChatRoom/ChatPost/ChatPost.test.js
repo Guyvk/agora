@@ -185,14 +185,16 @@ describe('ChatPost', () => {
       const onOpenThread = jest.fn()
       renderComponent({ onOpenThread, post: withReplies })
       const counter = screen.getByTestId('thread-summary')
-      expect(counter).toHaveTextContent('3 replies, last 10 minutes ago')
+      // The test i18n stub returns the key; the English plural texts are checked in chatThreads.test.js
+      expect(counter).toHaveTextContent(/^agoraChat\.threadSummary$/)
       fireEvent.click(counter)
       expect(onOpenThread).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
     })
 
     it('says "1 reply" for a single reply and shows nothing when there are none', () => {
       const { unmount } = renderComponent({ onOpenThread: jest.fn(), post: { ...withReplies, commentsTotal: 1, lastCommentAt: null } })
-      expect(screen.getByTestId('thread-summary')).toHaveTextContent('1 reply')
+      // no last-reply time, so the short variant is used
+      expect(screen.getByTestId('thread-summary')).toHaveTextContent(/^agoraChat\.threadSummaryNoTime$/)
       unmount()
       renderComponent({ onOpenThread: jest.fn() })
       expect(screen.queryByTestId('thread-summary')).not.toBeInTheDocument()
