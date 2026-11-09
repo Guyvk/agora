@@ -674,7 +674,6 @@ const PostDetail = forwardRef(function PostDetail (props, forwardedRef) {
                 <JoinProjectSection
                   currentUser={currentUser}
                   joinProject={() => dispatch(joinProject(postId))}
-                  leaveProject={() => dispatch(leaveProject(postId))}
                   leaving={isProjectMember}
                   members={post.members}
                   togglePeopleDialog={handleTogglePeopleDialog}
@@ -775,7 +774,7 @@ PostDetail.propTypes = {
   onDismissEmbeddedDialog: PropTypes.func
 }
 
-export function JoinProjectSection ({ currentUser, members, leaving, joinProject, leaveProject, togglePeopleDialog }) {
+export function JoinProjectSection ({ currentUser, members, leaving, joinProject, togglePeopleDialog }) {
   const { t } = useTranslation()
   const buttonText = t('Join Project')
   const onClick = () => joinProject()
