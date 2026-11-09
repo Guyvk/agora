@@ -1,6 +1,6 @@
 import { cn } from 'util/index'
 import { get } from 'lodash/fp'
-import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, CalendarDays /* Agora: Calendar */, Gauge /* Agora: admin area */, Home /* Agora: My Home without a picture */ } from 'lucide-react'
+import { Compass, Globe, HelpCircle, Plus, PlusCircle, Bell, MessagesSquare, ChevronDown, Settings, LogOut, User, Edit, Users, Mail, Bell as BellIcon, Palette, Languages, UserX, Search, Shield, BookOpen, Download, Heart, Wrench, BookUser /* Agora: Contacts */, CalendarDays /* Agora: Calendar */, ListChecks /* Agora: My tasks */, Gauge /* Agora: admin area */, Home /* Agora: My Home without a picture */ } from 'lucide-react'
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTour, { driveTour, isTourTestMode } from 'tours/useTour'
@@ -71,6 +71,7 @@ import { spaceEntryUrl } from 'routes/AuthLayoutRouter/components/ContextMenu/gr
 import { showCommons } from '@/agora/config' // Agora: The Commons can be switched off
 import useDueFollowUps, { CONTACTS_URL } from '@/agora/useDueFollowUps' // Agora: Contacts
 import { CALENDAR_URL } from '@/agora/calendar/api' // Agora: my calendar
+import { MY_TASKS_URL } from '@/agora/tasks/api' // Agora: my tasks
 import { GUIDE_URL } from '@/agora/guide/guideUrl' // Agora: the guide
 import useMainCircle, { arrangeNavGroups, ACCENT_BG, MAIN_PANEL_BG } from '@/agora/mainCircle/mainCircle' // Agora: 7BP Home look
 import MainCircleMark from '@/agora/mainCircle/MainCircleMark'
@@ -1171,6 +1172,20 @@ export default function GlobalNav (props) {
             dataTour='agora-calendar'
           >
             <CalendarDays />
+          </GlobalNavItem>
+        )}
+
+        {/* Agora: my tasks, across all my circles */}
+        {!isSandboxMode() && (
+          <GlobalNavItem
+            darkTile
+            tooltip={t('My tasks')}
+            url={MY_TASKS_URL}
+            className={isVisible(3)}
+            showTooltip={showLabels}
+            dataTour='agora-my-tasks'
+          >
+            <ListChecks />
           </GlobalNavItem>
         )}
 

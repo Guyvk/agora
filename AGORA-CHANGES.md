@@ -207,6 +207,11 @@ Started from Hylo's `dev` branch at commit `58f7666` (10 October 2026).
 | `.gitignore` | Ignores the demo login file, the uploads folder on a Mac, the build plan and the local notes for Claude |
 | `package.json` | Skips building the old picture tool (sharp 0.32.6) of Hylo's first phone app. It cannot be built with Node 24 on a Mac, and Agora does not use that app. JSON allows no comments, so this line is the only note |
 | `apps/web/src/agora/tasks/` (new), `apps/web/src/routes/PostDetail/PostDetail.js` (tasks) | A Tasks part on a project's page (project posts only): a board (To do, Doing, Done, drag to move) and a list, a side panel for one task with comments, and Undo after delete. It talks to the tasks addresses above, so it needs them to be merged too; for someone who is not a member of the circle it shows a quiet line. In `PostDetail.js` only an import and one line that mounts it |
+| `apps/web/src/agora/tasks/` (circle page, My tasks, home block), `apps/web/public/locales/*.json` (tasks) | A Tasks page for every circle (`/groups/<circle>/tasks`), a My tasks page (`/my-tasks`), a "Your tasks here" block on a circle's home page, and all tasks texts in every language. The project page and the circle page share `useTasks` and `TasksBody` |
+| `apps/web/src/routes/AuthLayoutRouter/AuthLayoutRouter.js` (tasks) | Two routes: `tasks` inside a circle and `my-tasks` next to `calendar` |
+| `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/ContextMenu.jsx` (tasks) | The Tasks line in a circle's menu above the Files line (an import and one block) |
+| `apps/web/src/routes/AuthLayoutRouter/components/GlobalNav/GlobalNav.jsx` (tasks) | A "My tasks" button in the left bar after Calendar |
+| `apps/web/src/routes/GroupWelcomePage/GroupWelcomePage.jsx` (tasks) | The "Your tasks here" block under "This week in 7BP" (an import and one line) |
 
 ## Files that are new
 
@@ -292,6 +297,11 @@ Hylo's `dev` (up to `d1ec91655a`, web/backend 7.1.8) was merged into Agora. Wher
 - `apps/backend/test/setup/index.js`: the timeout is Hylo's again (50000). `test/setup/index.js.bak` removed.
 - `apps/web/src/routes/CreateGroup/CreateGroupForm.jsx`, `apps/web/src/routes/AuthLayoutRouter/components/ContextMenu/SpaceSlugField.jsx`, `fitSpaceUrl.js` and their tests: the address preview shows the host of the running site (`window.location.host`) instead of hylo.com.
 - `apps/web/src/agora/resources/ResourcesPage.jsx`, `FilesRedirect.jsx`, `LibraryParts.jsx`, `ResourcesPage.test.js`: Files and the library are one Resources page, in the left menu's Resources tab (circle and space). At the top level it lists kDrive folders, files and links together with the library's items, sortable by name, who added it, date and size, with one search and a kind filter. Inside a kDrive folder only that folder shows. Files and links added at the top level go to the library, inside a folder to that folder; "Add with details" opens the library form. If kDrive or the library cannot be reached the other still shows. No data moves and the backends are unchanged. The old `files` address goes to Resources (`FilesRedirect.jsx`). `LibraryPage.jsx`, `FilesPage.jsx`, `FilesMenuLink.jsx` and their tests are gone; `apps/web/public/locales/*.json` have the new strings.
+
+## A project opens on its own page (9 November 2026)
+
+- `apps/web/src/components/PostDialog/PostDialog.jsx` (with `PostDialog.test.js`, new), `apps/web/src/agora/projectFullPage.js` (new, with its test): a project post never opens in the pop-up. Once the post is known to be a project, the pop-up swaps itself (replace, so Back returns to the list) for the project's own page in the same circle, inside the app. Other post types keep the pop-up. This one place covers every stream, search, track and chat room list that uses the pop-up.
+- `apps/web/src/routes/PostDetail/PostDetail.js` (with `PostDetail.test.js`): a project on its own page may be up to 1280 px wide (for the Tasks board). Members no longer get a visible "Leave Project" button; "Join Project" stays for non-members. `apps/web/src/components/PostCard/PostHeader/PostHeader.js` (with `PostHeader.test.js`): "Leave Project" is an item in the post's ... menu, shown only on a project and only when `PostDetail` passes `onLeaveProject` (members only). No new texts; "Leave Project" already exists in all six languages.
 
 ## Chat rooms made by members (November 2026)
 
