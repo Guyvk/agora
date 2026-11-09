@@ -794,6 +794,19 @@ Every list has a calm text when it is empty ("No meetings this week").
 
 Tests: backend `DATABASE_URL=postgres://$USER@localhost:5432/agora_test yarn test test/unit/agora/thisWeek.test.js` (empties that database), web `cd apps/web && yarn test --watchAll=false --testPathPattern=agora/thisWeek`. The new words are in all six language files in English, to be translated.
 
+## Proposals in the 7BP Home
+
+The 7BP Home has a menu item **Proposals**: a custom view that shows every post in the main circle with the topic #proposals. The living Agora proposal ("Agora: what we are building and how it is run") is one such post, written by Guy, where members comment. Its text is kept in a plain HTML file outside the repo and updated each time the proposal changes; updating the post keeps its comments.
+
+`scripts/agora-proposal-sync.js` makes the menu item when it is missing (just after Chat, before the circles) and then makes or updates the post:
+
+```
+cd /srv/agora/apps/backend
+sudo -u agora -H env PATH=/opt/agora-node24/bin:/usr/bin:/bin node scripts/agora-proposal-sync.js <html file> [post id]
+```
+
+Without a post id it looks for Guy's post with that title in the main circle. It is safe to run again.
+
 ## What is switched off
 
 - **Tracking.** `DISABLE_SEGMENT=1` stops the server from sending usage events to Segment. The Mixpanel and Intercom keys are empty. The cookie banner still mentions them and needs to be changed.

@@ -14,6 +14,14 @@ Read next, in this order: `AGORA-STATUS.md` (where things stand), `README-AGORA.
 - Open a **draft** pull request on `Guyvk/agora` with base `agora`. The repo is public, so the pull request is public.
 - Never merge, never push to `agora` itself, never force-push, never delete branches you did not make. Guy approves and merges every pull request, and only Guy puts changes live on the server.
 
+## Take work from the build board
+
+- All work lives on the board "Agora build": https://github.com/users/Guyvk/projects/1. Each card is an issue on `Guyvk/agora`.
+- Take work from the board. If your job has no card yet, ask Guy or Nana to add one first.
+- Link your pull request to its issue: put `Closes #N` in the pull request text (N = the issue number). The card then moves to In review.
+- Cards reach Live only when the change is on the live server, not when it is merged. Guy's sessions move them after each server update (`node agora/board-sync.mjs`).
+- The board is public: no names of people outside the team, no personal data, no server details on cards. Help desk requests never go on the board by themselves; Guy or Nana writes a short card without names.
+
 ## Never
 
 - Passwords, keys or tokens in code, commits, pull requests or chat. If a job needs a real key (speech to text, Claude, kDrive, email), build against a pretend service and say what is missing.

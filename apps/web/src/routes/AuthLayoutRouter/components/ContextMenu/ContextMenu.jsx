@@ -1,6 +1,6 @@
 import { isDrawerNavLayout, isPhoneDevice } from 'util/mobile'
 import { get } from 'lodash/fp'
-import { CircleEllipsis, Info, Pencil, Settings, ShieldCheck, UserPlus, Users } from 'lucide-react'
+import { CircleEllipsis, Info, Pencil, Plus, Settings, ShieldCheck, UserPlus, Users } from 'lucide-react'
 import React, { useEffect, useCallback, useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom'
 import { replace } from 'redux-first-history'
@@ -61,6 +61,8 @@ import AddCollectionDialog from './AddCollectionDialog'
 import AddSpaceCollectionDialog from './AddSpaceCollectionDialog'
 import AddGroupViewDialog from './AddGroupViewDialog'
 import AddSpaceDialog from './AddSpaceDialog'
+import AddRoomDialog from '@/agora/rooms/AddRoomDialog'
+import { isRoomMuted } from '@/agora/rooms/roomNotifications'
 import AddViewOrSpaceMenu, { AddViewOrSpaceButton } from './AddViewOrSpaceMenu'
 import TruncatedText from 'components/TruncatedText'
 import { menuViewUrl, externalLinkHref, spaceEntryUrl, isParentGroupPath } from './groupViewMenuUrl'
@@ -73,7 +75,7 @@ import { spaceRowBadgeCount, viewShowsUnreadDot, viewUnreadBadgeCount } from 'ut
 import classes from './ContextMenu.module.scss'
 import PlaybookMenuLink from '@/agora/playbook/PlaybookMenuLink' // Agora: the playbook page of a group
 import AskMenuLink from '@/agora/ask/AskMenuLink' // Agora: the Ask tab of a circle
-import FilesMenuLink from '@/agora/files/FilesMenuLink' // Agora: the Files page of a circle or space
+import TasksMenuLink from '@/agora/tasks/TasksMenuLink' // Agora: the Tasks page of a circle
 
 /** Small orange unread dot shown when a typed view has new posts. */
 function UnreadDot ({ className }) {
@@ -145,6 +147,7 @@ function SpaceMenuItemWithMore ({
   aboutUrl,
   spaceUnread,
   spaceChatBadgeCount,
+  spaceChatMuted = false,
   spaceBannerUrl,
   spaceCol,
   parentSlug,
@@ -237,8 +240,12 @@ function SpaceMenuItemWithMore ({
         )}
         {(spaceChatBadgeCount || spaceUnread || typeof spaceMemberCount === 'number' || !isSpaceMember) && (
           <span className='relative z-10 shrink-0 inline-flex items-center gap-1.5 ml-auto mr-1 pointer-events-none'>
+            {/* Agora: a muted room shows its unread count quietly, no bold badge */}
             {spaceChatBadgeCount > 0 && (
-              <span className='min-w-5 h-5 px-1 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center'>
+              <span className={spaceChatMuted
+                ? 'min-w-5 px-1 text-xs text-foreground/50 flex items-center justify-center'
+                : 'min-w-5 h-5 px-1 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center'}
+              >
                 {spaceChatBadgeCount}
               </span>
             )}
@@ -452,6 +459,7 @@ function GroupViewMenuItem ({
         aboutUrl={aboutUrl}
         spaceUnread={showSpaceDot}
         spaceChatBadgeCount={spaceChatBadgeCount}
+        spaceChatMuted={isRoomMuted(spaceMembership)}
         spaceBannerUrl={spaceBannerUrl}
         spaceCol={spaceCol}
         parentSlug={parentSlug}
@@ -552,11 +560,13 @@ function GroupViewList ({
   parentGroup = null,
   isEditing,
   onOpenSettings,
-  canAdminister = false
+  canAdminister = false,
+  canAddRoom = false
 }) {
   const { t } = useTranslation()
   const [showAddView, setShowAddView] = useState(false)
   const [showAddSpace, setShowAddSpace] = useState(false)
+  const [showAddRoom, setShowAddRoom] = useState(false)
   // Spaces cannot nest spaces; Add Space is parent-menu only
   const canAddSpace = canAdminister && !spaceGroup
 
@@ -609,6 +619,20 @@ function GroupViewList ({
           />
         ))}
       </ul>
+      {/* Agora: every member can make a room in their circle (simple dialog, same page) */}
+      {canAddRoom && !spaceGroup && (
+        <div className='px-1.5 pb-1.5 -mt-4 mb-4'>
+          <button
+            type='button'
+            onClick={() => setShowAddRoom(true)}
+            className='flex items-center gap-2 w-full rounded-md p-2 bg-transparent border-none cursor-pointer text-foreground/70 hover:text-foreground text-sm'
+          >
+            <Plus className='w-4 h-4' />
+            {t('agoraRooms.newRoom')}
+          </button>
+        </div>
+      )}
+      {showAddRoom && <AddRoomDialog group={group} onClose={() => setShowAddRoom(false)} />}
     </div>
   )
 }
@@ -752,8 +776,6 @@ export default function ContextMenu (props) {
     if (spaceMenuViewsFromStore.length > 0) return spaceMenuViewsFromStore
     return activeSpaceGroup?.groupViews?.items || []
   }, [showingSpaceMenu, spaceMenuViewsFromStore, activeSpaceGroup])
-  // Agora: the group whose Files page the menu links to
-  const filesGroup = showingSpaceMenu ? activeSpaceGroup : group
   const spaceViewsLoading = viewsPending && spaceMenuViews.length === 0
   const spaceDisplayName = (activeSpaceView ? displayNameForView(GroupViewPresenter(activeSpaceView), t) : null) ||
     activeSpaceGroup?.name ||
@@ -954,13 +976,9 @@ export default function ContextMenu (props) {
       {/* When the sticky alerts exist they carry the mt-auto (they must be a
           direct flex child for their sticky pinning to span the whole card) */}
       <div className={stickyAlertsSection ? undefined : 'mt-auto'}>
-        {/* Agora: the Files page of the circle, or of the space when its menu is open. Members only. */}
-        {isGroupContext && !isEditing && filesGroup?.slug && (
-          <FilesMenuLink
-            groupSlug={filesGroup.slug}
-            to={showingSpaceMenu ? spaceUrl(groupSlug, localSpaceSlug(groupSlug, filesGroup.slug), '/files') : `/groups/${filesGroup.slug}/files`}
-            isMember={myMemberships.some(m => String(m.group?.id) === String(filesGroup.id))}
-          />
+        {/* Agora: the Tasks page of the circle (not of a space). Members only. */}
+        {isGroupContext && !isEditing && !showingSpaceMenu && group?.slug && (
+          <TasksMenuLink groupSlug={group.slug} isMember={myMemberships.some(m => String(m.group?.id) === String(group.id))} />
         )}
         {/* Agora: the playbook page of a group */}
         {isGroupContext && group?.id && !showingSpaceMenu && !isEditing && <PlaybookMenuLink groupSlug={groupSlug} />}
@@ -1243,6 +1261,7 @@ export default function ContextMenu (props) {
                   isEditing={isEditing}
                   onOpenSettings={setSettingsView}
                   canAdminister={canAdminister}
+                  canAddRoom={isGroupContext && myMemberships.some(m => String(m.group?.id) === String(group?.id))}
                 />
                 )
               : groupViewsLoading

@@ -1,5 +1,6 @@
 import { joinRoom, leaveRoom, pushToSockets, groupRoom } from '../services/Websockets'
 import * as RoomPresence from '../services/RoomPresence'
+import { isPrivateRoom } from '../../lib/agora/rooms' // Agora: private rooms
 
 module.exports = {
   subscribe: function (req, res) {
@@ -54,7 +55,8 @@ module.exports = {
         const payload = { userId: user.id, userName: user.get('name'), isTyping, groupId: String(group.id) }
         const rooms = [groupRoom(group.id)]
         const parentId = group.get('parent_id')
-        if (parentId) rooms.push(groupRoom(parentId))
+        // Agora: a private room's typing sign (with a name) stays out of the parent circle's channel
+        if (parentId && !isPrivateRoom(group)) rooms.push(groupRoom(parentId))
         return Promise.all(rooms.map(room => pushToSockets(room, 'userTyping', payload, socket)))
       })
       .then(() => res.ok({}))

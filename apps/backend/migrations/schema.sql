@@ -8377,4 +8377,186 @@ ALTER TABLE ONLY public.agora_library_items
 ALTER TABLE ONLY public.agora_library_items
     ADD CONSTRAINT agora_library_items_post_id_foreign FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
 
+--
+-- Agora: tasks in a circle, optionally in a project.
+-- Added by migrations/20261109120000_add_agora_tasks.js
+--
 
+CREATE TABLE public.agora_task_assignees (
+    task_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    created_at timestamp with time zone
+);
+
+CREATE TABLE public.agora_task_comments (
+    id bigint NOT NULL,
+    task_id bigint NOT NULL,
+    user_id bigint,
+    text text NOT NULL,
+    created_at timestamp with time zone,
+    removed_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_task_comments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_task_comments_id_seq OWNED BY public.agora_task_comments.id;
+
+CREATE TABLE public.agora_tasks (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    project_post_id bigint,
+    title character varying(500) NOT NULL,
+    description text,
+    status character varying(16) DEFAULT 'todo'::character varying NOT NULL,
+    "position" double precision DEFAULT '0'::double precision NOT NULL,
+    due_date date,
+    created_by_id bigint,
+    completed_at timestamp with time zone,
+    removed_at timestamp with time zone,
+    removed_by_id bigint,
+    source_meeting_session_id bigint,
+    source_minutes_post_id bigint,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_tasks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_tasks_id_seq OWNED BY public.agora_tasks.id;
+
+ALTER TABLE ONLY public.agora_task_comments ALTER COLUMN id SET DEFAULT nextval('public.agora_task_comments_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_tasks ALTER COLUMN id SET DEFAULT nextval('public.agora_tasks_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_task_assignees
+    ADD CONSTRAINT agora_task_assignees_task_id_user_id_unique UNIQUE (task_id, user_id);
+
+ALTER TABLE ONLY public.agora_task_comments
+    ADD CONSTRAINT agora_task_comments_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_task_assignees_user_id_index ON public.agora_task_assignees USING btree (user_id);
+
+CREATE INDEX agora_task_comments_task_id_index ON public.agora_task_comments USING btree (task_id);
+
+CREATE INDEX agora_tasks_group_id_status_index ON public.agora_tasks USING btree (group_id, status);
+
+CREATE INDEX agora_tasks_project_post_id_index ON public.agora_tasks USING btree (project_post_id);
+
+ALTER TABLE ONLY public.agora_task_assignees
+    ADD CONSTRAINT agora_task_assignees_task_id_foreign FOREIGN KEY (task_id) REFERENCES public.agora_tasks(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_assignees
+    ADD CONSTRAINT agora_task_assignees_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_comments
+    ADD CONSTRAINT agora_task_comments_task_id_foreign FOREIGN KEY (task_id) REFERENCES public.agora_tasks(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_comments
+    ADD CONSTRAINT agora_task_comments_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_project_post_id_foreign FOREIGN KEY (project_post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_removed_by_id_foreign FOREIGN KEY (removed_by_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_source_meeting_session_id_foreign FOREIGN KEY (source_meeting_session_id) REFERENCES public.meeting_sessions(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_tasks
+    ADD CONSTRAINT agora_tasks_source_minutes_post_id_foreign FOREIGN KEY (source_minutes_post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
+
+--
+-- Agora: tasks suggested by meeting minutes.
+-- Added by migrations/20261110120000_add_agora_task_suggestions.js
+--
+
+CREATE TABLE public.agora_task_suggestion_people (
+    suggestion_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    status character varying(16) DEFAULT 'suggested'::character varying NOT NULL
+);
+
+CREATE TABLE public.agora_task_suggestions (
+    id bigint NOT NULL,
+    group_id bigint NOT NULL,
+    meeting_session_id bigint,
+    minutes_post_id bigint NOT NULL,
+    action_index integer DEFAULT 0 NOT NULL,
+    who_text character varying(500),
+    what text NOT NULL,
+    due_date date,
+    project_post_id bigint,
+    status character varying(16) DEFAULT 'open'::character varying NOT NULL,
+    task_id bigint,
+    decided_by_id bigint,
+    decided_at timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+CREATE SEQUENCE public.agora_task_suggestions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.agora_task_suggestions_id_seq OWNED BY public.agora_task_suggestions.id;
+
+ALTER TABLE ONLY public.agora_task_suggestions ALTER COLUMN id SET DEFAULT nextval('public.agora_task_suggestions_id_seq'::regclass);
+
+ALTER TABLE ONLY public.agora_task_suggestion_people
+    ADD CONSTRAINT agora_task_suggestion_people_suggestion_id_user_id_unique UNIQUE (suggestion_id, user_id);
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_pkey PRIMARY KEY (id);
+
+CREATE INDEX agora_task_suggestion_people_user_id_index ON public.agora_task_suggestion_people USING btree (user_id);
+
+CREATE INDEX agora_task_suggestions_group_id_status_index ON public.agora_task_suggestions USING btree (group_id, status);
+
+CREATE INDEX agora_task_suggestions_minutes_post_id_index ON public.agora_task_suggestions USING btree (minutes_post_id);
+
+ALTER TABLE ONLY public.agora_task_suggestion_people
+    ADD CONSTRAINT agora_task_suggestion_people_suggestion_id_foreign FOREIGN KEY (suggestion_id) REFERENCES public.agora_task_suggestions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestion_people
+    ADD CONSTRAINT agora_task_suggestion_people_user_id_foreign FOREIGN KEY (user_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_decided_by_id_foreign FOREIGN KEY (decided_by_id) REFERENCES public.users(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_group_id_foreign FOREIGN KEY (group_id) REFERENCES public.groups(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_meeting_session_id_foreign FOREIGN KEY (meeting_session_id) REFERENCES public.meeting_sessions(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_minutes_post_id_foreign FOREIGN KEY (minutes_post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_project_post_id_foreign FOREIGN KEY (project_post_id) REFERENCES public.posts(id) DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ONLY public.agora_task_suggestions
+    ADD CONSTRAINT agora_task_suggestions_task_id_foreign FOREIGN KEY (task_id) REFERENCES public.agora_tasks(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;

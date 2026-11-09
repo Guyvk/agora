@@ -93,8 +93,8 @@ describe('Agora mailer', () => {
   it('puts the code in the verification email and escapes links in the HTML', () => {
     const email = mailer.TEMPLATES.tem_h99yGHv9MXTpMrPSDVTjQFyB({ code: '482913', verify_url: 'https://agora.test/v?a=1&b=<2>' })
     expect(email.subject).to.contain('482913')
-    expect(email.text).to.contain('https://agora.test/v?a=1&b=<2>')
-    expect(email.html).to.contain('href="https://agora.test/v?a=1&amp;b=&lt;2&gt;"')
+    expect(email.text).to.contain('https://agora.test/v?a=1&b=%3C2%3E')
+    expect(email.html).to.contain('href="https://agora.test/v?a=1&amp;b=%3C2%3E"')
   })
 
   it('has its own text for the code that confirms a changed email address', () => {

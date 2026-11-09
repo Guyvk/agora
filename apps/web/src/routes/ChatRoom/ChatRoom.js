@@ -35,6 +35,9 @@ import {
   unreadOffScreenDirection
 } from './chatRoomUtils'
 import { useViewHeader } from 'contexts/ViewHeaderContext'
+import RoomHeaderControls, { useCanManageRoom } from '@/agora/rooms/RoomHeaderControls'
+import RoomDescription from '@/agora/rooms/RoomDescription'
+import { plainDescription } from '@/agora/rooms/roomNotifications'
 import { useEffectiveGroupSlug } from 'contexts/SpaceGroupContext'
 import useRouteParams from 'hooks/useRouteParams'
 import useGroupViews from 'hooks/useGroupViews'
@@ -869,16 +872,20 @@ export default function ChatRoom (props) {
   }, [currentUser])
 
   const { setHeaderDetails } = useViewHeader()
+  // Agora: whether the room description strip is shown (room made of a space, with text or a steward)
+  const canManageRoom = useCanManageRoom(group)
+  const hasRoomDescription = group?.type === 'space' && Boolean(plainDescription(group?.description) || canManageRoom)
   useEffect(() => {
     setHeaderDetails({
       backButton: false,
       title: t('Chat'),
-      headerActions: null,
+      // Agora: notification choice (all / mentions / muted) for this room in the header
+      headerActions: group?.id ? <RoomHeaderControls group={group} /> : null,
       icon: <MessageSquareMore className='w-4 h-4' />,
       info: '',
       search: true
     })
-  }, [setHeaderDetails, t])
+  }, [setHeaderDetails, t, group])
 
   // ── Resizable chat width ──────────────────────────────────────────────────
   const [chatStreamWidth, setChatStreamWidth] = useState(() => {
@@ -949,12 +956,14 @@ export default function ChatRoom (props) {
             beside the presence cluster (it renders at full desktop width), so
             the chips column tucks right-aligned beneath it; sm+ keeps the
             strip on the same row, left of the cluster */}
+        {/* Agora: the room's short description under the room name */}
+        <RoomDescription group={group} className='relative z-30 pt-12 sm:pt-1 sm:pr-[240px]' />
         <PinnedPostChips
           posts={pinnedPosts}
           viewId={chatView?.id}
           groupId={group?.id}
           canModerate={canModerateContent}
-          className='absolute z-30 top-11 left-16 right-2 sm:top-1.5 sm:left-3 sm:right-[240px]'
+          className={cn('absolute z-30 left-16 right-2 sm:left-3 sm:right-[240px]', hasRoomDescription ? 'top-[5.5rem] sm:top-9' : 'top-11 sm:top-1.5')}
         />
         {/* Width rail on the clamp edge. The triangles stay visible as a quiet
             hint; the dashed line and its wash only surface on hover or drag.

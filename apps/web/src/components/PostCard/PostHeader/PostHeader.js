@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect'
 import { filter, isFunction } from 'lodash'
-import { Check, Play, CircleDashed, BookmarkCheck, Bookmark, Pencil, Link2, Flag, Copy, Pin, PinOff, Trash2, Library, LibraryBig } from 'lucide-react'
+import { Check, Play, CircleDashed, BookmarkCheck, Bookmark, Pencil, Link2, Flag, Copy, Pin, PinOff, Trash2, Library, LibraryBig, LogOut } from 'lucide-react'
 import { DateTime } from 'luxon'
 import React, { useCallback, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom'
@@ -86,6 +86,7 @@ function PostHeader (props) {
     actionDescriptor,
     isFlagged,
     close,
+    onLeaveProject, // Agora: set by PostDetail for a member of a project
     className,
     constrained,
     highlightProps,
@@ -347,6 +348,7 @@ function PostHeader (props) {
     ? [copyLinkItem]
     : filter([
       { icon: <Pencil className='w-4 h-4 text-foreground' />, label: t('Edit'), onClick: canEdit ? editPost : undefined },
+      type === 'project' ? { icon: <LogOut className='w-4 h-4 text-foreground' />, label: t('Leave Project'), onClick: onLeaveProject } : null, // Agora: members leave a project from here
       copyLinkItem,
       { icon: pinned ? <PinOff className='w-4 h-4 text-foreground' /> : <Pin className={cn('w-4 h-4', pinDisabled ? 'text-foreground/40' : 'text-foreground')} />, label: pinned ? t('Unpin from View') : t('Pin to View'), onClick: canPin ? handlePinPost : undefined, disabled: pinDisabled, tooltip: pinTooltip },
       { icon: savedAt ? <BookmarkCheck className='w-4 h-4 text-foreground' /> : <Bookmark className='w-4 h-4 text-foreground' />, label: savedAt ? t('Unsave Post') : t('Save Post'), onClick: savedAt ? unsavePost : savePost },

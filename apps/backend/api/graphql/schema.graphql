@@ -817,6 +817,8 @@ type Group {
   hasValidScope: Boolean
   # Current user's membership state; null when the user has never joined
   currentUserMembershipActive: Boolean
+  # Agora: true when the current user made this room (space), so they are its steward
+  agoraIAmRoomSteward: Boolean
   # URL for a video to display at the top of the about text
   aboutVideoUri: String,
   # Either 0 = Closed (invite only), 1 = Restricted (Anyone can request to join), 2 = Open (anyone can join if they can find/see the group)
